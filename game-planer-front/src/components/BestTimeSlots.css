@@ -1,0 +1,124 @@
+.best-time-slots {
+  background-color: #242424;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+  border: 1px solid #333;
+}
+
+.best-time-slots h2 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  color: #fff;
+}
+
+.no-slots {
+  color: #888;
+  text-align: center;
+  padding: 1rem;
+  font-style: italic;
+}
+
+.slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.slot-item {
+  background-color: #1a1a1a;
+  border-radius: 6px;
+  padding: 1rem;
+  border: 1px solid #333;
+  transition: border-color 0.2s, transform 0.2s;
+}
+
+.slot-item:hover {
+  border-color: #646cff;
+  transform: translateX(4px);
+}
+
+.slot-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.slot-rank {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #646cff;
+  min-width: 40px;
+}
+
+.slot-info {
+  flex: 1;
+}
+
+.slot-datetime {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 0.25rem;
+  text-transform: capitalize;
+}
+
+.slot-duration {
+  color: #646cff;
+  font-weight: 700;
+  margin-left: 0.5rem;
+}
+
+.slot-players-count {
+  font-size: 0.9rem;
+  color: #aaa;
+}
+
+.slot-players {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.player-badge {
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+@media (prefers-color-scheme: light) {
+  .best-time-slots {
+    background-color: #f5f5f5;
+    border-color: #ddd;
+  }
+
+  .best-time-slots h2 {
+    color: #213547;
+  }
+
+  .no-slots {
+    color: #666;
+  }
+
+  .slot-item {
+    background-color: #fff;
+    border-color: #ddd;
+  }
+
+  .slot-item:hover {
+    border-color: #646cff;
+  }
+
+  .slot-datetime {
+    color: #213547;
+  }
+
+  .slot-players-count {
+    color: #666;
+  }
+}
+

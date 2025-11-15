@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="005-merge-user-player" author="system">
+        <!-- Добавляем поля name и color в таблицу users -->
+        <addColumn tableName="users">
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="color" type="VARCHAR(7)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <!-- Заполняем name и color из players для существующих пользователей -->
+        <sql>
+            UPDATE users u
+            SET name = COALESCE(
+                (SELECT p.name FROM players p WHERE p.user_id = u.id LIMIT 1),
+                u.username
+            ),
+            color = COALESCE(
+                (SELECT p.color FROM players p WHERE p.user_id = u.id LIMIT 1),
+                '#646cff'
+            )
+            WHERE name IS NULL OR color IS NULL;
+        </sql>
+        
+        <!-- Обновляем time_slots: меняем player_id на user_id -->
+        <addColumn tableName="time_slots">
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <sql>
+            UPDATE time_slots ts
+            SET user_id = (SELECT p.user_id FROM players p WHERE p.id = ts.player_id)
+            WHERE user_id IS NULL;
+        </sql>
+        
+        <!-- Удаляем старый внешний ключ player_id -->
+        <dropForeignKeyConstraint baseTableName="time_slots" constraintName="fk_time_slot_player"/>
+        
+        <!-- Удаляем колонку player_id -->
+        <dropColumn tableName="time_slots" columnName="player_id"/>
+        
+        <!-- Добавляем новый внешний ключ user_id -->
+        <addForeignKeyConstraint
+                baseTableName="time_slots"
+                baseColumnNames="user_id"
+                constraintName="fk_time_slot_user"
+                referencedTableName="users"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        
+        <!-- Делаем user_id обязательным -->
+        <addNotNullConstraint tableName="time_slots" columnName="user_id" columnDataType="BIGINT"/>
+        
+        <!-- Делаем name и color обязательными -->
+        <addNotNullConstraint tableName="users" columnName="name" columnDataType="VARCHAR(255)"/>
+        <addNotNullConstraint tableName="users" columnName="color" columnDataType="VARCHAR(7)"/>
+        
+        <!-- Удаляем таблицу players (данные уже перенесены) -->
+        <dropTable tableName="players"/>
+    </changeSet>
+
+</databaseChangeLog>
+

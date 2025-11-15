@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: game-planner-db
+    environment:
+      POSTGRES_DB: game_planner
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - game-planner-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./game-planner-back
+      dockerfile: Dockerfile
+    container_name: game-planner-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/game_planner
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      JWT_SECRET: your-secret-key-change-this-in-production-min-256-bits
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - game-planner-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./game-planer-front
+      dockerfile: Dockerfile
+    container_name: game-planner-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - game-planner-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  game-planner-network:
+    driver: bridge
