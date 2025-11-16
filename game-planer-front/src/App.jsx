@@ -18,7 +18,7 @@ function App() {
   const [user, setUser] = useState(null)
   const [currentPlayer, setCurrentPlayer] = useState(null)
   const [allPlayers, setAllPlayers] = useState([])
-  const [daysToShow] = useState(7)
+  const [daysToShow] = useState(14)
   // Инициализируем с сегодняшней датой (без времени)
   const [currentStartDate, setCurrentStartDate] = useState(() => {
     const today = new Date()

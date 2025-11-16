@@ -19,10 +19,17 @@ const CalendarTimeline = ({
   const [dragStart, setDragStart] = useState(null)
   const [dragEnd, setDragEnd] = useState(null)
   const gridRef = useRef(null)
+  const containerRef = useRef(null)
 
   useEffect(() => {
     setCurrentStartDate(startDate)
   }, [startDate])
+
+  // Автоматическая прокрутка к 12 часам при монтировании
+  useEffect(() => {
+    // Небольшая задержка для корректной прокрутки после рендера
+    setTimeout(scrollToNoon, 100)
+  }, [])
 
   const dates = useMemo(() => {
     const datesArray = []
@@ -296,6 +303,12 @@ const CalendarTimeline = ({
     }
   }, [isDragging, handleMouseMove, handleMouseUp])
 
+  const scrollToNoon = () => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 12 * 50
+    }
+  }
+
   const navigateDays = (direction) => {
     const newDate = new Date(currentStartDate)
     newDate.setDate(currentStartDate.getDate() + (direction * daysToShow))
@@ -303,6 +316,8 @@ const CalendarTimeline = ({
     if (onDateChange) {
       onDateChange(newDate)
     }
+    // Прокручиваем к 12 часам после небольшой задержки
+    setTimeout(scrollToNoon, 100)
   }
 
   const goToToday = () => {
@@ -312,6 +327,8 @@ const CalendarTimeline = ({
     if (onDateChange) {
       onDateChange(today)
     }
+    // Прокручиваем к 12 часам после небольшой задержки
+    setTimeout(scrollToNoon, 100)
   }
 
   return (
@@ -328,7 +345,7 @@ const CalendarTimeline = ({
         </button>
       </div>
 
-      <div className="calendar-timeline-container">
+      <div className="calendar-timeline-container" ref={containerRef}>
         <div className="timeline-hours-column">
           <div className="hours-header"></div>
           <div className="hours-list">
