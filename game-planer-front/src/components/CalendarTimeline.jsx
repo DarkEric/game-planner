@@ -56,12 +56,82 @@ const CalendarTimeline = ({
 
   const getEventsForDateAndHour = (date, hour) => {
     return events.filter(event => {
-      const eventDate = new Date(event.start)
-      return (
-        eventDate.toDateString() === date.toDateString() &&
-        eventDate.getHours() === hour
-      )
+      const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+      const eventEnd = new Date(eventStart)
+      eventEnd.setHours(eventStart.getHours() + (event.duration || 1))
+      
+      // Создаем Date для проверяемого часа
+      const checkDate = new Date(date)
+      checkDate.setHours(hour, 0, 0, 0)
+      const checkDateEnd = new Date(checkDate)
+      checkDateEnd.setHours(hour + 1, 0, 0, 0)
+      
+      // Проверяем, начинается ли событие в этой ячейке
+      const startsInThisCell = eventStart >= checkDate && eventStart < checkDateEnd
+      
+      // Если событие начинается в этой ячейке, показываем его
+      if (startsInThisCell) {
+        return true
+      }
+      
+      // Если событие переходит через полночь и продолжается на следующий день,
+      // показываем его продолжение в 00:00 следующего дня
+      if (hour === 0) {
+        const eventStartDate = new Date(eventStart)
+        eventStartDate.setHours(0, 0, 0, 0)
+        const currentDate = new Date(date)
+        currentDate.setHours(0, 0, 0, 0)
+        
+        // Событие началось раньше и продолжается в этот день
+        if (eventStartDate < currentDate && eventEnd > checkDate) {
+          return true
+        }
+      }
+      
+      return false
     })
+  }
+  
+  const getEventDisplayHeight = (event, date, hour) => {
+    const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+    const eventEnd = new Date(eventStart)
+    eventEnd.setHours(eventStart.getHours() + (event.duration || 1))
+    
+    const checkDate = new Date(date)
+    checkDate.setHours(hour, 0, 0, 0)
+    const checkDateEnd = new Date(checkDate)
+    checkDateEnd.setHours(hour + 1, 0, 0, 0)
+    
+    // Если событие начинается в этой ячейке
+    if (eventStart >= checkDate && eventStart < checkDateEnd) {
+      // Конец дня (полночь следующего дня)
+      const endOfDay = new Date(date)
+      endOfDay.setHours(24, 0, 0, 0)
+      
+      // Если событие заканчивается до конца дня - показываем полную высоту
+      if (eventEnd <= endOfDay) {
+        const durationHours = (eventEnd - eventStart) / (1000 * 60 * 60)
+        return durationHours
+      } else {
+        // Событие переходит на следующий день - показываем только до полуночи
+        const hoursUntilMidnight = (endOfDay - eventStart) / (1000 * 60 * 60)
+        return hoursUntilMidnight
+      }
+    }
+    
+    // Если это продолжение события с предыдущего дня (hour === 0)
+    if (hour === 0) {
+      const currentDayStart = new Date(date)
+      currentDayStart.setHours(0, 0, 0, 0)
+      
+      if (eventStart < currentDayStart && eventEnd > currentDayStart) {
+        // Показываем оставшуюся часть события
+        const remainingHours = (eventEnd - currentDayStart) / (1000 * 60 * 60)
+        return remainingHours
+      }
+    }
+    
+    return event.duration || 1
   }
 
   const getAvailabilityForDateAndHour = (date, hour) => {
@@ -237,6 +307,7 @@ const CalendarTimeline = ({
 
   const goToToday = () => {
     const today = new Date()
+    today.setHours(0, 0, 0, 0)
     setCurrentStartDate(today)
     if (onDateChange) {
       onDateChange(today)
@@ -306,14 +377,6 @@ const CalendarTimeline = ({
                     <div 
                       key={hourIndex} 
                       className={`time-cell ${isSelected ? 'time-cell-selected' : ''} ${isInDragSelection ? 'time-cell-dragging' : ''}`}
-                      onClick={() => {
-                        // Обычный клик работает только если не было перетаскивания
-                        if (!isDragging && onTimeSlotClick && selectedPlayerId) {
-                          onTimeSlotClick(date, hour)
-                        } else if (!isDragging && onDateClick) {
-                          onDateClick(date, hour)
-                        }
-                      }}
                       style={{
                         backgroundColor: isInDragSelection
                           ? 'rgba(100, 108, 255, 0.4)'
@@ -349,25 +412,28 @@ const CalendarTimeline = ({
                         />
                       ))}
                       
-                      {hourEvents.map((event, eventIndex) => (
-                        <div
-                          key={eventIndex}
-                          className="timeline-event"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            onEventClick && onEventClick(event)
-                          }}
-                          style={{
-                            backgroundColor: event.color || '#646cff',
-                            height: `${(event.duration || 1) * 50}px`
-                          }}
-                        >
-                          <div className="event-title">{event.title}</div>
-                          {event.description && (
-                            <div className="event-description">{event.description}</div>
-                          )}
-                        </div>
-                      ))}
+                      {hourEvents.map((event, eventIndex) => {
+                        const displayHeight = getEventDisplayHeight(event, date, hour)
+                        return (
+                          <div
+                            key={eventIndex}
+                            className="timeline-event"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onEventClick && onEventClick(event)
+                            }}
+                            style={{
+                              backgroundColor: event.color || '#646cff',
+                              height: `${displayHeight * 50}px`
+                            }}
+                          >
+                            <div className="event-title">{event.title}</div>
+                            {event.description && (
+                              <div className="event-description">{event.description}</div>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   )
                 })}

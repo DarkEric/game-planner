@@ -1,16 +1,16 @@
 package ru.ambryo.gameplannerback.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 public class TimeSlotDto {
     private Long id;
-    private LocalDateTime start;
+    private Instant start; // UTC время
     private Integer duration;
     
     public TimeSlotDto() {
     }
     
-    public TimeSlotDto(Long id, LocalDateTime start, Integer duration) {
+    public TimeSlotDto(Long id, Instant start, Integer duration) {
         this.id = id;
         this.start = start;
         this.duration = duration;
@@ -24,11 +24,11 @@ public class TimeSlotDto {
         this.id = id;
     }
     
-    public LocalDateTime getStart() {
+    public Instant getStart() {
         return start;
     }
     
-    public void setStart(LocalDateTime start) {
+    public void setStart(Instant start) {
         this.start = start;
     }
     

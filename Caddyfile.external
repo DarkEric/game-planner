@@ -1,0 +1,59 @@
+# Конфигурация для внешнего Caddy
+# Добавьте этот блок в ваш существующий Caddyfile
+
+# ВАЖНО: Замените порты 8080 и 3000 на значения из вашего .env файла
+# если вы изменили BACKEND_PORT или FRONTEND_PORT
+
+# Для локальной разработки
+game-planner.localhost {
+    # Проксирование API запросов на бэкенд
+    handle /api/* {
+        reverse_proxy localhost:8080  # Используйте значение BACKEND_PORT из .env
+    }
+
+    # Статические файлы фронтенда
+    handle {
+        reverse_proxy localhost:3000  # Используйте значение FRONTEND_PORT из .env
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
+
+# Для production (замените на ваш домен)
+# game-planner.example.com {
+#     # Проксирование API запросов на бэкенд
+#     handle /api/* {
+#         reverse_proxy localhost:8080 {  # Используйте значение BACKEND_PORT из .env
+#             header_up X-Real-IP {remote_host}
+#             header_up X-Forwarded-For {remote_host}
+#             header_up X-Forwarded-Proto {scheme}
+#         }
+#     }
+#
+#     # Статические файлы фронтенда
+#     handle {
+#         reverse_proxy localhost:3000  # Используйте значение FRONTEND_PORT из .env
+#     }
+#
+#     # Логирование
+#     log {
+#         output file /var/log/caddy/game-planner.log
+#         format json
+#     }
+#
+#     # Заголовки безопасности
+#     header {
+#         Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+#         X-Content-Type-Options "nosniff"
+#         X-Frame-Options "DENY"
+#         X-XSS-Protection "1; mode=block"
+#         Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+#         -Server
+#     }
+#
+#     # Сжатие
+#     encode gzip zstd
+# }

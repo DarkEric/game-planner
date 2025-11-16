@@ -1,0 +1,160 @@
+.game-details-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.game-details-modal {
+  background: #1e1e1e;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.game-details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.game-details-header h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+.game-details-content {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.game-info-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.game-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.game-info-label {
+  color: #aaa;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.game-info-value {
+  color: #fff;
+  font-size: 1rem;
+}
+
+.game-participants {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.participants-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.participant-badge {
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.participant-badge.creator::after {
+  content: '👑';
+  font-size: 0.85rem;
+}
+
+.game-details-actions {
+  display: flex;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #333;
+}
+
+.game-action-button {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  font-weight: 500;
+}
+
+.join-button {
+  background: #646cff;
+  color: #fff;
+}
+
+.join-button:hover {
+  background: #535bf2;
+}
+
+.leave-button {
+  background: #ff6b6b;
+  color: #fff;
+}
+
+.leave-button:hover {
+  background: #ff5252;
+}
+
+.delete-button {
+  background: #ff6b6b;
+  color: #fff;
+}
+
+.delete-button:hover {
+  background: #ff5252;
+}
+
+.close-button-game {
+  background: transparent;
+  color: #aaa;
+  border: 1px solid #555;
+}
+
+.close-button-game:hover {
+  background: #333;
+  color: #fff;
+}
+
+.game-action-button:disabled {
+  background: #444;
+  color: #666;
+  cursor: not-allowed;
+}
+
+.no-participants {
+  color: #aaa;
+  font-style: italic;
+  font-size: 0.9rem;
+}

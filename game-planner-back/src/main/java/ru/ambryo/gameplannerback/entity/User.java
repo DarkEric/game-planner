@@ -27,7 +27,10 @@ public class User {
     @Column(nullable = false)
     private String color;
     
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Column(name = "timezone")
+    private String timezone; // IANA timezone (например: "Europe/Moscow", "America/New_York")
+    
+    @OneToMany(mappedBy = "user", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private List<TimeSlot> availableTimes = new ArrayList<>();
     
     public User() {
@@ -103,6 +106,14 @@ public class User {
     
     public void setAvailableTimes(List<TimeSlot> availableTimes) {
         this.availableTimes = availableTimes;
+    }
+    
+    public String getTimezone() {
+        return timezone;
+    }
+    
+    public void setTimezone(String timezone) {
+        this.timezone = timezone;
     }
 }
 

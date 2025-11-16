@@ -31,6 +31,10 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       JWT_SECRET: ${JWT_SECRET}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      CLEANUP_ENABLED: ${CLEANUP_ENABLED:-true}
+      CLEANUP_RETENTION_DAYS: ${CLEANUP_RETENTION_DAYS:-15}
+      CLEANUP_CRON: ${CLEANUP_CRON:-0 0 3 * * ?}
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,22 +47,24 @@ services:
       context: ./game-planer-front
       dockerfile: Dockerfile
     container_name: game-planner-frontend-prod
-    ports:
-      - "${FRONTEND_PORT:-80}:80"
     depends_on:
       - backend
     networks:
       - game-planner-network
     restart: always
 
-  nginx:
-    image: nginx:alpine
-    container_name: game-planner-nginx
+  caddy:
+    image: caddy:2-alpine
+    container_name: game-planner-caddy-prod
     ports:
+      - "80:80"
       - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./Caddyfile.prod:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     depends_on:
       - frontend
       - backend
@@ -68,6 +74,8 @@ services:
 
 volumes:
   postgres_data:
+  caddy_data:
+  caddy_config:
 
 networks:
   game-planner-network:

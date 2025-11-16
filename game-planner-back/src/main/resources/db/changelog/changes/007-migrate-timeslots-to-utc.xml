@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="007-migrate-timeslots-to-utc" author="system">
+        <!-- 1. Добавить новую колонку для UTC времени -->
+        <addColumn tableName="time_slots">
+            <column name="start_utc" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <!-- 2. Скопировать данные из старой колонки в новую -->
+        <!-- Предполагаем что существующие данные уже в UTC -->
+        <sql>
+            UPDATE time_slots SET start_utc = start;
+        </sql>
+        
+        <!-- 3. Сделать новую колонку NOT NULL -->
+        <addNotNullConstraint tableName="time_slots" columnName="start_utc" columnDataType="TIMESTAMP"/>
+        
+        <!-- 4. Удалить старую колонку -->
+        <dropColumn tableName="time_slots" columnName="start"/>
+        
+        <!-- 5. Переименовать новую колонку -->
+        <renameColumn tableName="time_slots" 
+                      oldColumnName="start_utc" 
+                      newColumnName="start"/>
+        
+        <rollback>
+            <!-- Rollback: вернуть обратно -->
+            <renameColumn tableName="time_slots" 
+                          oldColumnName="start" 
+                          newColumnName="start_utc"/>
+            <addColumn tableName="time_slots">
+                <column name="start" type="TIMESTAMP">
+                    <constraints nullable="false"/>
+                </column>
+            </addColumn>
+            <sql>
+                UPDATE time_slots SET start = start_utc;
+            </sql>
+            <dropColumn tableName="time_slots" columnName="start_utc"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

@@ -6,6 +6,7 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [inviteCode, setInviteCode] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -23,12 +24,17 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
       return
     }
 
+    if (!inviteCode.trim()) {
+      setError('Инвайт-код обязателен для регистрации')
+      return
+    }
+
     setLoading(true)
 
     try {
-      await onRegister(username, password, email)
+      await onRegister(username, password, email, inviteCode)
     } catch (err) {
-      setError(err.message || 'Ошибка при регистрации. Возможно, пользователь уже существует.')
+      setError(err.message || 'Ошибка при регистрации. Проверьте инвайт-код.')
     } finally {
       setLoading(false)
     }
@@ -60,6 +66,21 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
               required
               disabled={loading}
             />
+          </div>
+          <div className="form-group">
+            <label htmlFor="reg-invite-code">Инвайт-код</label>
+            <input
+              id="reg-invite-code"
+              type="text"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              placeholder="Введите инвайт-код"
+              required
+              disabled={loading}
+            />
+            <small style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+              Получите инвайт-код от существующего пользователя
+            </small>
           </div>
           <div className="form-group">
             <label htmlFor="reg-password">Пароль</label>

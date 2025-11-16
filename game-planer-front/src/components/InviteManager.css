@@ -1,0 +1,219 @@
+.invite-manager {
+  background: #2a2a2a;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-top: 1rem;
+}
+
+.invite-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.invite-header h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.1rem;
+}
+
+.create-invite-btn {
+  padding: 0.5rem 1rem;
+  background: #646cff;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s;
+}
+
+.create-invite-btn:hover {
+  background: #535bf2;
+}
+
+.invite-error {
+  background: #ff6b6b;
+  color: #fff;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+}
+
+.create-invite-form {
+  background: #333;
+  padding: 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.create-invite-form p {
+  margin: 0 0 0.75rem 0;
+  color: #fff;
+}
+
+.form-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn-primary, .btn-secondary {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: #646cff;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #535bf2;
+}
+
+.btn-secondary {
+  background: transparent;
+  color: #aaa;
+  border: 1px solid #555;
+}
+
+.btn-secondary:hover {
+  background: #444;
+  color: #fff;
+}
+
+.invites-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.no-invites {
+  color: #aaa;
+  text-align: center;
+  padding: 2rem;
+  font-style: italic;
+}
+
+.invite-item {
+  background: #333;
+  padding: 1rem;
+  border-radius: 6px;
+  border: 1px solid #444;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.invite-item.invalid {
+  opacity: 0.6;
+}
+
+.invite-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.invite-code-section {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.invite-code {
+  flex: 1;
+  background: #1e1e1e;
+  padding: 0.75rem;
+  border-radius: 4px;
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  font-size: 1rem;
+  font-weight: 600;
+  word-break: break-all;
+  display: flex;
+  align-items: center;
+}
+
+.copy-btn {
+  background: #646cff;
+  border: none;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.copy-btn:hover {
+  background: #535bf2;
+}
+
+.invite-stats {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  font-size: 0.85rem;
+}
+
+.invite-stats-left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.invite-status {
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.invite-status.valid {
+  background: #4caf50;
+  color: #fff;
+}
+
+.invite-status.invalid {
+  background: #666;
+  color: #aaa;
+}
+
+.invite-uses {
+  color: #aaa;
+  font-weight: 500;
+}
+
+.invite-used-by {
+  color: #aaa;
+}
+
+.delete-invite-btn {
+  background: transparent;
+  border: 1px solid #555;
+  color: #aaa;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: all 0.2s;
+}
+
+.delete-invite-btn:hover {
+  background: #ff6b6b;
+  border-color: #ff6b6b;
+  color: #fff;
+}

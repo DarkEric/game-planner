@@ -1,7 +1,7 @@
 package ru.ambryo.gameplannerback.entity;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Entity
 @Table(name = "time_slots")
@@ -12,7 +12,7 @@ public class TimeSlot {
     private Long id;
     
     @Column(nullable = false)
-    private LocalDateTime start;
+    private Instant start; // Хранится в UTC
     
     @Column(nullable = false)
     private Integer duration; // в часах
@@ -24,7 +24,7 @@ public class TimeSlot {
     public TimeSlot() {
     }
     
-    public TimeSlot(LocalDateTime start, Integer duration, User user) {
+    public TimeSlot(Instant start, Integer duration, User user) {
         this.start = start;
         this.duration = duration;
         this.user = user;
@@ -38,11 +38,11 @@ public class TimeSlot {
         this.id = id;
     }
     
-    public LocalDateTime getStart() {
+    public Instant getStart() {
         return start;
     }
     
-    public void setStart(LocalDateTime start) {
+    public void setStart(Instant start) {
         this.start = start;
     }
     

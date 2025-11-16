@@ -21,8 +21,19 @@ public class AuthService {
     @Autowired
     private JwtUtil jwtUtil;
     
+    @Autowired
+    private InviteService inviteService;
+    
     @Transactional
-    public AuthResponse register(String username, String password, String email) {
+    public AuthResponse register(String username, String password, String email, String inviteCode) {
+        // Проверяем инвайт-код (обязательно)
+        if (inviteCode == null || inviteCode.trim().isEmpty()) {
+            throw new RuntimeException("Invite code is required");
+        }
+        
+        // Валидируем инвайт-код перед созданием пользователя
+        inviteService.getInviteByCode(inviteCode); // Проверяем существование
+        
         if (userRepository.existsByUsername(username)) {
             throw new RuntimeException("Username already exists");
         }
@@ -38,6 +49,9 @@ public class AuthService {
         user.setColor("#646cff"); // Цвет по умолчанию
         
         User savedUser = userRepository.save(user);
+        
+        // Отмечаем инвайт как использованный
+        inviteService.validateAndUseInvite(inviteCode, savedUser);
         
         String token = jwtUtil.generateToken(savedUser.getUsername(), savedUser.getId());
         return new AuthResponse(token, savedUser.getUsername(), savedUser.getId());

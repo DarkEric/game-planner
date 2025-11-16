@@ -7,6 +7,7 @@ public class PlayerDto {
     private Long id;
     private String name;
     private String color;
+    private String timezone;
     private List<TimeSlotDto> availableTimes = new ArrayList<>();
     
     public PlayerDto() {
@@ -16,6 +17,13 @@ public class PlayerDto {
         this.id = id;
         this.name = name;
         this.color = color;
+    }
+    
+    public PlayerDto(Long id, String name, String color, String timezone) {
+        this.id = id;
+        this.name = name;
+        this.color = color;
+        this.timezone = timezone;
     }
     
     public Long getId() {
@@ -48,6 +56,14 @@ public class PlayerDto {
     
     public void setAvailableTimes(List<TimeSlotDto> availableTimes) {
         this.availableTimes = availableTimes;
+    }
+    
+    public String getTimezone() {
+        return timezone;
+    }
+    
+    public void setTimezone(String timezone) {
+        this.timezone = timezone;
     }
 }
 

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="008-create-games-table" author="system">
+        <createTable tableName="games">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="start_time" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="end_time" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="creator_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_games_creator" references="users(id)"/>
+            </column>
+            <column name="created_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="game_participants">
+            <column name="game_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_game_participants_game" references="games(id)"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false" foreignKeyName="fk_game_participants_user" references="users(id)"/>
+            </column>
+        </createTable>
+
+        <addPrimaryKey tableName="game_participants" columnNames="game_id, user_id"/>
+        
+        <createIndex tableName="games" indexName="idx_games_start_time">
+            <column name="start_time"/>
+        </createIndex>
+        
+        <createIndex tableName="games" indexName="idx_games_creator">
+            <column name="creator_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

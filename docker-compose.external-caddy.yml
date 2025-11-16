@@ -1,0 +1,70 @@
+version: '3.8'
+
+# Конфигурация для использования с внешним Caddy
+# Использование: docker-compose -f docker-compose.external-caddy.yml up -d
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: game-planner-db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-game_planner}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    # Порт НЕ публикуется - доступ только внутри Docker сети
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - game-planner-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./game-planner-back
+      dockerfile: Dockerfile
+    container_name: game-planner-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-game_planner}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production-min-256-bits}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost}
+      CLEANUP_ENABLED: ${CLEANUP_ENABLED:-true}
+      CLEANUP_RETENTION_DAYS: ${CLEANUP_RETENTION_DAYS:-15}
+      CLEANUP_CRON: ${CLEANUP_CRON:-0 0 3 * * ?}
+    # Открываем порт для внешнего Caddy (настраивается через .env)
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - game-planner-network
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./game-planer-front
+      dockerfile: Dockerfile
+    container_name: game-planner-frontend
+    # Открываем порт для внешнего Caddy (настраивается через .env)
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - backend
+    networks:
+      - game-planner-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+
+networks:
+  game-planner-network:
+    driver: bridge

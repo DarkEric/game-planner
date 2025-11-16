@@ -4,7 +4,12 @@ import PlayerManager from './components/PlayerManager'
 import BestTimeSlots from './components/BestTimeSlots'
 import Login from './components/Login'
 import Register from './components/Register'
-import { playerApi, authApi } from './services/api'
+import TimezoneSelector from './components/TimezoneSelector'
+import GameScheduler from './components/GameScheduler'
+import GameDetails from './components/GameDetails'
+import InviteManager from './components/InviteManager'
+import { playerApi, authApi, setUserTimezone } from './services/api'
+import { gameApi } from './services/gameApi'
 import './App.css'
 
 function App() {
@@ -14,9 +19,17 @@ function App() {
   const [currentPlayer, setCurrentPlayer] = useState(null)
   const [allPlayers, setAllPlayers] = useState([])
   const [daysToShow] = useState(7)
-  const [currentStartDate, setCurrentStartDate] = useState(new Date())
+  // Инициализируем с сегодняшней датой (без времени)
+  const [currentStartDate, setCurrentStartDate] = useState(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return today
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [showGameScheduler, setShowGameScheduler] = useState(false)
+  const [games, setGames] = useState([])
+  const [selectedGame, setSelectedGame] = useState(null)
 
   // Проверка аутентификации при монтировании
   useEffect(() => {
@@ -27,6 +40,23 @@ function App() {
       setLoading(false)
     }
   }, [])
+
+  // Перезагружаем игры при изменении даты
+  useEffect(() => {
+    if (isAuthenticated && !loading) {
+      const loadGames = async () => {
+        try {
+          const endDate = new Date(currentStartDate)
+          endDate.setDate(endDate.getDate() + daysToShow)
+          const gamesData = await gameApi.getGames(currentStartDate, endDate)
+          setGames(gamesData)
+        } catch (err) {
+          console.error('Failed to load games:', err)
+        }
+      }
+      loadGames()
+    }
+  }, [currentStartDate, daysToShow, isAuthenticated, loading])
 
   const handleLogin = async (username, password) => {
     try {
@@ -39,9 +69,9 @@ function App() {
     }
   }
 
-  const handleRegister = async (username, password, email) => {
+  const handleRegister = async (username, password, email, inviteCode) => {
     try {
-      const response = await authApi.register(username, password, email)
+      const response = await authApi.register(username, password, email, inviteCode)
       setUser(response)
       setIsAuthenticated(true)
       await loadData()
@@ -62,13 +92,22 @@ function App() {
     try {
       setLoading(true)
       setError(null)
-      // Загружаем текущего пользователя и всех игроков
-      const [current, all] = await Promise.all([
-        playerApi.getCurrentPlayer(),
-        playerApi.getAllPlayers()
+      
+      // Вычисляем диапазон дат для фильтрации (текущая неделя + 1 день назад и вперед для запаса)
+      const startDate = new Date(currentStartDate)
+      startDate.setDate(startDate.getDate() - 1)
+      const endDate = new Date(currentStartDate)
+      endDate.setDate(endDate.getDate() + daysToShow + 1)
+      
+      // Загружаем текущего пользователя, всех игроков и игры с фильтрацией
+      const [current, all, gamesData] = await Promise.all([
+        playerApi.getCurrentPlayer(startDate, endDate),
+        playerApi.getAllPlayers(startDate, endDate),
+        gameApi.getGames(startDate, endDate)
       ])
       setCurrentPlayer(current)
       setAllPlayers(all)
+      setGames(gamesData)
     } catch (err) {
       console.error('Failed to load data:', err)
       setError('Не удалось загрузить данные. Проверьте подключение к серверу.')
@@ -95,10 +134,10 @@ function App() {
     return hoursArray
   }, [])
 
-  const handleUpdateProfile = async (name, color) => {
+  const handleUpdateProfile = async (name, color, timezone) => {
     try {
       setError(null)
-      const updatedPlayer = await playerApi.updateCurrentPlayer(name, color)
+      const updatedPlayer = await playerApi.updateCurrentPlayer(name, color, timezone)
       setCurrentPlayer(updatedPlayer)
       // Обновляем в списке всех игроков
       setAllPlayers(allPlayers.map(p => 
@@ -110,11 +149,47 @@ function App() {
     }
   }
 
+  const handleTimezoneChange = async (timezone) => {
+    if (!currentPlayer) return
+    
+    try {
+      setError(null)
+      // Обновляем timezone в API сразу
+      setUserTimezone(timezone)
+      await handleUpdateProfile(currentPlayer.name, currentPlayer.color, timezone)
+    } catch (err) {
+      console.error('Failed to update timezone:', err)
+      setError('Не удалось обновить часовой пояс.')
+    }
+  }
+
   const handleTimeSlotClick = async (date, hour) => {
     try {
       setError(null)
-      const slotDate = new Date(date)
-      slotDate.setHours(hour, 0, 0, 0)
+      
+      // Создаем "наивную" дату с компонентами из date и указанным часом
+      // Эти компоненты будут интерпретированы как время в timezone пользователя
+      const slotDate = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        hour,
+        0,
+        0,
+        0
+      )
+      
+      console.log('handleTimeSlotClick:', {
+        date: date.toString(),
+        hour,
+        slotDate: slotDate.toString(),
+        components: {
+          year: slotDate.getFullYear(),
+          month: slotDate.getMonth() + 1,
+          day: slotDate.getDate(),
+          hour: slotDate.getHours()
+        }
+      })
 
       // Отправляем запрос на сервер для текущего пользователя
       const updatedPlayer = await playerApi.toggleTimeSlot(slotDate, 1)
@@ -130,14 +205,15 @@ function App() {
     }
   }
 
-  const handleTimeSlotsSelect = async (slots) => {
+  const handleTimeSlotsSelect = async (slots, duration = 1) => {
     if (!slots || slots.length === 0) return
 
     try {
       setError(null)
       
       // Отправляем запрос на сервер для массового переключения
-      const updatedPlayer = await playerApi.toggleTimeSlots(slots)
+      // duration можно настроить (по умолчанию 1 час)
+      const updatedPlayer = await playerApi.toggleTimeSlots(slots, duration)
       
       // Обновляем локальное состояние
       setCurrentPlayer(updatedPlayer)
@@ -147,6 +223,58 @@ function App() {
     } catch (err) {
       console.error('Failed to toggle time slots:', err)
       setError('Не удалось сохранить изменения времени. Проверьте подключение к серверу.')
+    }
+  }
+
+  const handleScheduleGame = async (startTime, endTime, title, description, participantIds) => {
+    try {
+      setError(null)
+      const game = await gameApi.createGame(startTime, endTime, title, description, participantIds)
+      setGames([...games, game])
+      setShowGameScheduler(false)
+    } catch (err) {
+      console.error('Failed to schedule game:', err)
+      setError('Не удалось запланировать игру. Проверьте подключение к серверу.')
+    }
+  }
+
+  const handleDeleteGame = async (gameId) => {
+    try {
+      setError(null)
+      await gameApi.deleteGame(gameId)
+      setGames(games.filter(g => g.id !== gameId))
+      setSelectedGame(null)
+    } catch (err) {
+      console.error('Failed to delete game:', err)
+      setError('Не удалось удалить игру.')
+    }
+  }
+
+  const handleJoinGame = async (gameId) => {
+    try {
+      setError(null)
+      const updatedGame = await gameApi.joinGame(gameId)
+      setGames(games.map(g => g.id === gameId ? updatedGame : g))
+      setSelectedGame(updatedGame)
+      // Перезагружаем данные игроков для обновления доступности
+      await loadData()
+    } catch (err) {
+      console.error('Failed to join game:', err)
+      setError('Не удалось записаться на игру.')
+    }
+  }
+
+  const handleLeaveGame = async (gameId) => {
+    try {
+      setError(null)
+      const updatedGame = await gameApi.leaveGame(gameId)
+      setGames(games.map(g => g.id === gameId ? updatedGame : g))
+      setSelectedGame(updatedGame)
+      // Перезагружаем данные игроков для обновления доступности
+      await loadData()
+    } catch (err) {
+      console.error('Failed to leave game:', err)
+      setError('Не удалось покинуть игру.')
     }
   }
 
@@ -179,7 +307,7 @@ function App() {
       <header className="app-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <div>
-            <h1>🎲 Планировщик D&D Игр</h1>
+            <h1>🎲 Планируем игры вместе</h1>
             <p className="app-subtitle">
               Отмечайте время, когда вы можете играть, и найдите общее время с друзьями
             </p>
@@ -249,7 +377,7 @@ function App() {
                       const newName = e.target.value
                       setCurrentPlayer({ ...currentPlayer, name: newName })
                     }}
-                    onBlur={() => handleUpdateProfile(currentPlayer.name, currentPlayer.color)}
+                    onBlur={() => handleUpdateProfile(currentPlayer.name, currentPlayer.color, currentPlayer.timezone)}
                     className="profile-input"
                   />
                 </div>
@@ -262,14 +390,38 @@ function App() {
                       const newColor = e.target.value
                       setCurrentPlayer({ ...currentPlayer, color: newColor })
                     }}
-                    onBlur={() => handleUpdateProfile(currentPlayer.name, currentPlayer.color)}
+                    onBlur={() => handleUpdateProfile(currentPlayer.name, currentPlayer.color, currentPlayer.timezone)}
                     className="profile-color-input"
                   />
                 </div>
               </div>
+              <div className="profile-timezone">
+                <TimezoneSelector
+                  currentTimezone={currentPlayer.timezone}
+                  onTimezoneChange={handleTimezoneChange}
+                />
+              </div>
               <p className="selector-hint">
                 Кликайте по ячейкам времени или протяните мышь, чтобы отметить свою доступность
               </p>
+              <button
+                onClick={() => setShowGameScheduler(true)}
+                style={{
+                  marginTop: '1rem',
+                  padding: '0.75rem 1.5rem',
+                  background: '#646cff',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  fontWeight: '500',
+                  width: '100%'
+                }}
+              >
+                🎲 Запланировать игру
+              </button>
+              <InviteManager />
             </div>
           )}
         </div>
@@ -281,8 +433,23 @@ function App() {
               daysToShow={daysToShow}
               players={allPlayers}
               selectedPlayerId={currentPlayer?.id}
+              events={games.map(game => ({
+                id: game.id,
+                start: game.startTime,
+                end: game.endTime,
+                title: game.title || `🎲 Игра`,
+                description: game.description || `${game.participants.length} игроков`,
+                color: '#646cff',
+                duration: Math.ceil((game.endTime - game.startTime) / (1000 * 60 * 60)),
+                game: game
+              }))}
               onTimeSlotClick={(date, hour) => handleTimeSlotClick(date, hour)}
-              onTimeSlotsSelect={(slots) => handleTimeSlotsSelect(slots)}
+              onTimeSlotsSelect={(slots) => handleTimeSlotsSelect(slots, 1)}
+              onEventClick={(event) => {
+                if (event.game) {
+                  setSelectedGame(event.game)
+                }
+              }}
               showAvailabilityOverlap={true}
               onDateChange={setCurrentStartDate}
             />
@@ -298,6 +465,25 @@ function App() {
           )}
         </div>
       </div>
+
+      {showGameScheduler && (
+        <GameScheduler
+          players={allPlayers}
+          onSchedule={handleScheduleGame}
+          onClose={() => setShowGameScheduler(false)}
+        />
+      )}
+
+      {selectedGame && (
+        <GameDetails
+          game={selectedGame}
+          currentUserId={currentPlayer?.id}
+          onJoin={handleJoinGame}
+          onLeave={handleLeaveGame}
+          onDelete={handleDeleteGame}
+          onClose={() => setSelectedGame(null)}
+        />
+      )}
     </div>
   )
 }

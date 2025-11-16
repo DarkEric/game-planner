@@ -1,0 +1,44 @@
+{
+    # Глобальные настройки
+    email admin@example.com
+}
+
+# Production с автоматическим HTTPS
+{$DOMAIN:localhost} {
+    # Проксирование API запросов на бэкенд
+    handle /api/* {
+        reverse_proxy backend:8080 {
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Статические файлы фронтенда
+    handle {
+        reverse_proxy frontend:80
+    }
+
+    # Логирование
+    log {
+        output stdout
+        format json
+    }
+
+    # Заголовки безопасности
+    header {
+        # Включить HSTS
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # Защита от XSS
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        # CSP
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+        # Удалить заголовок Server
+        -Server
+    }
+
+    # Сжатие
+    encode gzip zstd
+}

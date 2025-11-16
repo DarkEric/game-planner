@@ -3,14 +3,16 @@
 help:
 	@echo "Game Planner - Makefile команды:"
 	@echo ""
-	@echo "  make build     - Собрать Docker образы"
-	@echo "  make up        - Запустить приложение"
-	@echo "  make down      - Остановить приложение"
-	@echo "  make restart   - Перезапустить приложение"
-	@echo "  make logs      - Показать логи"
-	@echo "  make clean     - Удалить контейнеры и volumes"
-	@echo "  make dev       - Запустить в режиме разработки"
-	@echo "  make prod      - Запустить в production режиме"
+	@echo "  make build              - Собрать Docker образы"
+	@echo "  make up                 - Запустить приложение (со встроенным Caddy)"
+	@echo "  make down               - Остановить приложение"
+	@echo "  make restart            - Перезапустить приложение"
+	@echo "  make logs               - Показать логи"
+	@echo "  make clean              - Удалить контейнеры и volumes"
+	@echo "  make dev                - Запустить в режиме разработки"
+	@echo "  make prod               - Запустить в production режиме"
+	@echo "  make external-caddy     - Запустить с внешним Caddy"
+	@echo "  make external-caddy-down - Остановить (внешний Caddy)"
 
 build:
 	docker-compose build
@@ -36,3 +38,9 @@ dev:
 
 prod:
 	docker-compose -f docker-compose.prod.yml up -d --build
+
+external-caddy:
+	docker-compose -f docker-compose.external-caddy.yml up -d --build
+
+external-caddy-down:
+	docker-compose -f docker-compose.external-caddy.yml down

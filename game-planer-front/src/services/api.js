@@ -1,4 +1,20 @@
+import { getUserTimezone } from '../utils/dateUtils'
+import { parseFromServer, formatForServer } from '../utils/timezoneUtils'
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
+
+// Получаем timezone пользователя (будет обновляться при изменении профиля)
+let currentUserTimezone = null
+
+export const setUserTimezone = (timezone) => {
+  currentUserTimezone = timezone
+}
+
+export const getUserTimezoneForAPI = () => {
+  // ВАЖНО: Всегда используем timezone браузера для корректной работы Date объектов
+  // currentUserTimezone используется только для отображения в UI
+  return Intl.DateTimeFormat().resolvedOptions().timeZone
+}
 
 // Получить токен из localStorage
 const getToken = () => {
@@ -32,39 +48,15 @@ const handleAuthError = (response) => {
   }
 }
 
-// Вспомогательная функция для парсинга даты как локального времени
-const parseLocalDateTime = (dateStr) => {
-  if (dateStr && typeof dateStr === 'string' && dateStr.includes('T')) {
-    const [datePart, timePart] = dateStr.split('T')
-    const [year, month, day] = datePart.split('-').map(Number)
-    const [hours, minutes, seconds = 0] = (timePart || '00:00:00').split(':').map(Number)
-    // Создаем Date в локальном времени (без конвертации часового пояса)
-    return new Date(year, month - 1, day, hours, minutes, seconds)
-  }
-  return new Date(dateStr)
-}
-
-// Вспомогательная функция для форматирования даты в локальное время без часового пояса
-const formatLocalDateTime = (date) => {
-  const d = date instanceof Date ? date : new Date(date)
-  const year = d.getFullYear()
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  const hours = String(d.getHours()).padStart(2, '0')
-  const minutes = String(d.getMinutes()).padStart(2, '0')
-  const seconds = String(d.getSeconds()).padStart(2, '0')
-  return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`
-}
-
 export const authApi = {
   // Регистрация
-  async register(username, password, email) {
+  async register(username, password, email, inviteCode) {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username, password, email })
+      body: JSON.stringify({ username, password, email, inviteCode })
     })
     if (!response.ok) {
       const errorText = await response.text()
@@ -105,8 +97,23 @@ export const authApi = {
 
 export const playerApi = {
   // Получить всех пользователей (игроков)
-  async getAllPlayers() {
-    const response = await fetch(`${API_BASE_URL}/players`, {
+  async getAllPlayers(startDate = null, endDate = null) {
+    const userTimezone = getUserTimezoneForAPI()
+    let url = `${API_BASE_URL}/players`
+    
+    // Добавляем параметры фильтрации если указаны
+    if (startDate || endDate) {
+      const params = new URLSearchParams()
+      if (startDate) {
+        params.append('startDate', formatForServer(startDate, userTimezone))
+      }
+      if (endDate) {
+        params.append('endDate', formatForServer(endDate, userTimezone))
+      }
+      url += `?${params}`
+    }
+    
+    const response = await fetch(url, {
       headers: getAuthHeaders()
     })
     if (!response.ok) {
@@ -114,21 +121,41 @@ export const playerApi = {
       throw new Error('Failed to fetch players')
     }
     const data = await response.json()
+    
     // Преобразуем данные из формата бэкенда в формат фронтенда
+    const currentUserTimezone = getUserTimezoneForAPI()
+    
     return data.map(player => ({
       id: player.id,
       name: player.name,
       color: player.color,
+      timezone: player.timezone,
       availableTimes: (player.availableTimes || []).map(ts => ({
-        start: parseLocalDateTime(ts.start),
+        // Каждый игрок видит время других игроков в своем timezone
+        start: parseFromServer(ts.start, currentUserTimezone),
         duration: ts.duration || 1
       }))
     }))
   },
 
   // Получить текущего пользователя
-  async getCurrentPlayer() {
-    const response = await fetch(`${API_BASE_URL}/players/me`, {
+  async getCurrentPlayer(startDate = null, endDate = null) {
+    const userTimezone = getUserTimezoneForAPI()
+    let url = `${API_BASE_URL}/players/me`
+    
+    // Добавляем параметры фильтрации если указаны
+    if (startDate || endDate) {
+      const params = new URLSearchParams()
+      if (startDate) {
+        params.append('startDate', formatForServer(startDate, userTimezone))
+      }
+      if (endDate) {
+        params.append('endDate', formatForServer(endDate, userTimezone))
+      }
+      url += `?${params}`
+    }
+    
+    const response = await fetch(url, {
       headers: getAuthHeaders()
     })
     if (!response.ok) {
@@ -136,35 +163,49 @@ export const playerApi = {
       throw new Error('Failed to fetch current player')
     }
     const data = await response.json()
+    
+    // Устанавливаем timezone пользователя для API
+    if (data.timezone) {
+      setUserTimezone(data.timezone)
+    }
+    
+    const playerTimezone = data.timezone || getUserTimezone().timezone
     return {
       id: data.id,
       name: data.name,
       color: data.color,
+      timezone: data.timezone,
       availableTimes: (data.availableTimes || []).map(ts => ({
-        start: parseLocalDateTime(ts.start),
+        start: parseFromServer(ts.start, playerTimezone), // Парсим из UTC
         duration: ts.duration || 1
       }))
     }
   },
 
   // Обновить профиль текущего пользователя
-  async updateCurrentPlayer(name, color) {
+  async updateCurrentPlayer(name, color, timezone) {
+    // Если timezone не передан, получаем текущий
+    const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+    
     const response = await fetch(`${API_BASE_URL}/players/me`, {
       method: 'PUT',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ name, color })
+      body: JSON.stringify({ name, color, timezone: tz })
     })
     if (!response.ok) {
       handleAuthError(response)
       throw new Error('Failed to update player')
     }
     const data = await response.json()
+    
+    const userTimezone = data.timezone || getUserTimezone().timezone
     return {
       id: data.id,
       name: data.name,
       color: data.color,
+      timezone: data.timezone,
       availableTimes: (data.availableTimes || []).map(ts => ({
-        start: parseLocalDateTime(ts.start),
+        start: parseFromServer(ts.start, userTimezone), // Парсим из UTC
         duration: ts.duration || 1
       }))
     }
@@ -172,13 +213,13 @@ export const playerApi = {
 
   // Переключить временной слот (добавить/удалить) для текущего пользователя
   async toggleTimeSlot(start, duration = 1) {
-    const startLocal = formatLocalDateTime(start)
+    const userTimezone = getUserTimezoneForAPI()
     
     const response = await fetch(`${API_BASE_URL}/players/me/time-slots/toggle`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({
-        start: startLocal,
+        start: formatForServer(start, userTimezone), // Конвертируем в UTC
         duration: duration
       })
     })
@@ -191,22 +232,35 @@ export const playerApi = {
       id: data.id,
       name: data.name,
       color: data.color,
+      timezone: data.timezone,
       availableTimes: (data.availableTimes || []).map(ts => ({
-        start: parseLocalDateTime(ts.start),
+        start: parseFromServer(ts.start, userTimezone), // Парсим из UTC
         duration: ts.duration || 1
       }))
     }
   },
 
   // Переключить несколько временных слотов (для drag selection)
-  async toggleTimeSlots(slots) {
+  async toggleTimeSlots(slots, duration = 1) {
+    const userTimezone = getUserTimezoneForAPI()
+    
     const slotsData = slots.map(slot => {
-      const slotDate = slot.date instanceof Date ? slot.date : new Date(slot.date)
-      slotDate.setHours(slot.hour, 0, 0, 0)
+      const date = slot.date instanceof Date ? slot.date : new Date(slot.date)
+      
+      // Создаем "наивную" дату с компонентами
+      const slotDate = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        slot.hour,
+        0,
+        0,
+        0
+      )
       
       return {
-        start: formatLocalDateTime(slotDate),
-        duration: 1
+        start: formatForServer(slotDate, userTimezone), // Конвертируем в UTC
+        duration: slot.duration || duration
       }
     })
     
@@ -222,12 +276,14 @@ export const playerApi = {
       throw new Error('Failed to toggle time slots')
     }
     const data = await response.json()
+    const userTz = getUserTimezoneForAPI()
     return {
       id: data.id,
       name: data.name,
       color: data.color,
+      timezone: data.timezone,
       availableTimes: (data.availableTimes || []).map(ts => ({
-        start: parseLocalDateTime(ts.start),
+        start: parseFromServer(ts.start, userTz), // Парсим из UTC
         duration: ts.duration || 1
       }))
     }

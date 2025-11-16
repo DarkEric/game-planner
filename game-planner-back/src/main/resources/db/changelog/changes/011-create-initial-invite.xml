@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="011-create-initial-invite" author="system">
+        <comment>
+            Создаем начальный инвайт-код для первого пользователя.
+            Этот код можно использовать для регистрации первого пользователя.
+            После регистрации первый пользователь сможет создавать новые инвайты.
+            
+            Код: FIRST-USER-INVITE-2025
+        </comment>
+        
+        <!-- Создаем временного системного пользователя для создания первого инвайта -->
+        <insert tableName="users">
+            <column name="id" valueNumeric="0"/>
+            <column name="username" value="system"/>
+            <column name="password" value="$2a$10$disabled"/>
+            <column name="email" value="system@localhost"/>
+            <column name="name" value="System"/>
+            <column name="color" value="#000000"/>
+        </insert>
+        
+        <!-- Создаем первый инвайт -->
+        <insert tableName="invites">
+            <column name="code" value="FIRST-USER-INVITE-2025"/>
+            <column name="created_by_user_id" valueNumeric="0"/>
+            <column name="created_at" valueDate="CURRENT_TIMESTAMP"/>
+            <column name="used" valueBoolean="false"/>
+            <column name="uses_count" valueNumeric="0"/>
+            <column name="max_uses" valueNumeric="1"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

@@ -4,14 +4,16 @@ public class RegisterRequest {
     private String username;
     private String password;
     private String email;
+    private String inviteCode;
     
     public RegisterRequest() {
     }
     
-    public RegisterRequest(String username, String password, String email) {
+    public RegisterRequest(String username, String password, String email, String inviteCode) {
         this.username = username;
         this.password = password;
         this.email = email;
+        this.inviteCode = inviteCode;
     }
     
     public String getUsername() {
@@ -37,5 +39,12 @@ public class RegisterRequest {
     public void setEmail(String email) {
         this.email = email;
     }
+    
+    public String getInviteCode() {
+        return inviteCode;
+    }
+    
+    public void setInviteCode(String inviteCode) {
+        this.inviteCode = inviteCode;
+    }
 }
-

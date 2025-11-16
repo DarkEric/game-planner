@@ -1,0 +1,24 @@
+{
+    # Глобальные настройки
+    admin off
+    auto_https off
+}
+
+# Локальная разработка
+:80 {
+    # Проксирование API запросов на бэкенд
+    handle /api/* {
+        reverse_proxy backend:8080
+    }
+
+    # Статические файлы фронтенда
+    handle {
+        reverse_proxy frontend:80
+    }
+
+    # Логирование
+    log {
+        output stdout
+        format console
+    }
+}

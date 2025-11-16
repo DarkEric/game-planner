@@ -1,6 +1,6 @@
 package ru.ambryo.gameplannerback.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 public class ToggleTimeSlotsRequest {
@@ -22,22 +22,22 @@ public class ToggleTimeSlotsRequest {
     }
     
     public static class TimeSlotRequest {
-        private LocalDateTime start;
+        private Instant start; // UTC время
         private Integer duration;
         
         public TimeSlotRequest() {
         }
         
-        public TimeSlotRequest(LocalDateTime start, Integer duration) {
+        public TimeSlotRequest(Instant start, Integer duration) {
             this.start = start;
             this.duration = duration;
         }
         
-        public LocalDateTime getStart() {
+        public Instant getStart() {
             return start;
         }
         
-        public void setStart(LocalDateTime start) {
+        public void setStart(Instant start) {
             this.start = start;
         }
         

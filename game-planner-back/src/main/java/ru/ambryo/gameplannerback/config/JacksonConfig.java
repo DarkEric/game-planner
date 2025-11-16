@@ -1,36 +1,35 @@
 package ru.ambryo.gameplannerback.config;
 
-import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer;
-import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer;
+import com.fasterxml.jackson.datatype.jsr310.deser.InstantDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.ser.InstantSerializer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import java.time.Instant;
 
 @Configuration
 public class JacksonConfig {
     
-    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
+    @Bean
+    public Jackson2ObjectMapperBuilder jackson2ObjectMapperBuilder() {
+        JavaTimeModule javaTimeModule = new JavaTimeModule();
+        
+        // Настройка сериализации и десериализации Instant
+        // Instant автоматически сериализуется в ISO-8601 UTC формат
+        javaTimeModule.addSerializer(Instant.class, InstantSerializer.INSTANCE);
+        javaTimeModule.addDeserializer(Instant.class, InstantDeserializer.INSTANT);
+        
+        return new Jackson2ObjectMapperBuilder()
+            .modules(javaTimeModule)
+            .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    }
     
     @Bean
-    @Primary
-    public ObjectMapper objectMapper() {
-        JavaTimeModule javaTimeModule = new JavaTimeModule();
-        javaTimeModule.addSerializer(LocalDateTime.class, new LocalDateTimeSerializer(DATE_TIME_FORMATTER));
-        javaTimeModule.addDeserializer(LocalDateTime.class, new LocalDateTimeDeserializer(DATE_TIME_FORMATTER));
-        
-        return Jackson2ObjectMapperBuilder.json()
-                .modules(javaTimeModule)
-                .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-                .featuresToDisable(DeserializationFeature.ADJUST_DATES_TO_CONTEXT_TIME_ZONE)
-                .build();
+    public ObjectMapper objectMapper(Jackson2ObjectMapperBuilder builder) {
+        return builder.build();
     }
 }
-

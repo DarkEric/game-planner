@@ -10,7 +10,7 @@ import ru.ambryo.gameplannerback.dto.TimeSlotDto;
 import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.service.UserService;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @RestController
 @RequestMapping("/api/players/{playerId}/time-slots")
@@ -53,8 +53,8 @@ public class TimeSlotController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
             }
             
-            LocalDateTime startDateTime = LocalDateTime.parse(start);
-            userService.toggleTimeSlot(user, startDateTime, 1);
+            Instant startInstant = Instant.parse(start);
+            userService.toggleTimeSlot(user, startInstant, 1);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             return ResponseEntity.notFound().build();

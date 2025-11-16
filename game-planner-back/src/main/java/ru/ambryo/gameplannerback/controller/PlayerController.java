@@ -26,18 +26,35 @@ public class PlayerController {
     private UserService userService;
     
     @GetMapping
-    public ResponseEntity<List<PlayerDto>> getAllPlayers() {
-        List<PlayerDto> players = userService.getAllUsers();
-        return ResponseEntity.ok(players);
+    public ResponseEntity<List<PlayerDto>> getAllPlayers(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        try {
+            java.time.Instant start = startDate != null ? java.time.Instant.parse(startDate) : null;
+            java.time.Instant end = endDate != null ? java.time.Instant.parse(endDate) : null;
+            
+            List<PlayerDto> players = userService.getAllUsersWithTimeSlots(start, end);
+            return ResponseEntity.ok(players);
+        } catch (Exception e) {
+            log.error("getAllPlayers error", e);
+            return ResponseEntity.badRequest().build();
+        }
     }
     
     @GetMapping("/me")
-    public ResponseEntity<PlayerDto> getCurrentPlayer(Authentication authentication) {
+    public ResponseEntity<PlayerDto> getCurrentPlayer(
+            Authentication authentication,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
         try {
             log.info("getCurrentPlayer {}", authentication);
             User user = (User) authentication.getPrincipal();
             log.info("getCurrentPlayer {}", user);
-            PlayerDto player = userService.getUserAsPlayer(user);
+            
+            java.time.Instant start = startDate != null ? java.time.Instant.parse(startDate) : null;
+            java.time.Instant end = endDate != null ? java.time.Instant.parse(endDate) : null;
+            
+            PlayerDto player = userService.getUserAsPlayerWithTimeSlots(user, start, end);
             log.info("getCurrentPlayer {}", player);
             return ResponseEntity.ok(player);
         } catch (RuntimeException e) {
@@ -52,9 +69,15 @@ public class PlayerController {
             Authentication authentication) {
         try {
             User user = (User) authentication.getPrincipal();
-            PlayerDto player = userService.updateUserProfile(user, request.getName(), request.getColor());
+            PlayerDto player = userService.updateUserProfile(
+                user, 
+                request.getName(), 
+                request.getColor(),
+                request.getTimezone()
+            );
             return ResponseEntity.ok(player);
         } catch (RuntimeException e) {
+            log.error("updateCurrentPlayer error", e);
             return ResponseEntity.badRequest().build();
         }
     }
@@ -64,15 +87,27 @@ public class PlayerController {
             @RequestBody ToggleTimeSlotRequest request,
             Authentication authentication) {
         try {
+            log.info("toggleTimeSlot request: {}", request);
+            log.info("toggleTimeSlot start: {}, duration: {}", 
+                request != null ? request.getStart() : null, 
+                request != null ? request.getDuration() : null);
+            
             User user = (User) authentication.getPrincipal();
             if (request == null || request.getStart() == null) {
+                log.warn("toggleTimeSlot: invalid request - request or start is null");
                 return ResponseEntity.badRequest().build();
             }
+            
             Integer duration = request.getDuration() != null ? request.getDuration() : 1;
-            userService.toggleTimeSlot(user, request.getStart(), duration);
-            PlayerDto updatedPlayer = userService.getUserAsPlayer(user);
+            log.info("toggleTimeSlot: user={}, start={}, duration={}", 
+                user.getId(), request.getStart(), duration);
+            
+            PlayerDto updatedPlayer = userService.toggleTimeSlot(user, request.getStart(), duration);
+            
+            log.info("toggleTimeSlot: success");
             return ResponseEntity.ok(updatedPlayer);
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
+            log.error("toggleTimeSlot: error", e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }

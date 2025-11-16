@@ -138,57 +138,5 @@
   border-color: #e74c3c;
 }
 
-@media (prefers-color-scheme: light) {
-  .player-manager {
-    background-color: #f5f5f5;
-    border-color: #ddd;
-  }
 
-  .player-manager h2 {
-    color: #213547;
-  }
-
-  .player-name-input {
-    background-color: #fff;
-    border-color: #ddd;
-    color: #213547;
-  }
-
-  .player-name-input:focus {
-    border-color: #646cff;
-  }
-
-  .player-color-input {
-    border-color: #ddd;
-  }
-
-  .no-players {
-    color: #666;
-  }
-
-  .player-item {
-    background-color: #fff;
-    border-color: #ddd;
-  }
-
-  .player-item:hover {
-    border-color: #bbb;
-  }
-
-  .player-name {
-    color: #213547;
-  }
-
-  .remove-player-button {
-    background-color: #f9f9f9;
-    border-color: #ddd;
-    color: #213547;
-  }
-
-  .remove-player-button:hover {
-    background-color: #e74c3c;
-    border-color: #e74c3c;
-    color: #fff;
-  }
-}
 

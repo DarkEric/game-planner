@@ -23,7 +23,8 @@ public class AuthController {
             AuthResponse response = authService.register(
                     request.getUsername(),
                     request.getPassword(),
-                    request.getEmail()
+                    request.getEmail(),
+                    request.getInviteCode()
             );
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
