@@ -29,22 +29,39 @@ Game Planner is a web application for scheduling board game sessions with friend
 
 ## 🚀 Quick Start
 
+### Option 1: Pre-built Docker Images (Fastest)
+
 ```bash
-# Clone repository
 git clone https://github.com/DarkEric/game-planner.git
 cd game-planner
-
-# Setup
 cp .env.example .env
 
-# Run (Windows)
+# Windows
+start-ghcr.bat
+
+# Linux/Mac
+docker-compose -f docker-compose.ghcr.yml up -d
+```
+
+### Option 2: Build from Source
+
+```bash
+git clone https://github.com/DarkEric/game-planner.git
+cd game-planner
+cp .env.example .env
+
+# Windows
 start.bat
 
-# Run (Linux/Mac)
+# Linux/Mac
 docker-compose up -d
 ```
 
 Open http://localhost and register with invite code: **FIRST-USER-INVITE-2025**
+
+📦 **Docker Images:** Available on GitHub Container Registry
+- `ghcr.io/darkeric/game-planner-backend:1.0.0`
+- `ghcr.io/darkeric/game-planner-frontend:1.0.0`
 
 ## 📚 Documentation
 

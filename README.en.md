@@ -21,7 +21,18 @@ A web application for planning board game sessions with friends. Mark your avail
 - Docker and Docker Compose
 - Git
 
-### Installation
+### Option 1: Pre-built Docker Images (Recommended)
+
+Use pre-built images from GitHub Container Registry:
+
+```bash
+git clone https://github.com/DarkEric/game-planner.git
+cd game-planner
+cp .env.example .env
+docker-compose -f docker-compose.ghcr.yml up -d
+```
+
+### Option 2: Build from Source
 
 1. Clone the repository:
 ```bash
@@ -48,6 +59,8 @@ docker-compose up -d
 ```
 
 4. Open in browser: http://localhost
+
+📦 **More about Docker images:** [DOCKER_IMAGES.md](DOCKER_IMAGES.md)
 
 ### First Launch
 

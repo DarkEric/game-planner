@@ -21,7 +21,18 @@
 - Docker и Docker Compose
 - Git
 
-### Установка
+### Вариант 1: Готовые Docker образы (Рекомендуется)
+
+Используйте предсобранные образы из GitHub Container Registry:
+
+```bash
+git clone https://github.com/DarkEric/game-planner.git
+cd game-planner
+copy .env.example .env
+docker-compose -f docker-compose.ghcr.yml up -d
+```
+
+### Вариант 2: Сборка из исходников
 
 1. Клонируйте репозиторий:
 ```bash
@@ -44,6 +55,8 @@ docker-compose up -d
 ```
 
 4. Откройте в браузере: http://localhost
+
+📦 **Подробнее о Docker образах:** [DOCKER_IMAGES.md](DOCKER_IMAGES.md)
 
 ### Первый запуск
 
