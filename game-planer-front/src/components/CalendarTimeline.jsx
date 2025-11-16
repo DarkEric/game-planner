@@ -150,12 +150,13 @@ const CalendarTimeline = ({
         
         const checkDate = new Date(date)
         checkDate.setHours(hour, 0, 0, 0)
+        const checkDateEnd = new Date(checkDate)
+        checkDateEnd.setHours(hour + 1, 0, 0, 0)
         
-        return (
-          checkDate >= slotDate &&
-          checkDate < slotEnd &&
-          slotDate.toDateString() === date.toDateString()
-        )
+        // Проверяем пересечение временных интервалов
+        // Слот доступен если он начинается до конца проверяемого часа
+        // И заканчивается после начала проверяемого часа
+        return slotDate < checkDateEnd && slotEnd > checkDate
       })
     })
     return availablePlayers
@@ -178,12 +179,11 @@ const CalendarTimeline = ({
       
       const checkDate = new Date(date)
       checkDate.setHours(hour, 0, 0, 0)
+      const checkDateEnd = new Date(checkDate)
+      checkDateEnd.setHours(hour + 1, 0, 0, 0)
       
-      return (
-        checkDate >= slotDate &&
-        checkDate < slotEnd &&
-        slotDate.toDateString() === date.toDateString()
-      )
+      // Проверяем пересечение временных интервалов
+      return slotDate < checkDateEnd && slotEnd > checkDate
     })
   }
 
