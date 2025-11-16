@@ -14,6 +14,10 @@
 - 🎨 **Темная тема** - приятный интерфейс для глаз
 - 📱 **Адаптивный дизайн** - работает на любых экранах
 
+<img width="2510" height="1289" alt="image" src="https://github.com/user-attachments/assets/261ebd6a-3faa-4a38-95a7-9da5c0e0cff5" />
+<img width="2506" height="1283" alt="image" src="https://github.com/user-attachments/assets/9d58d6fb-a505-4e70-b1ae-91732154d633" />
+<img width="2510" height="1289" alt="image" src="https://github.com/user-attachments/assets/6536e76c-2ad7-45ef-a313-37942b8b471d" />
+
 ## 🚀 Быстрый старт
 
 ### Требования
