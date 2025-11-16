@@ -18,16 +18,19 @@ jobs:
       packages: write
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - name: backend
             context: ./game-planner-back
             dockerfile: ./game-planner-back/Dockerfile
             image: game-planner-backend
+            platforms: linux/amd64
           - name: frontend
             context: ./game-planer-front
             dockerfile: ./game-planer-front/Dockerfile
             image: game-planner-frontend
+            platforms: linux/amd64,linux/arm64
 
     steps:
       - name: Checkout repository
@@ -64,4 +67,4 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          platforms: linux/amd64,linux/arm64
+          platforms: ${{ matrix.platforms }}
