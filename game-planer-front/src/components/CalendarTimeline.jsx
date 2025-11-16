@@ -305,7 +305,7 @@ const CalendarTimeline = ({
 
   const scrollToNoon = () => {
     if (containerRef.current) {
-      containerRef.current.scrollTop = 12 * 50
+      containerRef.current.scrollTop = 12 * 40
     }
   }
 
@@ -441,7 +441,7 @@ const CalendarTimeline = ({
                             }}
                             style={{
                               backgroundColor: event.color || '#646cff',
-                              height: `${displayHeight * 50}px`
+                              height: `${displayHeight * 40}px`
                             }}
                           >
                             <div className="event-title">{event.title}</div>
