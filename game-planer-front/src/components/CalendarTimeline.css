@@ -47,8 +47,7 @@
 .calendar-timeline-container {
   display: flex;
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: auto;
   min-height: 0;
 }
 
@@ -89,7 +88,6 @@
   display: flex;
   flex-direction: column;
   overflow-x: auto;
-  overflow-y: hidden;
   min-width: 0;
 }
 
