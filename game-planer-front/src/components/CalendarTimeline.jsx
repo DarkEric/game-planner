@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useLanguage } from '../i18n/LanguageContext'
 import './CalendarTimeline.css'
 
 const CalendarTimeline = ({ 
@@ -20,6 +21,7 @@ const CalendarTimeline = ({
   const [dragEnd, setDragEnd] = useState(null)
   const gridRef = useRef(null)
   const containerRef = useRef(null)
+  const { t } = useLanguage()
 
   useEffect(() => {
     setCurrentStartDate(startDate)
@@ -335,13 +337,13 @@ const CalendarTimeline = ({
     <div className="calendar-timeline">
       <div className="calendar-timeline-header">
         <button onClick={() => navigateDays(-1)} className="nav-button">
-          ← Предыдущие
+          ← {t('previous')}
         </button>
         <button onClick={goToToday} className="today-button">
-          Сегодня
+          {t('today')}
         </button>
         <button onClick={() => navigateDays(1)} className="nav-button">
-          Следующие →
+          {t('next')} →
         </button>
       </div>
 

@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { inviteApi } from '../services/inviteApi'
+import { useLanguage } from '../i18n/LanguageContext'
 import './InviteManager.css'
 
 const InviteManager = () => {
+  const { t } = useLanguage()
   const [invites, setInvites] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -19,7 +21,7 @@ const InviteManager = () => {
       const data = await inviteApi.getMyInvites()
       setInvites(data)
     } catch (err) {
-      setError('Не удалось загрузить инвайты')
+      setError(t('errorLoadData'))
     } finally {
       setLoading(false)
     }
@@ -32,19 +34,19 @@ const InviteManager = () => {
       setInvites([newInvite, ...invites])
       setShowCreateForm(false)
     } catch (err) {
-      setError('Не удалось создать инвайт')
+      setError(t('errorLoadData'))
     }
   }
 
   const handleDeleteInvite = async (inviteId) => {
-    if (!confirm('Удалить этот инвайт?')) return
+    if (!confirm(t('deleteGame') + '?')) return
 
     try {
       setError(null)
       await inviteApi.deleteInvite(inviteId)
       setInvites(invites.filter(inv => inv.id !== inviteId))
     } catch (err) {
-      setError('Не удалось удалить инвайт')
+      setError(t('errorLoadData'))
     }
   }
 
@@ -59,15 +61,15 @@ const InviteManager = () => {
   }
 
   if (loading) {
-    return <div className="invite-manager">Загрузка...</div>
+    return <div className="invite-manager">{t('loading')}</div>
   }
 
   return (
     <div className="invite-manager">
       <div className="invite-header">
-        <h3>Мои инвайт-коды</h3>
+        <h3>{t('myInvites')}</h3>
         <button onClick={() => setShowCreateForm(!showCreateForm)} className="create-invite-btn">
-          + Создать инвайт
+          + {t('createInvite')}
         </button>
       </div>
 
@@ -77,17 +79,17 @@ const InviteManager = () => {
 
       {showCreateForm && (
         <div className="create-invite-form">
-          <p>Создать одноразовый инвайт-код?</p>
+          <p>{t('createInviteQuestion')}</p>
           <div className="form-actions">
-            <button onClick={handleCreateInvite} className="btn-primary">Создать</button>
-            <button onClick={() => setShowCreateForm(false)} className="btn-secondary">Отмена</button>
+            <button onClick={handleCreateInvite} className="btn-primary">{t('create')}</button>
+            <button onClick={() => setShowCreateForm(false)} className="btn-secondary">{t('cancel')}</button>
           </div>
         </div>
       )}
 
       <div className="invites-list">
         {invites.length === 0 ? (
-          <p className="no-invites">У вас пока нет инвайтов. Создайте первый!</p>
+          <p className="no-invites">{t('noInvites')}</p>
         ) : (
           invites.map(invite => (
             <div key={invite.id} className={`invite-item ${!invite.isValid ? 'invalid' : ''}`}>
@@ -96,7 +98,7 @@ const InviteManager = () => {
                 <button 
                   onClick={() => copyToClipboard(invite.code)}
                   className="copy-btn"
-                  title="Копировать код"
+                  title={t('create')}
                 >
                   {copiedCode === invite.code ? '✓' : '📋'}
                 </button>
@@ -104,23 +106,23 @@ const InviteManager = () => {
               <div className="invite-stats">
                 <div className="invite-stats-left">
                   <span className={`invite-status ${invite.isValid ? 'valid' : 'invalid'}`}>
-                    {invite.isValid ? '✓ Активен' : '✗ Неактивен'}
+                    {invite.isValid ? `✓ ${t('active')}` : `✗ ${t('inactive')}`}
                   </span>
                   {invite.maxUses && (
                     <span className="invite-uses">
-                      Использований: {invite.usesCount}/{invite.maxUses}
+                      {t('uses')}: {invite.usesCount}/{invite.maxUses}
                     </span>
                   )}
                   {invite.usedByName && (
                     <span className="invite-used-by">
-                      Использован: {invite.usedByName}
+                      {t('usedBy')}: {invite.usedByName}
                     </span>
                   )}
                 </div>
                 <button 
                   onClick={() => handleDeleteInvite(invite.id)}
                   className="delete-invite-btn"
-                  title="Удалить инвайт"
+                  title={t('deleteGame')}
                 >
                   🗑️
                 </button>
