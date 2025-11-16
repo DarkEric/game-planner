@@ -45,8 +45,8 @@ function App() {
       const availableWidth = window.innerWidth - leftPanelWidth - gap - padding - hoursColumnWidth
       const calculatedDays = Math.floor(availableWidth / dayColumnWidth)
       
-      // Минимум 7 дней, максимум 21 день, на FullHD (1920px) будет ~14 дней
-      const days = Math.max(7, Math.min(21, calculatedDays))
+      // Минимум 7 дней, максимум 60 день, на FullHD (1920px) будет ~14 дней
+      const days = Math.max(7, Math.min(60, calculatedDays))
       setDaysToShow(days)
     }
     
