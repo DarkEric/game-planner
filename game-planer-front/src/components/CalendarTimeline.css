@@ -102,7 +102,7 @@
 }
 
 .date-header-cell {
-  flex: 1;
+  flex: 0 0 80px;
   min-width: 80px;
   display: flex;
   flex-direction: column;
