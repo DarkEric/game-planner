@@ -8,11 +8,14 @@ import TimezoneSelector from './components/TimezoneSelector'
 import GameScheduler from './components/GameScheduler'
 import GameDetails from './components/GameDetails'
 import InviteManager from './components/InviteManager'
+import LanguageSwitcher from './components/LanguageSwitcher'
 import { playerApi, authApi, setUserTimezone } from './services/api'
 import { gameApi } from './services/gameApi'
+import { useLanguage } from './i18n/LanguageContext'
 import './App.css'
 
 function App() {
+  const { t } = useLanguage()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [showRegister, setShowRegister] = useState(false)
   const [user, setUser] = useState(null)
@@ -321,7 +324,7 @@ function App() {
     return (
       <div className="app-container">
         <div style={{ textAlign: 'center', padding: '2rem', color: '#fff' }}>
-          <p>Загрузка игроков...</p>
+          <p>{t('loading')}</p>
         </div>
       </div>
     )
@@ -332,12 +335,13 @@ function App() {
       <header className="app-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
           <div>
-            <h1>🎲 Планируем игры вместе</h1>
+            <h1>🎲 {t('appTitle')}</h1>
             <p className="app-subtitle">
-              Отмечайте время, когда вы можете играть, и найдите общее время с друзьями
+              {t('appSubtitle')}
             </p>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <LanguageSwitcher />
             {user && (
               <span style={{ color: '#aaa', fontSize: '0.9rem' }}>
                 {user.username}
@@ -355,7 +359,7 @@ function App() {
                 fontSize: '0.9rem'
               }}
             >
-              Выйти
+              {t('logout')}
             </button>
           </div>
         </div>
@@ -391,10 +395,10 @@ function App() {
         <div className="left-panel">
           {currentPlayer && (
             <div className="player-profile">
-              <h2>Ваш профиль</h2>
+              <h2>{t('yourProfile')}</h2>
               <div className="profile-info">
                 <div className="profile-field">
-                  <label>Имя:</label>
+                  <label>{t('name')}:</label>
                   <input
                     type="text"
                     value={currentPlayer.name}
@@ -407,7 +411,7 @@ function App() {
                   />
                 </div>
                 <div className="profile-field">
-                  <label>Цвет:</label>
+                  <label>{t('color')}:</label>
                   <input
                     type="color"
                     value={currentPlayer.color}
@@ -427,7 +431,7 @@ function App() {
                 />
               </div>
               <p className="selector-hint">
-                Кликайте по ячейкам времени или протяните мышь, чтобы отметить свою доступность
+                {t('clickToMark')}
               </p>
               <button
                 onClick={() => setShowGameScheduler(true)}
@@ -444,7 +448,7 @@ function App() {
                   width: '100%'
                 }}
               >
-                🎲 Запланировать игру
+                🎲 {t('scheduleGame')}
               </button>
               <InviteManager />
             </div>
