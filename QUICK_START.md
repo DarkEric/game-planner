@@ -1,5 +1,7 @@
 # 🚀 Быстрый старт Game Planner
 
+[English version](QUICK_START.en.md) | Русская версия
+
 ## Минимальная установка (5 минут)
 
 ### 1. Установите Docker
