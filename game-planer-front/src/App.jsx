@@ -18,7 +18,7 @@ function App() {
   const [user, setUser] = useState(null)
   const [currentPlayer, setCurrentPlayer] = useState(null)
   const [allPlayers, setAllPlayers] = useState([])
-  const [daysToShow] = useState(14)
+  const [daysToShow, setDaysToShow] = useState(14)
   // Инициализируем с сегодняшней датой (без времени)
   const [currentStartDate, setCurrentStartDate] = useState(() => {
     const today = new Date()
@@ -30,6 +30,31 @@ function App() {
   const [showGameScheduler, setShowGameScheduler] = useState(false)
   const [games, setGames] = useState([])
   const [selectedGame, setSelectedGame] = useState(null)
+
+  // Вычисление количества дней на основе ширины экрана
+  useEffect(() => {
+    const calculateDaysToShow = () => {
+      // Ширина левой панели (300px) + gap (1rem = 16px) + отступы (2rem = 32px)
+      // Ширина колонки часов (80px) + ширина одной колонки дня (80px)
+      const leftPanelWidth = 300
+      const gap = 16
+      const padding = 32
+      const hoursColumnWidth = 80
+      const dayColumnWidth = 80
+      
+      const availableWidth = window.innerWidth - leftPanelWidth - gap - padding - hoursColumnWidth
+      const calculatedDays = Math.floor(availableWidth / dayColumnWidth)
+      
+      // Минимум 7 дней, максимум 21 день, на FullHD (1920px) будет ~14 дней
+      const days = Math.max(7, Math.min(21, calculatedDays))
+      setDaysToShow(days)
+    }
+    
+    calculateDaysToShow()
+    window.addEventListener('resize', calculateDaysToShow)
+    
+    return () => window.removeEventListener('resize', calculateDaysToShow)
+  }, [])
 
   // Проверка аутентификации при монтировании
   useEffect(() => {
