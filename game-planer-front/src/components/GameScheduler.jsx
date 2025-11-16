@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react'
+import { useLanguage } from '../i18n/LanguageContext'
 import './GameScheduler.css'
 
 const GameScheduler = ({ players, onSchedule, onClose }) => {
+  const { t, language } = useLanguage()
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [startTime, setStartTime] = useState('')
   const [endTime, setEndTime] = useState('')
@@ -113,7 +115,8 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
   }, [players])
 
   const formatSlotTime = (slot) => {
-    const dateStr = slot.date.toLocaleDateString('ru-RU', {
+    const locale = language === 'en' ? 'en-US' : 'ru-RU'
+    const dateStr = slot.date.toLocaleDateString(locale, {
       day: 'numeric',
       month: 'long',
       weekday: 'short'
@@ -212,13 +215,13 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
     <div className="game-scheduler-overlay" onClick={onClose}>
       <div className="game-scheduler-modal" onClick={(e) => e.stopPropagation()}>
         <div className="game-scheduler-header">
-          <h2>🎲 Запланировать игру</h2>
+          <h2>🎲 {t('scheduleGameTitle')}</h2>
           <button className="close-button" onClick={onClose}>×</button>
         </div>
 
         <div className="game-scheduler-content">
           <div className="calendar-section">
-            <h3>Выберите дату и время</h3>
+            <h3>{t('selectDateTime')}</h3>
             
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
@@ -229,7 +232,7 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
                   ‹
                 </button>
                 <span style={{ color: '#fff', fontSize: '1.1rem' }}>
-                  {selectedDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })}
+                  {selectedDate.toLocaleDateString(language === 'en' ? 'en-US' : 'ru-RU', { month: 'long', year: 'numeric' })}
                 </span>
                 <button 
                   onClick={() => changeMonth(1)}
@@ -245,7 +248,7 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
                 gap: '0.5rem',
                 marginBottom: '0.5rem'
               }}>
-                {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(day => (
+                {[t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat'), t('sun')].map(day => (
                   <div key={day} style={{ textAlign: 'center', color: '#aaa', fontSize: '0.85rem' }}>
                     {day}
                   </div>
@@ -274,7 +277,7 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
 
             <div className="time-inputs">
               <div className="time-input-group">
-                <label>Начало</label>
+                <label>{t('start')}</label>
                 <input
                   type="datetime-local"
                   value={startTime}
@@ -282,7 +285,7 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
                 />
               </div>
               <div className="time-input-group">
-                <label>Конец</label>
+                <label>{t('end')}</label>
                 <input
                   type="datetime-local"
                   value={endTime}
@@ -293,21 +296,21 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
 
             <div className="game-info-inputs">
               <div className="time-input-group">
-                <label>Название игры (необязательно)</label>
+                <label>{t('gameTitleOptional')}</label>
                 <input
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Например: D&D сессия"
+                  placeholder={t('gameTitlePlaceholder')}
                   maxLength="255"
                 />
               </div>
               <div className="time-input-group">
-                <label>Описание (необязательно)</label>
+                <label>{t('descriptionOptional')}</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Дополнительная информация об игре..."
+                  placeholder={t('descriptionPlaceholder')}
                   maxLength="1000"
                   rows="3"
                   style={{
@@ -327,7 +330,7 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
           </div>
 
           <div className="slots-section">
-            <h3>Топ-10 лучших слотов</h3>
+            <h3>{t('topSlots')}</h3>
             {bestSlots.length > 0 ? (
               <div className="best-slots-list">
                 {bestSlots.map((slot, index) => (
@@ -360,7 +363,7 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
               </div>
             ) : (
               <div className="no-slots-message">
-                Нет доступных временных слотов с 2+ игроками
+                {t('noSlotsAvailable')}
               </div>
             )}
           </div>
@@ -368,14 +371,14 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
 
         <div className="game-scheduler-actions">
           <button className="cancel-button" onClick={onClose}>
-            Отмена
+            {t('cancel')}
           </button>
           <button 
             className="schedule-button" 
             onClick={handleSchedule}
             disabled={isScheduleDisabled}
           >
-            Запланировать игру
+            {t('scheduleButton')}
           </button>
         </div>
       </div>

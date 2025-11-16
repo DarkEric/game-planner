@@ -36,12 +36,15 @@ export const translations = {
     end: 'Конец',
     gameTitle: 'Название игры',
     gameTitlePlaceholder: 'Например: D&D сессия',
+    gameTitleOptional: 'Название игры (необязательно)',
     description: 'Описание',
     descriptionPlaceholder: 'Дополнительная информация об игре...',
+    descriptionOptional: 'Описание (необязательно)',
     optional: 'необязательно',
     topSlots: 'Топ-10 лучших слотов',
     noSlotsAvailable: 'Нет доступных временных слотов с 2+ игроками',
     cancel: 'Отмена',
+    scheduleButton: 'Запланировать игру',
     
     // Game Details
     game: 'Игра',
@@ -135,12 +138,15 @@ export const translations = {
     end: 'End',
     gameTitle: 'Game Title',
     gameTitlePlaceholder: 'e.g., D&D Session',
+    gameTitleOptional: 'Game Title (optional)',
     description: 'Description',
     descriptionPlaceholder: 'Additional information about the game...',
+    descriptionOptional: 'Description (optional)',
     optional: 'optional',
     topSlots: 'Top-10 Best Slots',
     noSlotsAvailable: 'No available time slots with 2+ players',
     cancel: 'Cancel',
+    scheduleButton: 'Schedule Game',
     
     // Game Details
     game: 'Game',
