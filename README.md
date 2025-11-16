@@ -1,217 +1,149 @@
-# Game Planner
+# 🎲 Game Planner
 
-Приложение для планирования игровых сессий с друзьями.
+Веб-приложение для планирования настольных игр с друзьями. Отмечайте свободное время, находите общие слоты и планируйте игры вместе!
 
-> 📖 **[Быстрый старт →](QUICK_START.md)** | 🔧 **[Интеграция с Caddy →](CADDY_INTEGRATION.md)** | 🚀 **[Production Setup →](PRODUCTION_SETUP.md)** | 🔍 **[Troubleshooting →](TROUBLESHOOTING.md)**
-> 
-> 📚 **[API Usage →](game-planer-front/API_USAGE.md)** | ⏱️ **[Duration Feature →](DURATION_FEATURE_SUMMARY.md)** | 🎲 **[Game Scheduling →](GAME_SCHEDULING_FEATURE.md)** | 🧹 **[Cleanup →](CLEANUP_FEATURE.md)** | 🔐 **[Invite System →](INVITE_SYSTEM.md)** | ⚡ **[API Optimization →](API_OPTIMIZATION.md)**
+## ✨ Возможности
 
-## Возможности
+- 📅 **Интерактивный календарь** - отмечайте доступное время drag-and-drop
+- 🎯 **Умный поиск слотов** - автоматический поиск лучшего времени для всех
+- 🎮 **Планирование игр** - создавайте игры с названием, описанием и участниками
+- 🌍 **Поддержка часовых поясов** - каждый видит время в своем часовом поясе
+- 🔐 **Система инвайтов** - регистрация только по приглашениям
+- 🎨 **Темная тема** - приятный интерфейс для глаз
+- 📱 **Адаптивный дизайн** - работает на любых экранах
 
-- 👥 Регистрация и авторизация пользователей
-- 📅 Управление доступностью по времени
-- 🎲 **Планирование игр** с выбором даты, времени и участников
-- 📝 **Запись на игры** с автоматическим проставлением доступности
-- ⭐ Просмотр топ-10 лучших временных слотов для игры
-- 🗓️ Календарь с визуализацией доступности всех игроков и запланированных игр
-- 🔄 Автоматическое объединение последовательных временных слотов
-- 🌍 Поддержка часовых поясов с автоматической конвертацией времени
-- 🧹 Автоматическая очистка устаревших данных
+## 🚀 Быстрый старт
 
-## Технологии
+### Требования
+
+- Docker и Docker Compose
+- Git
+
+### Установка
+
+1. Клонируйте репозиторий:
+```bash
+git clone https://github.com/DarkEric/game-planner.git
+cd game-planner
+```
+
+2. Создайте файл `.env` из примера:
+```bash
+copy .env.example .env
+```
+
+3. Запустите приложение:
+```bash
+# Windows
+start.bat
+
+# Linux/Mac
+docker-compose up -d
+```
+
+4. Откройте в браузере: http://localhost
+
+### Первый запуск
+
+При первом запуске используйте инвайт-код для регистрации:
+```
+FIRST-USER-INVITE-2025
+```
+
+После регистрации вы сможете создавать новые инвайт-коды для друзей.
+
+## 📖 Использование
+
+### Отметка доступного времени
+
+1. Войдите в систему
+2. Кликните или протяните мышью по ячейкам календаря
+3. Ваше время автоматически сохранится
+
+### Планирование игры
+
+1. Нажмите кнопку "🎲 Запланировать игру"
+2. Выберите время из топ-10 лучших слотов или укажите вручную
+3. Добавьте название и описание (опционально)
+4. Игра создастся с участниками, у которых есть доступность на это время
+
+### Управление инвайтами
+
+1. В разделе "Мои инвайт-коды" нажмите "+ Создать инвайт"
+2. Скопируйте код и отправьте другу
+3. Каждый инвайт одноразовый
+
+## 🛠 Технологии
 
 ### Backend
-- Java 21
-- Spring Boot 3.5
-- PostgreSQL 17
-- JWT Authentication
-- Liquibase
+- Java 17 + Spring Boot
+- PostgreSQL
+- Liquibase для миграций
+- JWT аутентификация
 
 ### Frontend
 - React 18
 - Vite
-- CSS3
+- CSS Modules
 
-## Особенности
+### Deployment
+- Docker & Docker Compose
+- Caddy (автоматический HTTPS)
 
-### Работа с часовыми поясами
+## 📁 Структура проекта
 
-**Текущая реализация (v2.0):**
-- ✅ Время хранится в UTC на сервере
-- ✅ Автоматическая конвертация между часовыми поясами
-- ✅ Каждый пользователь видит время в своем часовом поясе
-- ✅ UI для выбора и смены часового пояса
-- ✅ Корректное отображение времени других игроков
-
-Подробнее: 
-- [game-planer-front/TIMEZONE_HANDLING.md](game-planer-front/TIMEZONE_HANDLING.md) - Техническая документация
-- [TIMEZONE_FEATURE.md](TIMEZONE_FEATURE.md) - Функция учета часовых поясов
-- [game-planer-front/TIMEZONE_SELECTOR_GUIDE.md](game-planer-front/TIMEZONE_SELECTOR_GUIDE.md) - Руководство по выбору timezone
-
-### Планирование игр
-
-**Возможности:**
-- 🎲 Создание игр с выбором даты и времени
-- 📊 Топ-10 лучших временных слотов с максимальным количеством доступных игроков
-- 📝 Запись на игры с автоматическим проставлением доступности
-- 👥 Просмотр списка участников игры
-- 🚪 Выход из игры или удаление (для создателя)
-- 📅 Визуализация игр в календаре
-
-Подробнее: [GAME_SCHEDULING_FEATURE.md](GAME_SCHEDULING_FEATURE.md)
-
-## Быстрый запуск с Docker
-
-### Предварительные требования
-- Docker Desktop (Windows/Mac) или Docker Engine + Docker Compose (Linux)
-
-### Вариант 1: Со встроенным Caddy (рекомендуется)
-
-**Автоматический запуск:**
-
-Windows:
-```bash
-start.bat
+```
+game-planner/
+├── game-planner-back/     # Backend (Spring Boot)
+├── game-planer-front/     # Frontend (React)
+├── docker-compose.yml     # Development setup
+├── docker-compose.prod.yml # Production setup
+├── start.bat              # Windows launcher
+└── README.md
 ```
 
-Linux/Mac:
-```bash
-chmod +x start.sh
-./start.sh
+## 🔧 Конфигурация
+
+### Переменные окружения
+
+Создайте `.env` файл в корне проекта:
+
+```env
+# Database
+POSTGRES_DB=game_planner
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=your_secure_password
+
+# Backend
+JWT_SECRET=your_jwt_secret_key_here
+SPRING_PROFILES_ACTIVE=prod
+
+# Frontend
+VITE_API_URL=http://localhost:8080
 ```
 
-**Ручной запуск:**
+### Production deployment
 
-1. Создайте `.env` файл (опционально):
-```bash
-cp .env.example .env
-```
-
-2. Запустите приложение:
-```bash
-docker-compose up -d --build
-```
-
-3. Приложение будет доступно:
-   - **Фронтенд**: http://localhost
-   - **Backend API**: http://localhost:8080 (через Caddy: http://localhost/api)
-   - **PostgreSQL**: localhost:5432
-
-### Вариант 2: С внешним Caddy
-
-Если у вас уже запущен Caddy на хосте:
-
-1. Запустите приложение без встроенного Caddy:
-```bash
-docker-compose -f docker-compose.external-caddy.yml up -d --build
-```
-
-2. Добавьте конфигурацию в ваш Caddyfile (см. `Caddyfile.external`)
-
-3. Перезагрузите Caddy:
-```bash
-caddy reload
-```
-
-4. Приложение будет доступно:
-   - **Фронтенд**: http://localhost:3000 (напрямую) или через ваш Caddy
-   - **Backend API**: http://localhost:8080 (напрямую) или через ваш Caddy
-   - **PostgreSQL**: доступна только внутри Docker сети (безопасность)
-
-**Примечание:** Порты можно настроить через `.env`:
-```bash
-BACKEND_PORT=8081
-FRONTEND_PORT=3001
-```
-
-### Вариант 3: Production с автоматическим HTTPS
-
-1. Настройте `.env`:
-```bash
-DOMAIN=your-domain.com
-```
-
-2. Запустите:
-```bash
-docker-compose -f docker-compose.prod.yml up -d --build
-```
-
-Caddy автоматически получит SSL сертификат от Let's Encrypt
-
-### Управление
-
-**Просмотр логов:**
-```bash
-docker-compose logs -f
-```
-
-**Просмотр логов конкретного сервиса:**
-```bash
-docker-compose logs -f backend
-docker-compose logs -f frontend
-docker-compose logs -f postgres
-```
-
-**Остановка:**
-```bash
-docker-compose down
-```
-
-**Остановка с удалением данных:**
-```bash
-docker-compose down -v
-```
-
-**Перезапуск:**
-```bash
-docker-compose restart
-```
-
-**Перезагрузка Caddy конфигурации:**
-```bash
-docker-compose exec caddy caddy reload --config /etc/caddy/Caddyfile
-```
-
-## Разработка
-
-### Backend
+Для production используйте `docker-compose.prod.yml`:
 
 ```bash
-cd game-planner-back
-./gradlew bootRun
+docker-compose -f docker-compose.prod.yml up -d
 ```
 
-### Frontend
+Подробнее см. [PRODUCTION_SETUP.md](PRODUCTION_SETUP.md)
 
-```bash
-cd game-planer-front
-npm install
-npm run dev
-```
+## 🐛 Troubleshooting
 
-## API Endpoints
+См. [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
-### Аутентификация
-- `POST /api/auth/register` - Регистрация
-- `POST /api/auth/login` - Вход
+## 📝 Лицензия
 
-### Игроки
-- `GET /api/players` - Список всех игроков
-- `GET /api/players/me` - Текущий пользователь
-- `PUT /api/players/me` - Обновить профиль (имя, цвет, timezone)
+MIT License
 
-### Временные слоты
-- `POST /api/players/me/time-slots/toggle` - Переключить слот
-- `POST /api/players/me/time-slots/toggle-batch` - Переключить несколько слотов
+## 👥 Автор
 
-### Игры
-- `POST /api/games` - Создать игру
-- `GET /api/games?startDate=...&endDate=...` - Получить игры за период
-- `GET /api/games/my` - Получить мои предстоящие игры
-- `POST /api/games/{gameId}/join` - Записаться на игру
-- `POST /api/games/{gameId}/leave` - Покинуть игру
-- `DELETE /api/games/{gameId}` - Удалить игру (только создатель)
+DarkEric
 
-## Лицензия
+## 🤝 Вклад
 
-MIT
+Pull requests приветствуются! Для больших изменений сначала откройте issue.

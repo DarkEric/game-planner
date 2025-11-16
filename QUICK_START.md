@@ -1,156 +1,104 @@
-# Быстрый старт Game Planner
+# 🚀 Быстрый старт Game Planner
 
-## Вариант 1: Со встроенным Caddy (проще всего)
+## Минимальная установка (5 минут)
+
+### 1. Установите Docker
+
+- **Windows**: [Docker Desktop](https://www.docker.com/products/docker-desktop)
+- **Linux**: `sudo apt install docker.io docker-compose`
+- **Mac**: [Docker Desktop](https://www.docker.com/products/docker-desktop)
+
+### 2. Клонируйте проект
+
+```bash
+git clone https://github.com/DarkEric/game-planner.git
+cd game-planner
+```
+
+### 3. Создайте .env файл
 
 ```bash
 # Windows
+copy .env.example .env
+
+# Linux/Mac
+cp .env.example .env
+```
+
+### 4. Запустите
+
+```bash
+# Windows - просто запустите
 start.bat
 
 # Linux/Mac
-./start.sh
+docker-compose up -d
 ```
 
-Приложение доступно на http://localhost
+### 5. Откройте браузер
 
----
+Перейдите на http://localhost
 
-## Вариант 2: С внешним Caddy (если у вас уже есть Caddy)
+### 6. Зарегистрируйтесь
 
-### Шаг 1: Настройте порты (опционально)
+Используйте инвайт-код: `FIRST-USER-INVITE-2025`
 
-Создайте `.env` файл:
-```bash
-BACKEND_PORT=8080
-FRONTEND_PORT=3000
-```
+## ✅ Готово!
 
-### Шаг 2: Запустите приложение
+Теперь вы можете:
+- Отмечать свободное время
+- Приглашать друзей (создавайте инвайт-коды)
+- Планировать игры
 
-```bash
-# Windows
-start-external-caddy.bat
-
-# Linux/Mac
-./start-external-caddy.sh
-```
-
-### Шаг 3: Настройте ваш Caddy
-
-Добавьте в ваш Caddyfile:
-
-```caddyfile
-game-planner.localhost {
-    handle /api/* {
-        reverse_proxy localhost:8080
-    }
-    handle {
-        reverse_proxy localhost:3000
-    }
-}
-```
-
-### Шаг 4: Перезагрузите Caddy
+## 🔧 Команды
 
 ```bash
-caddy reload
-# или
-sudo systemctl reload caddy
-```
-
-Приложение доступно на http://game-planner.localhost
-
----
-
-## Вариант 3: Production с HTTPS
-
-### Шаг 1: Настройте .env
-
-Создайте `.env` файл:
-```bash
-DOMAIN=your-domain.com
-JWT_SECRET=your-very-long-random-secret-key
-CORS_ALLOWED_ORIGINS=https://your-domain.com,https://www.your-domain.com
-```
-
-### Шаг 2: Запустите
-
-```bash
-docker-compose -f docker-compose.prod.yml up -d --build
-```
-
-Caddy автоматически получит SSL сертификат от Let's Encrypt.
-
-**Подробнее:** [PRODUCTION_SETUP.md](PRODUCTION_SETUP.md)
-
----
-
-## Полезные команды
-
-```bash
-# Просмотр логов
-docker-compose logs -f
+# Запуск
+docker-compose up -d
 
 # Остановка
 docker-compose down
 
-# Полная очистка (включая данные)
-docker-compose down -v
+# Просмотр логов
+docker-compose logs -f
 
 # Перезапуск
 docker-compose restart
+
+# Обновление
+git pull
+docker-compose down
+docker-compose up -d --build
 ```
 
----
+## 🆘 Проблемы?
 
-## Порты по умолчанию
+### Порт 80 занят
 
-| Сервис | Порт | Описание |
-|--------|------|----------|
-| Frontend | 80 | Встроенный Caddy |
-| Frontend | 3000 | Внешний Caddy |
-| Backend | 8080 | API |
-| PostgreSQL | - | Только внутри Docker (безопасность) |
+Измените порт в `docker-compose.yml`:
+```yaml
+ports:
+  - "8080:80"  # Теперь доступно на localhost:8080
+```
 
----
+### База данных не запускается
 
-## Первый запуск
-
-1. Зарегистрируйтесь на http://localhost
-2. Войдите в систему
-3. Настройте свой профиль (имя и цвет)
-4. Отметьте доступное время в календаре
-5. Пригласите друзей!
-
----
-
-## Troubleshooting
-
-### Порт уже занят
-
-Измените порты в `.env`:
+Удалите volume и пересоздайте:
 ```bash
-BACKEND_PORT=8081
-FRONTEND_PORT=3001
+docker-compose down -v
+docker-compose up -d
 ```
 
-### Ошибка подключения к БД
+### Не работает после обновления
 
-Подождите 10-15 секунд после запуска - PostgreSQL инициализируется.
-
-### CORS ошибки
-
-**Для разработки:** Проверьте, что фронтенд обращается к API через правильный URL.
-
-**Для production:** Убедитесь, что ваш домен указан в `CORS_ALLOWED_ORIGINS`:
+Пересоберите контейнеры:
 ```bash
-CORS_ALLOWED_ORIGINS=https://your-domain.com,https://www.your-domain.com
+docker-compose down
+docker-compose up -d --build
 ```
 
-Перезапустите backend после изменения:
-```bash
-docker-compose restart backend
-```
+## 📚 Дальше
 
----
-
-Подробная документация: [README.md](README.md)
+- [Production Setup](PRODUCTION_SETUP.md) - для публичного развертывания
+- [Troubleshooting](TROUBLESHOOTING.md) - решение проблем
+- [README](README.md) - полная документация

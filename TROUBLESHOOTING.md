@@ -1,361 +1,202 @@
-# Troubleshooting Guide
+# 🔧 Troubleshooting
 
-## Проблемы с API
+## Проблемы при запуске
 
-### 400 Bad Request при создании временного слота
+### Порт 80 уже занят
 
-**Симптомы:**
+**Симптомы**: Ошибка `port is already allocated`
+
+**Решение**:
+```yaml
+# В docker-compose.yml измените порт
+services:
+  caddy:
+    ports:
+      - "8080:80"  # Вместо "80:80"
 ```
-POST /api/players/me/time-slots/toggle
-Status: 400 Bad Request
-Payload: {start: "2025-11-18T04:00:00", duration: 1}
-```
 
-**Возможные причины:**
+Теперь приложение будет доступно на http://localhost:8080
 
-#### 1. Проблема с десериализацией LocalDateTime
+### Docker не запускается
 
-**Решение:** Убедитесь, что Jackson правильно настроен для работы с Java 8 Date/Time API.
+**Симптомы**: `Cannot connect to the Docker daemon`
 
-Проверьте логи бэкенда:
+**Решение**:
+1. Убедитесь что Docker Desktop запущен (Windows/Mac)
+2. Linux: `sudo systemctl start docker`
+3. Проверьте: `docker ps`
+
+### База данных не инициализируется
+
+**Симптомы**: Backend не может подключиться к БД
+
+**Решение**:
 ```bash
-docker-compose logs -f backend | grep -i "error\|exception"
+# Удалите volume и пересоздайте
+docker-compose down -v
+docker-compose up -d
+
+# Подождите 30 секунд для инициализации
+docker-compose logs -f postgres
 ```
 
-Если видите ошибку типа:
-```
-Cannot deserialize value of type `java.time.LocalDateTime`
-```
+## Проблемы с аутентификацией
 
-Это означает, что Jackson не может распарсить строку даты.
+### Не могу зарегистрироваться
 
-**Исправление:**
-- Убедитесь, что `JacksonConfig.java` присутствует в проекте
-- Перезапустите бэкенд:
-```bash
-docker-compose restart backend
-```
+**Проблема**: "Invite code is required"
 
-#### 2. Неправильный формат даты
+**Решение**: Используйте инвайт-код `FIRST-USER-INVITE-2025` для первого пользователя
 
-**Проверка:** Дата должна быть в формате ISO без timezone:
-```
-Правильно:  "2025-11-18T04:00:00"
-Неправильно: "2025-11-18T04:00:00Z"
-Неправильно: "2025-11-18T04:00:00+03:00"
-```
+### Инвайт-код не работает
 
-**Решение:** Убедитесь, что фронтенд использует `formatLocalDateTime()` из `dateUtils.js`
+**Проблема**: "Invalid invite code"
 
-#### 3. Null значения
+**Возможные причины**:
+1. Код уже использован (одноразовый)
+2. Код удален создателем
+3. Опечатка в коде
 
-**Проверка:** Убедитесь, что `start` не null:
-```javascript
-console.log('Sending:', { start, duration })
-```
+**Решение**: Попросите новый инвайт-код у администратора
 
-**Решение:** Проверьте логику создания даты на фронтенде
+### Токен истек
 
-### 403 Forbidden
+**Проблема**: Постоянно выбрасывает на логин
 
-**Причина:** Проблема с JWT токеном или CORS
+**Решение**:
+1. Очистите cookies браузера
+2. Перелогиньтесь
+3. Проверьте что JWT_SECRET не изменился в .env
 
-**Решение:**
+## Проблемы с интерфейсом
 
-1. Проверьте, что токен отправляется:
-```javascript
-// В DevTools Console
-localStorage.getItem('authToken')
-```
+### Календарь не отображается
 
-2. Проверьте CORS настройки:
-```bash
-# В .env
-CORS_ALLOWED_ORIGINS=https://your-domain.com
-```
+**Проблема**: Пустой экран вместо календаря
 
-3. Перезапустите backend:
-```bash
-docker-compose restart backend
-```
-
-### 401 Unauthorized
-
-**Причина:** Токен истек или невалиден
-
-**Решение:**
-1. Выйдите и войдите снова
-2. Проверьте срок действия токена (по умолчанию 24 часа)
-
-## Проблемы с датами и временем
+**Решение**:
+1. Откройте консоль браузера (F12)
+2. Проверьте ошибки
+3. Очистите кэш браузера (Ctrl+Shift+Del)
+4. Перезагрузите страницу (Ctrl+F5)
 
 ### Время отображается неправильно
 
-**Симптомы:** Время сдвинуто на несколько часов
+**Проблема**: Неверный часовой пояс
 
-**Причина:** Проблема с часовыми поясами
+**Решение**:
+1. Откройте профиль
+2. Выберите правильный часовой пояс
+3. Или нажмите "Определить автоматически"
 
-**Решение:**
+### Игры не отображаются
 
-1. Проверьте, что используются утилиты из `dateUtils.js`:
-```javascript
-import { parseLocalDateTime, formatLocalDateTime } from '../utils/dateUtils'
-```
+**Проблема**: Созданные игры не видны
 
-2. Проверьте timezone пользователя:
-```javascript
-import { getUserTimezone, debugDate } from '../utils/dateUtils'
+**Решение**:
+1. Проверьте что вы в правильном диапазоне дат
+2. Используйте кнопки навигации "Предыдущие"/"Следующие"
+3. Нажмите "Сегодня" чтобы вернуться к текущей дате
 
-const tz = getUserTimezone()
-console.log('Timezone:', tz)
+## Проблемы с производительностью
 
-const date = new Date()
-debugDate('Current date', date)
-```
+### Медленная загрузка
 
-3. Очистите кеш браузера и перезагрузите страницу
+**Решение**:
+1. Проверьте логи: `docker-compose logs -f`
+2. Проверьте ресурсы: `docker stats`
+3. Увеличьте лимиты памяти в Docker Desktop
 
-**Подробнее:** См. [game-planer-front/TIMEZONE_HANDLING.md](game-planer-front/TIMEZONE_HANDLING.md)
+### База данных переполнена
 
-## Проблемы с Docker
+**Решение**: Автоматическая очистка работает каждый день в 3:00.
+Старые игры (>30 дней) удаляются автоматически.
 
-### Контейнер не запускается
-
-**Проверка статуса:**
+Ручная очистка:
 ```bash
-docker-compose ps
-docker-compose logs backend
+docker-compose exec postgres psql -U postgres -d game_planner
+DELETE FROM games WHERE start_time < NOW() - INTERVAL '30 days';
 ```
 
-**Частые причины:**
+## Проблемы после обновления
 
-#### 1. Порт уже занят
+### Приложение не работает после git pull
 
-```
-Error: bind: address already in use
-```
-
-**Решение:** Измените порт в `.env`:
+**Решение**:
 ```bash
-BACKEND_PORT=8081
-FRONTEND_PORT=3001
-```
-
-#### 2. База данных недоступна
-
-```
-Connection refused: postgres:5432
-```
-
-**Решение:**
-```bash
-# Перезапустите PostgreSQL
-docker-compose restart postgres
-
-# Подождите 10-15 секунд
-sleep 15
-
-# Перезапустите backend
-docker-compose restart backend
-```
-
-#### 3. Ошибка сборки
-
-```
-BUILD FAILED
-```
-
-**Решение:**
-```bash
-# Очистите и пересоберите
+# Пересоберите контейнеры
 docker-compose down
-docker-compose build --no-cache
-docker-compose up -d
+docker-compose up -d --build
+
+# Если не помогло, удалите образы
+docker-compose down --rmi all
+docker-compose up -d --build
 ```
 
-### Контейнер постоянно перезапускается
+### Ошибки миграции базы данных
 
-**Проверка:**
-```bash
-docker-compose ps
-# Если видите "Restarting"
-```
+**Симптомы**: Backend не запускается, ошибки Liquibase
 
-**Решение:**
+**Решение**:
 ```bash
 # Посмотрите логи
-docker-compose logs --tail=100 backend
+docker-compose logs backend
 
-# Обычно это проблема с подключением к БД или ошибка в коде
-```
-
-## Проблемы с базой данных
-
-### Ошибка миграции Liquibase
-
-```
-Liquibase failed to start
-```
-
-**Решение:**
-
-1. Проверьте, что PostgreSQL запущена:
-```bash
-docker-compose exec postgres pg_isready
-```
-
-2. Проверьте changelog файлы:
-```bash
-ls -la game-planner-back/src/main/resources/db/changelog/
-```
-
-3. Сбросьте базу данных (ВНИМАНИЕ: удалит все данные!):
-```bash
+# Если миграция застряла, сбросьте БД
 docker-compose down -v
 docker-compose up -d
 ```
 
-### Данные потеряны после перезапуска
+## Логи и отладка
 
-**Причина:** Volume не создан или удален
+### Просмотр логов
 
-**Решение:**
 ```bash
-# Проверьте volumes
-docker volume ls | grep game-planner
+# Все сервисы
+docker-compose logs -f
 
-# Если нет, создайте заново
-docker-compose up -d
+# Только backend
+docker-compose logs -f backend
+
+# Только frontend
+docker-compose logs -f frontend
+
+# Только база данных
+docker-compose logs -f postgres
+
+# Последние 100 строк
+docker-compose logs --tail=100
 ```
 
-**Backup перед удалением:**
+### Проверка состояния
+
 ```bash
-docker exec game-planner-db pg_dump -U postgres game_planner > backup.sql
+# Статус контейнеров
+docker-compose ps
+
+# Использование ресурсов
+docker stats
+
+# Проверка сети
+docker network ls
+docker network inspect game-planner_default
 ```
 
-## Проблемы с CORS
+## Сброс к начальному состоянию
 
-### Запросы блокируются CORS
+**ВНИМАНИЕ**: Удалит все данные!
 
-**Симптомы:**
-```
-Access to fetch at 'http://localhost:8080/api/...' from origin 'http://localhost:3000' 
-has been blocked by CORS policy
-```
-
-**Решение:**
-
-1. Проверьте `CORS_ALLOWED_ORIGINS` в `.env`:
 ```bash
-CORS_ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173,https://your-domain.com
-```
-
-2. Убедитесь, что нет пробелов в списке origins
-
-3. Перезапустите backend:
-```bash
-docker-compose restart backend
-```
-
-4. Проверьте, что origin правильный:
-```javascript
-// В DevTools Console
-console.log(window.location.origin)
-```
-
-## Проблемы с production
-
-### SSL сертификат не получен
-
-**Симптомы:** Caddy не может получить сертификат от Let's Encrypt
-
-**Решение:**
-
-1. Проверьте, что домен указывает на ваш сервер:
-```bash
-nslookup your-domain.com
-```
-
-2. Проверьте, что порты 80 и 443 открыты:
-```bash
-sudo ufw status
-```
-
-3. Проверьте логи Caddy:
-```bash
-docker-compose -f docker-compose.prod.yml logs caddy
-```
-
-4. Убедитесь, что домен правильно указан в `.env`:
-```bash
-DOMAIN=your-domain.com
-```
-
-### Приложение недоступно
-
-**Проверка:**
-```bash
-# Проверьте статус всех контейнеров
-docker-compose -f docker-compose.prod.yml ps
-
-# Все должны быть "Up"
-```
-
-**Решение:**
-```bash
-# Перезапустите все
-docker-compose -f docker-compose.prod.yml restart
-
-# Если не помогло, пересоберите
-docker-compose -f docker-compose.prod.yml down
-docker-compose -f docker-compose.prod.yml up -d --build
+# Полный сброс
+docker-compose down -v --rmi all
+docker-compose up -d --build
 ```
 
 ## Получение помощи
 
-### Сбор информации для отчета об ошибке
+Если проблема не решена:
 
-```bash
-# 1. Версии
-docker --version
-docker-compose --version
-
-# 2. Статус контейнеров
-docker-compose ps
-
-# 3. Логи (последние 100 строк)
-docker-compose logs --tail=100 > logs.txt
-
-# 4. Переменные окружения (без паролей!)
-docker-compose config
-
-# 5. Системная информация
-docker info
-```
-
-### Полезные команды для отладки
-
-```bash
-# Войти в контейнер
-docker-compose exec backend sh
-
-# Проверить переменные окружения
-docker-compose exec backend env
-
-# Проверить подключение к БД
-docker-compose exec backend nc -zv postgres 5432
-
-# Проверить логи в реальном времени
-docker-compose logs -f backend
-
-# Проверить использование ресурсов
-docker stats
-```
-
----
-
-Если проблема не решена, создайте issue с:
-- Описанием проблемы
-- Шагами для воспроизведения
-- Логами (из команд выше)
-- Версиями ПО
+1. Проверьте [Issues на GitHub](https://github.com/DarkEric/game-planner/issues)
+2. Создайте новый Issue с описанием проблемы и логами
+3. Укажите версию Docker: `docker --version`
+4. Приложите логи: `docker-compose logs > logs.txt`
