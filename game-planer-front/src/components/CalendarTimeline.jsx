@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useLanguage } from '../i18n/LanguageContext'
+import PlayerTooltip from './PlayerTooltip'
 import './CalendarTimeline.css'
 
 const CalendarTimeline = ({ 
@@ -19,6 +20,7 @@ const CalendarTimeline = ({
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState(null)
   const [dragEnd, setDragEnd] = useState(null)
+  const [tooltip, setTooltip] = useState({ visible: false, players: [], position: { x: 0, y: 0 } })
   const gridRef = useRef(null)
   const containerRef = useRef(null)
   const { t } = useLanguage()
@@ -333,6 +335,24 @@ const CalendarTimeline = ({
     setTimeout(scrollToNoon, 100)
   }
 
+  const handleCellMouseEnter = (e, availablePlayers) => {
+    if (availablePlayers.length === 0 || isDragging) return
+    
+    const rect = e.currentTarget.getBoundingClientRect()
+    setTooltip({
+      visible: true,
+      players: availablePlayers,
+      position: {
+        x: rect.right + 10,
+        y: rect.top
+      }
+    })
+  }
+
+  const handleCellMouseLeave = () => {
+    setTooltip({ visible: false, players: [], position: { x: 0, y: 0 } })
+  }
+
   return (
     <div className="calendar-timeline">
       <div className="calendar-timeline-header">
@@ -403,11 +423,8 @@ const CalendarTimeline = ({
                           ? `rgba(100, 108, 255, ${Math.min(overlapPercentage / 100, 0.3)})`
                           : undefined
                       }}
-                      title={
-                        overlapCount > 0
-                          ? `Доступно игроков: ${overlapCount} из ${maxPlayers}`
-                          : 'Нажмите или протяните, чтобы отметить время'
-                      }
+                      onMouseEnter={(e) => handleCellMouseEnter(e, availablePlayers)}
+                      onMouseLeave={handleCellMouseLeave}
                     >
                       {showAvailabilityOverlap && overlapCount > 0 && (
                         <div className="availability-indicator">
@@ -461,6 +478,12 @@ const CalendarTimeline = ({
           </div>
         </div>
       </div>
+
+      <PlayerTooltip 
+        players={tooltip.players}
+        visible={tooltip.visible}
+        position={tooltip.position}
+      />
     </div>
   )
 }
