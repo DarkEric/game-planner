@@ -1,125 +1,118 @@
-# Changelog
+# История изменений / Changelog
 
-All notable changes to this project will be documented in this file.
+Все важные изменения проекта документируются в этом файле.
 
 ## [1.2.0] - 2025-11-17
 
-### ✨ Added
-- **Game Cancellation Notifications** - Telegram notifications when games are cancelled
-  - Optional cancellation reason field
-  - Formatted notification with reason
-- **Player Tooltips** - Hover over time slots to see who is available
-  - Custom styled tooltip component
-  - Shows player names with colors
-  - Smooth hover interactions
-- **Configurable Timezone for Telegram** - Set timezone for notifications
-  - Support for all IANA timezones
-  - Automatic timezone name mapping for Russian cities
-  - Display timezone in notifications (e.g., "по Москве")
-  - Default: Europe/Moscow
+### ✨ Добавлено
+- **Уведомления об отмене игр** - Telegram уведомления при отмене игры
+  - Опциональное поле причины отмены
+  - Форматированное уведомление с причиной
+- **Тултипы с игроками** - При наведении на слот показывает кто доступен
+  - Кастомный стилизованный компонент тултипа
+  - Показывает имена игроков с их цветами
+  - Плавные hover-эффекты
+- **Настраиваемый часовой пояс для Telegram** - Установка часового пояса для уведомлений
+  - Поддержка всех IANA часовых поясов
+  - Автоматический маппинг названий для российских городов
+  - Отображение часового пояса в уведомлениях (например, "по Москве")
+  - По умолчанию: Europe/Moscow
 
-### 📚 Documentation
-- **Reorganized Documentation Structure**
-  - Moved all docs to organized folders (docs/guides, docs/telegram, docs/setup)
-  - Created docs/INDEX.md as main documentation index
-  - Added SIMPLE_GUIDE.md for beginners
-  - Added QUICK_START_VISUAL.md with ASCII diagrams
-  - Added comprehensive FAQ.md (50+ questions)
-  - Cleaner root directory
+### 📚 Документация
+- **Реорганизована структура документации**
+  - Все документы перемещены в организованные папки (docs/guides, docs/telegram, docs/setup)
+  - Создан docs/INDEX.md как главный индекс документации
+  - Добавлен SIMPLE_GUIDE.md для новичков
+  - Добавлен QUICK_START_VISUAL.md с ASCII диаграммами
+  - Добавлен подробный FAQ.md (50+ вопросов)
+  - Чистый корневой каталог
 
-### 🔧 Improved
-- Better documentation navigation
-- Simplified guides for beginners
-- Clear folder structure
+### 🔧 Улучшено
+- Улучшена навигация по документации
+- Упрощенные гайды для новичков
+- Понятная структура папок
 
 ## [1.1.0] - 2025-11-17
 
-### ✨ Added
-- **Telegram Notifications** - Send notifications to Telegram when new games are created
-  - Optional feature (disabled by default)
-  - Configurable via environment variables
-  - Supports personal chats, groups, and channels
-  - Rich HTML-formatted messages with game details and direct link
-  - See [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md) for setup instructions
-- **Telegram Topics Support** - Send notifications to specific topics in supergroups
-  - Configure via `TELEGRAM_BOT_THREAD_ID` environment variable
-  - Automatic thread ID handling with graceful fallback
-  - See [docs/TELEGRAM_TOPICS.md](docs/TELEGRAM_TOPICS.md) for details
+### ✨ Добавлено
+- **Telegram уведомления** - Отправка уведомлений в Telegram при создании новых игр
+  - Опциональная функция (по умолчанию выключена)
+  - Настраивается через переменные окружения
+  - Поддержка личных чатов, групп и каналов
+  - Форматированные HTML сообщения с деталями игры и прямой ссылкой
+- **Поддержка топиков Telegram** - Отправка уведомлений в конкретные топики супергрупп
+  - Настройка через переменную `TELEGRAM_BOT_THREAD_ID`
+  - Автоматическая обработка thread ID с graceful fallback
 
-### 🔧 Improved
-- Enhanced logging for Telegram integration
-  - Configuration logging on startup
-  - Detailed debug logs for message sending
-  - Better error messages for troubleshooting
-- Thread ID parsing with whitespace trimming
-- Comprehensive error handling for invalid configurations
+### 🔧 Улучшено
+- Расширенное логирование для Telegram интеграции
+  - Логирование конфигурации при старте
+  - Подробные debug логи для отправки сообщений
+  - Улучшенные сообщения об ошибках
+- Парсинг Thread ID с удалением пробелов
+- Комплексная обработка ошибок для неверных конфигураций
 
-### 📚 Documentation
-- Added [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md) - Complete setup guide
-- Added [TELEGRAM_QUICK_START.md](TELEGRAM_QUICK_START.md) - 3-step quick start
-- Added [docs/TELEGRAM_TOPICS.md](docs/TELEGRAM_TOPICS.md) - Topics setup guide
-- Added [docs/TELEGRAM_DEBUG.md](docs/TELEGRAM_DEBUG.md) - Troubleshooting guide
-- Added [docs/TELEGRAM_INTEGRATION.md](docs/TELEGRAM_INTEGRATION.md) - Technical docs
-- Added [docs/TELEGRAM_TESTING.md](docs/TELEGRAM_TESTING.md) - Testing guide
-- Updated README.md and README.en.md with Telegram features
+### 📚 Документация
+- Добавлена полная документация по Telegram интеграции
+- Обновлены README.md и README.en.md
 
-### 🐛 Fixed
-- Thread ID not being applied due to whitespace in configuration
-- Missing debug logs for thread ID operations
+### 🐛 Исправлено
+- Thread ID не применялся из-за пробелов в конфигурации
+- Отсутствующие debug логи для операций с thread ID
 
-### 🔄 Changed
-- Updated all docker-compose files with Telegram environment variables
-- Updated .env.example and .env.production.example with Telegram configuration
+### 🔄 Изменено
+- Обновлены все docker-compose файлы с переменными Telegram
+- Обновлены .env.example и .env.production.example
 
 ## [1.0.0] - 2024-11-16
 
-### 🎉 Initial Release
+### 🎉 Первый релиз
 
-First stable release of Game Planner - a web application for scheduling board game sessions with friends.
+Первый стабильный релиз Game Planner - веб-приложения для планирования настольных игр с друзьями.
 
-### ✨ Features
+### ✨ Возможности
 
-#### Core Functionality
-- **Interactive Calendar** - Mark available time with drag-and-drop
-- **Smart Slot Finder** - Automatically finds best time slots for all players
-- **Game Scheduling** - Create games with title, description, and participants
-- **Timezone Support** - Each user sees time in their own timezone
-- **Invite System** - Registration by invitation only for controlled access
-- **Auto Cleanup** - Automatic removal of old games (30+ days)
+#### Основной функционал
+- **Интерактивный календарь** - Отметка доступного времени drag-and-drop
+- **Умный поиск слотов** - Автоматический поиск лучшего времени для всех игроков
+- **Планирование игр** - Создание игр с названием, описанием и участниками
+- **Поддержка часовых поясов** - Каждый видит время в своем часовом поясе
+- **Система инвайтов** - Регистрация только по приглашениям
+- **Автоочистка** - Автоматическое удаление старых игр (30+ дней)
 
-#### User Interface
-- **Dark Theme** - Eye-friendly dark interface
-- **Responsive Design** - Works on any screen size
-- **Adaptive Calendar** - Shows 7-21 days depending on screen width
-- **Language Switcher** - RU/EN interface localization (partial)
-- **Auto-scroll** - Calendar automatically scrolls to 12:00 for convenience
+#### Интерфейс
+- **Темная тема** - Приятный для глаз темный интерфейс
+- **Адаптивный дизайн** - Работает на любых экранах
+- **Адаптивный календарь** - Показывает 7-21 день в зависимости от ширины экрана
+- **Переключатель языка** - RU/EN локализация интерфейса (частичная)
+- **Автопрокрутка** - Календарь автоматически прокручивается к 12:00
 
-#### Technical Features
-- **JWT Authentication** - Secure user authentication
-- **PostgreSQL Database** - Reliable data storage
-- **Docker Deployment** - Easy setup with Docker Compose
-- **Automatic HTTPS** - Caddy integration for production
-- **API Optimization** - Merged consecutive time slots for better performance
+#### Технические возможности
+- **JWT аутентификация** - Безопасная аутентификация пользователей
+- **PostgreSQL база данных** - Надежное хранение данных
+- **Docker развертывание** - Простая установка с Docker Compose
+- **Автоматический HTTPS** - Интеграция с Caddy для production
+- **Оптимизация API** - Объединение последовательных временных слотов
 
-### 🛠 Technologies
+### 🛠 Технологии
 
 **Backend:**
 - Java 17 + Spring Boot
 - PostgreSQL
-- Liquibase migrations
-- JWT authentication
+- Liquibase миграции
+- JWT аутентификация
 
 **Frontend:**
 - React 18
 - Vite
 - CSS Modules
-- i18n support
+- i18n поддержка
 
-**Deployment:**
+**Развертывание:**
 - Docker & Docker Compose
-- Caddy (automatic HTTPS)
+- Caddy (автоматический HTTPS)
 
-### 📦 Installation
+### 📦 Установка
 
 ```bash
 git clone https://github.com/DarkEric/game-planner.git
@@ -128,39 +121,37 @@ cp .env.example .env
 docker-compose up -d
 ```
 
-Open http://localhost and use invite code: `FIRST-USER-INVITE-2025`
+Откройте http://localhost и используйте инвайт-код: `FIRST-USER-INVITE-2025`
 
-### 📚 Documentation
+### 📚 Документация
 
+- [README (Русский)](README.md)
 - [README (English)](README.en.md)
-- [README (Russian)](README.md)
-- [Quick Start Guide](QUICK_START.en.md)
-- [Production Setup](PRODUCTION_SETUP.md)
-- [Troubleshooting](TROUBLESHOOTING.md)
+- [Документация](docs/INDEX.md)
 
-### 🌍 Localization
+### 🌍 Локализация
 
-- Interface: Partial (RU/EN)
-- Documentation: Full (RU/EN)
-- Auto-detection of browser language
+- Интерфейс: Частичная (RU/EN)
+- Документация: Полная (RU/EN)
+- Автоопределение языка браузера
 
-### 🐛 Known Issues
+### 🐛 Известные проблемы
 
-- Interface localization is partial (only main elements translated)
-- Mobile optimization can be improved
+- Локализация интерфейса частичная (переведены только основные элементы)
+- Мобильная оптимизация может быть улучшена
 
 ### 🗺️ Roadmap
 
-- [ ] Complete English interface localization
-- [ ] Mobile app
-- [ ] Game library integration
-- [ ] Notifications system
-- [ ] Calendar export (iCal)
+- [ ] Полная английская локализация интерфейса
+- [ ] Мобильное приложение
+- [ ] Интеграция с библиотекой игр
+- [ ] Система уведомлений
+- [ ] Экспорт календаря (iCal)
 
-### 👥 Contributors
+### 👥 Участники
 
-- DarkEric - Initial work
+- DarkEric - Начальная разработка
 
-### 📝 License
+### 📝 Лицензия
 
-MIT License - see LICENSE file for details
+MIT License
