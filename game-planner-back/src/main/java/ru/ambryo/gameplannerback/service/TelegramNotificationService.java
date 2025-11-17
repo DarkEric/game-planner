@@ -34,9 +34,36 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
     
-    private static final DateTimeFormatter DATE_FORMATTER = 
-        DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
-            .withZone(ZoneId.systemDefault());
+    @Value("${telegram.bot.timezone:Europe/Moscow}")
+    private String timezoneId;
+    
+    private ZoneId getNotificationZone() {
+        try {
+            return ZoneId.of(timezoneId);
+        } catch (Exception e) {
+            logger.warn("Invalid timezone '{}', falling back to Europe/Moscow", timezoneId);
+            return ZoneId.of("Europe/Moscow");
+        }
+    }
+    
+    private String getTimezoneName() {
+        ZoneId zone = getNotificationZone();
+        // Маппинг популярных часовых поясов на русские названия
+        return switch (zone.getId()) {
+            case "Europe/Moscow" -> "по Москве";
+            case "Europe/Kaliningrad" -> "по Калининграду";
+            case "Europe/Samara" -> "по Самаре";
+            case "Asia/Yekaterinburg" -> "по Екатеринбургу";
+            case "Asia/Omsk" -> "по Омску";
+            case "Asia/Krasnoyarsk" -> "по Красноярску";
+            case "Asia/Irkutsk" -> "по Иркутску";
+            case "Asia/Yakutsk" -> "по Якутску";
+            case "Asia/Vladivostok" -> "по Владивостоку";
+            case "Asia/Magadan" -> "по Магадану";
+            case "Asia/Kamchatka" -> "по Камчатке";
+            default -> "UTC" + zone.getRules().getOffset(Instant.now());
+        };
+    }
     
     @Override
     public String getBotUsername() {
@@ -62,6 +89,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         logger.info("Chat ID: {}", chatId != null && !chatId.isEmpty() ? chatId : "NOT SET");
         logger.info("Thread ID: {}", threadId != null && !threadId.trim().isEmpty() ? threadId : "NOT SET");
         logger.info("Frontend URL: {}", frontendUrl);
+        logger.info("Timezone: {} ({})", timezoneId, getTimezoneName());
         logger.info("==================================");
     }
     
@@ -119,7 +147,9 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             .append(formatInstant(game.getStartTime()))
             .append(" - ")
             .append(formatInstant(game.getEndTime()))
-            .append("\n");
+            .append(" (")
+            .append(getTimezoneName())
+            .append(")\n");
         
         message.append("👤 <b>Организатор:</b> ").append(escapeHtml(game.getCreatorName())).append("\n");
         
@@ -130,7 +160,9 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     }
     
     private String formatInstant(Instant instant) {
-        return DATE_FORMATTER.format(instant);
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+            .withZone(getNotificationZone());
+        return formatter.format(instant);
     }
     
     public void sendGameCancelledNotification(GameDto game, String cancellationReason) {
@@ -181,7 +213,9 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             .append(formatInstant(game.getStartTime()))
             .append(" - ")
             .append(formatInstant(game.getEndTime()))
-            .append("\n");
+            .append(" (")
+            .append(getTimezoneName())
+            .append(")\n");
         
         message.append("👤 <b>Организатор:</b> ").append(escapeHtml(game.getCreatorName())).append("\n");
         
