@@ -101,8 +101,9 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose }
                 <button 
                   className="game-action-button delete-button"
                   onClick={() => {
-                    if (confirm('Удалить эту игру?')) {
-                      onDelete(game.id)
+                    const reason = prompt('Причина отмены игры (опционально):')
+                    if (reason !== null) { // null если нажали Cancel
+                      onDelete(game.id, reason)
                     }
                   }}
                 >

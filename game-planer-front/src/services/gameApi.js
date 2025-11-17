@@ -105,8 +105,14 @@ export const gameApi = {
     }))
   },
 
-  async deleteGame(gameId) {
-    const response = await fetch(`${API_BASE_URL}/games/${gameId}`, {
+  async deleteGame(gameId, cancellationReason) {
+    const params = new URLSearchParams()
+    if (cancellationReason && cancellationReason.trim()) {
+      params.append('cancellationReason', cancellationReason.trim())
+    }
+    
+    const url = `${API_BASE_URL}/games/${gameId}${params.toString() ? '?' + params.toString() : ''}`
+    const response = await fetch(url, {
       method: 'DELETE',
       headers: getAuthHeaders()
     })

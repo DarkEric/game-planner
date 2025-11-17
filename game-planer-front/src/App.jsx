@@ -266,10 +266,10 @@ function App() {
     }
   }
 
-  const handleDeleteGame = async (gameId) => {
+  const handleDeleteGame = async (gameId, cancellationReason) => {
     try {
       setError(null)
-      await gameApi.deleteGame(gameId)
+      await gameApi.deleteGame(gameId, cancellationReason)
       setGames(games.filter(g => g.id !== gameId))
       setSelectedGame(null)
     } catch (err) {

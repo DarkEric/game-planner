@@ -64,10 +64,11 @@ public class GameController {
     @DeleteMapping("/{gameId}")
     public ResponseEntity<Void> deleteGame(
             @PathVariable Long gameId,
+            @RequestParam(required = false) String cancellationReason,
             Authentication authentication) {
         try {
             User user = (User) authentication.getPrincipal();
-            gameService.deleteGame(gameId, user);
+            gameService.deleteGame(gameId, user, cancellationReason);
             return ResponseEntity.noContent().build();
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();

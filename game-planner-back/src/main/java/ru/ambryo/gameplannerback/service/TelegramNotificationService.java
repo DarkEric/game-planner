@@ -133,6 +133,66 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         return DATE_FORMATTER.format(instant);
     }
     
+    public void sendGameCancelledNotification(GameDto game, String cancellationReason) {
+        if (!enabled || chatId == null || chatId.isEmpty()) {
+            logger.debug("Telegram notifications disabled or chat ID not configured");
+            return;
+        }
+        
+        logger.info("Preparing to send game cancellation notification for game: {}", game.getTitle());
+        logger.debug("Chat ID: {}, Thread ID: '{}'", chatId, threadId);
+        
+        try {
+            String message = buildGameCancelledMessage(game, cancellationReason);
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatId);
+            sendMessage.setText(message);
+            sendMessage.setParseMode("HTML");
+            
+            // Если указан Thread ID (для топиков в супергруппах)
+            if (threadId != null && !threadId.trim().isEmpty()) {
+                try {
+                    int threadIdInt = Integer.parseInt(threadId.trim());
+                    sendMessage.setMessageThreadId(threadIdInt);
+                    logger.info("Sending cancellation to thread ID: {}", threadIdInt);
+                } catch (NumberFormatException e) {
+                    logger.warn("Invalid thread ID format: '{}', sending to main chat", threadId, e);
+                }
+            } else {
+                logger.debug("No thread ID specified, sending to main chat");
+            }
+            
+            execute(sendMessage);
+            logger.info("Telegram cancellation notification successfully sent for game: {}", game.getTitle());
+        } catch (TelegramApiException e) {
+            logger.error("Failed to send Telegram cancellation notification for game: {}", game.getTitle(), e);
+        }
+    }
+    
+    private String buildGameCancelledMessage(GameDto game, String cancellationReason) {
+        StringBuilder message = new StringBuilder();
+        message.append("❌ <b>Игра отменена</b>\n\n");
+        
+        if (game.getTitle() != null && !game.getTitle().isEmpty()) {
+            message.append("📌 <b>").append(escapeHtml(game.getTitle())).append("</b>\n");
+        }
+        
+        message.append("🕐 <b>Время:</b> ")
+            .append(formatInstant(game.getStartTime()))
+            .append(" - ")
+            .append(formatInstant(game.getEndTime()))
+            .append("\n");
+        
+        message.append("👤 <b>Организатор:</b> ").append(escapeHtml(game.getCreatorName())).append("\n");
+        
+        if (cancellationReason != null && !cancellationReason.trim().isEmpty()) {
+            message.append("\n💬 <b>Причина отмены:</b>\n")
+                .append(escapeHtml(cancellationReason));
+        }
+        
+        return message.toString();
+    }
+    
     private String escapeHtml(String text) {
         if (text == null) {
             return "";

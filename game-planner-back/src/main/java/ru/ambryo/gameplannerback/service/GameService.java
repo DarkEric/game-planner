@@ -90,7 +90,7 @@ public class GameService {
     }
     
     @Transactional
-    public void deleteGame(Long gameId, User user) {
+    public void deleteGame(Long gameId, User user, String cancellationReason) {
         Game game = gameRepository.findById(gameId)
                 .orElseThrow(() -> new RuntimeException("Game not found"));
         
@@ -98,7 +98,18 @@ public class GameService {
             throw new RuntimeException("Only creator can delete the game");
         }
         
+        // Сохраняем DTO до удаления для отправки уведомления
+        GameDto gameDto = convertToDto(game);
+        
         gameRepository.delete(game);
+        
+        // Отправляем уведомление об отмене в Telegram
+        try {
+            telegramNotificationService.sendGameCancelledNotification(gameDto, cancellationReason);
+        } catch (Exception e) {
+            // Логируем ошибку, но не прерываем удаление игры
+            System.err.println("Failed to send Telegram cancellation notification: " + e.getMessage());
+        }
     }
     
     @Transactional
