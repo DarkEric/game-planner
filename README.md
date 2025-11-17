@@ -1,10 +1,11 @@
 # 🎲 Game Planner
 
-[English version](README.en.md) | Русская версия | **[📖 Простой гайд](SIMPLE_GUIDE.md)**
+[English version](README.en.md) | Русская версия | **[📖 Документация](docs/INDEX.md)**
 
 Веб-приложение для планирования настольных игр с друзьями. Отмечайте свободное время, находите общие слоты и планируйте игры вместе!
 
-> **Новичок?** Начните с [простого гайда](SIMPLE_GUIDE.md) - всё объяснено простым языком!
+> **Новичок?** Начните с [простого гайда](docs/guides/SIMPLE_GUIDE.md) - всё объяснено простым языком!  
+> **Вся документация:** [docs/INDEX.md](docs/INDEX.md)
 
 ## ✨ Возможности
 
@@ -152,7 +153,7 @@ VITE_API_URL=http://localhost:8080
 docker-compose -f docker-compose.prod.yml up -d
 ```
 
-Подробнее см. [PRODUCTION_SETUP.md](PRODUCTION_SETUP.md)
+Подробнее см. [docs/setup/PRODUCTION_SETUP.md](docs/setup/PRODUCTION_SETUP.md)
 
 ## � Telebgram уведомления
 
@@ -171,11 +172,11 @@ FRONTEND_URL=http://localhost:5173
 ```
 4. Перезапустите приложение
 
-📖 **Подробная инструкция:** [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md)
+📖 **Подробная инструкция:** [docs/telegram/TELEGRAM_SETUP.md](docs/telegram/TELEGRAM_SETUP.md)
 
 ## 🐛 Troubleshooting
 
-См. [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+См. [docs/setup/TROUBLESHOOTING.md](docs/setup/TROUBLESHOOTING.md)
 
 ## 📝 Лицензия
 
