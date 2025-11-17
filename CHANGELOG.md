@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2025-11-17
+
+### ✨ Added
+- **Game Cancellation Notifications** - Telegram notifications when games are cancelled
+  - Optional cancellation reason field
+  - Formatted notification with reason
+- **Player Tooltips** - Hover over time slots to see who is available
+  - Custom styled tooltip component
+  - Shows player names with colors
+  - Smooth hover interactions
+- **Configurable Timezone for Telegram** - Set timezone for notifications
+  - Support for all IANA timezones
+  - Automatic timezone name mapping for Russian cities
+  - Display timezone in notifications (e.g., "по Москве")
+  - Default: Europe/Moscow
+
+### 📚 Documentation
+- **Reorganized Documentation Structure**
+  - Moved all docs to organized folders (docs/guides, docs/telegram, docs/setup)
+  - Created docs/INDEX.md as main documentation index
+  - Added SIMPLE_GUIDE.md for beginners
+  - Added QUICK_START_VISUAL.md with ASCII diagrams
+  - Added comprehensive FAQ.md (50+ questions)
+  - Cleaner root directory
+
+### 🔧 Improved
+- Better documentation navigation
+- Simplified guides for beginners
+- Clear folder structure
+
 ## [1.1.0] - 2025-11-17
 
 ### ✨ Added
