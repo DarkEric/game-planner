@@ -2,15 +2,44 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.1.0] - 2025-11-17
 
 ### ✨ Added
 - **Telegram Notifications** - Send notifications to Telegram when new games are created
   - Optional feature (disabled by default)
   - Configurable via environment variables
   - Supports personal chats, groups, and channels
-  - Rich message format with game details and direct link
+  - Rich HTML-formatted messages with game details and direct link
   - See [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md) for setup instructions
+- **Telegram Topics Support** - Send notifications to specific topics in supergroups
+  - Configure via `TELEGRAM_BOT_THREAD_ID` environment variable
+  - Automatic thread ID handling with graceful fallback
+  - See [docs/TELEGRAM_TOPICS.md](docs/TELEGRAM_TOPICS.md) for details
+
+### 🔧 Improved
+- Enhanced logging for Telegram integration
+  - Configuration logging on startup
+  - Detailed debug logs for message sending
+  - Better error messages for troubleshooting
+- Thread ID parsing with whitespace trimming
+- Comprehensive error handling for invalid configurations
+
+### 📚 Documentation
+- Added [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md) - Complete setup guide
+- Added [TELEGRAM_QUICK_START.md](TELEGRAM_QUICK_START.md) - 3-step quick start
+- Added [docs/TELEGRAM_TOPICS.md](docs/TELEGRAM_TOPICS.md) - Topics setup guide
+- Added [docs/TELEGRAM_DEBUG.md](docs/TELEGRAM_DEBUG.md) - Troubleshooting guide
+- Added [docs/TELEGRAM_INTEGRATION.md](docs/TELEGRAM_INTEGRATION.md) - Technical docs
+- Added [docs/TELEGRAM_TESTING.md](docs/TELEGRAM_TESTING.md) - Testing guide
+- Updated README.md and README.en.md with Telegram features
+
+### 🐛 Fixed
+- Thread ID not being applied due to whitespace in configuration
+- Missing debug logs for thread ID operations
+
+### 🔄 Changed
+- Updated all docker-compose files with Telegram environment variables
+- Updated .env.example and .env.production.example with Telegram configuration
 
 ## [1.0.0] - 2024-11-16
 
