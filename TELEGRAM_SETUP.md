@@ -91,7 +91,9 @@ TELEGRAM_BOT_ENABLED=false
 2. Убедитесь, что токен правильный
 3. Проверьте Chat ID (для групп должен начинаться с `-`)
 4. Убедитесь, что бот добавлен в группу/канал как администратор
-5. Проверьте логи приложения: `docker-compose logs backend`
+5. Проверьте логи приложения: `docker-compose logs backend | grep -i telegram`
+
+📖 **Подробное руководство по отладке:** [docs/TELEGRAM_DEBUG.md](docs/TELEGRAM_DEBUG.md)
 
 ### Ошибка "Unauthorized"
 

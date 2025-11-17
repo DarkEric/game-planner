@@ -53,11 +53,26 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         // Бот не обрабатывает входящие сообщения, только отправляет уведомления
     }
     
+    /**
+     * Логирует текущую конфигурацию бота (для отладки)
+     */
+    public void logConfiguration() {
+        logger.info("=== Telegram Bot Configuration ===");
+        logger.info("Enabled: {}", enabled);
+        logger.info("Chat ID: {}", chatId != null && !chatId.isEmpty() ? chatId : "NOT SET");
+        logger.info("Thread ID: {}", threadId != null && !threadId.trim().isEmpty() ? threadId : "NOT SET");
+        logger.info("Frontend URL: {}", frontendUrl);
+        logger.info("==================================");
+    }
+    
     public void sendGameCreatedNotification(GameDto game) {
         if (!enabled || chatId == null || chatId.isEmpty()) {
             logger.debug("Telegram notifications disabled or chat ID not configured");
             return;
         }
+        
+        logger.info("Preparing to send Telegram notification for game: {}", game.getTitle());
+        logger.debug("Chat ID: {}, Thread ID: '{}'", chatId, threadId);
         
         try {
             String message = buildGameNotificationMessage(game);
@@ -67,25 +82,28 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             sendMessage.setParseMode("HTML");
             
             // Если указан Thread ID (для топиков в супергруппах)
-            if (threadId != null && !threadId.isEmpty()) {
+            if (threadId != null && !threadId.trim().isEmpty()) {
                 try {
-                    sendMessage.setMessageThreadId(Integer.parseInt(threadId));
-                    logger.debug("Sending to thread ID: {}", threadId);
+                    int threadIdInt = Integer.parseInt(threadId.trim());
+                    sendMessage.setMessageThreadId(threadIdInt);
+                    logger.info("Sending to thread ID: {}", threadIdInt);
                 } catch (NumberFormatException e) {
-                    logger.warn("Invalid thread ID format: {}", threadId);
+                    logger.warn("Invalid thread ID format: '{}', sending to main chat", threadId, e);
                 }
+            } else {
+                logger.debug("No thread ID specified, sending to main chat");
             }
             
             execute(sendMessage);
-            logger.info("Telegram notification sent for game: {}", game.getTitle());
+            logger.info("Telegram notification successfully sent for game: {}", game.getTitle());
         } catch (TelegramApiException e) {
-            logger.error("Failed to send Telegram notification", e);
+            logger.error("Failed to send Telegram notification for game: {}", game.getTitle(), e);
         }
     }
     
     private String buildGameNotificationMessage(GameDto game) {
         StringBuilder message = new StringBuilder();
-        message.append("🎮 <b>Новая игра запланирована!</b>\n\n");
+        message.append("🎮 <b>Запланирована новая игра!</b>\n\n");
         
         if (game.getTitle() != null && !game.getTitle().isEmpty()) {
             message.append("📌 <b>").append(escapeHtml(game.getTitle())).append("</b>\n");
@@ -105,12 +123,8 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         
         message.append("👤 <b>Организатор:</b> ").append(escapeHtml(game.getCreatorName())).append("\n");
         
-        if (game.getParticipants() != null && !game.getParticipants().isEmpty()) {
-            message.append("👥 <b>Участники:</b> ").append(game.getParticipants().size()).append("\n");
-        }
-        
         String gameUrl = frontendUrl + "?gameId=" + game.getId();
-        message.append("\n🔗 <a href=\"").append(gameUrl).append("\">Открыть игру</a>");
+        message.append("\n🔗 <a href=\"").append(gameUrl).append("\">Посмотреть и записаться на игру</a>");
         
         return message.toString();
     }

@@ -17,6 +17,10 @@ public class TelegramBotConfig {
     public TelegramBotsApi telegramBotsApi(TelegramNotificationService telegramNotificationService) throws TelegramApiException {
         TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
         botsApi.registerBot(telegramNotificationService);
+        
+        // Логируем конфигурацию при старте
+        telegramNotificationService.logConfiguration();
+        
         return botsApi;
     }
 }
