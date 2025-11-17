@@ -11,6 +11,7 @@ A web application for planning board game sessions with friends. Mark your avail
 - 🎮 **Game Scheduling** - create games with title, description, and participants
 - 🌍 **Timezone Support** - everyone sees time in their own timezone
 - 🔐 **Invite System** - registration by invitation only
+- 📱 **Telegram Notifications** - get notified about new games (optional)
 - 🎨 **Dark Theme** - easy on the eyes
 - 📱 **Responsive Design** - works on any screen size
 
@@ -199,6 +200,25 @@ The app automatically detects your timezone, but you can change it:
 2. Click on **"Часовой пояс"** (Timezone) dropdown
 3. Select your timezone or click **"Определить автоматически"** (Auto-detect)
 
+## 📱 Telegram Notifications
+
+Game Planner supports sending notifications to Telegram when new games are created.
+
+### Quick Setup
+
+1. Create a bot via [@BotFather](https://t.me/BotFather)
+2. Get your bot token and Chat ID
+3. Add to `.env`:
+```env
+TELEGRAM_BOT_ENABLED=true
+TELEGRAM_BOT_TOKEN=your_token
+TELEGRAM_BOT_CHAT_ID=your_chat_id
+FRONTEND_URL=http://localhost:5173
+```
+4. Restart the application
+
+📖 **Detailed guide:** [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md)
+
 ## 🐛 Troubleshooting
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
@@ -243,7 +263,7 @@ Pull requests are welcome! For major changes, please open an issue first.
 - [ ] English interface localization
 - [ ] Mobile app
 - [ ] Game library integration
-- [ ] Notifications system
+- [x] Telegram notifications
 - [ ] Calendar export (iCal)
 
 ## 💬 Support

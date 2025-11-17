@@ -35,6 +35,10 @@ services:
       CLEANUP_ENABLED: ${CLEANUP_ENABLED:-true}
       CLEANUP_RETENTION_DAYS: ${CLEANUP_RETENTION_DAYS:-15}
       CLEANUP_CRON: ${CLEANUP_CRON:-0 0 3 * * ?}
+      TELEGRAM_BOT_ENABLED: ${TELEGRAM_BOT_ENABLED:-false}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_CHAT_ID: ${TELEGRAM_BOT_CHAT_ID:-}
+      FRONTEND_URL: ${FRONTEND_URL}
     depends_on:
       postgres:
         condition: service_healthy

@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### ✨ Added
+- **Telegram Notifications** - Send notifications to Telegram when new games are created
+  - Optional feature (disabled by default)
+  - Configurable via environment variables
+  - Supports personal chats, groups, and channels
+  - Rich message format with game details and direct link
+  - See [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md) for setup instructions
+
 ## [1.0.0] - 2024-11-16
 
 ### 🎉 Initial Release

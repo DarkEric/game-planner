@@ -27,6 +27,9 @@ public class GameService {
     @Autowired
     private UserService userService;
     
+    @Autowired
+    private TelegramNotificationService telegramNotificationService;
+    
     @Transactional
     public GameDto createGame(CreateGameRequest request, User creator) {
         Game game = new Game(
@@ -56,7 +59,18 @@ public class GameService {
         
         game.setParticipants(participants);
         game = gameRepository.save(game);
-        return convertToDto(game);
+        
+        GameDto gameDto = convertToDto(game);
+        
+        // Отправляем уведомление в Telegram
+        try {
+            telegramNotificationService.sendGameCreatedNotification(gameDto);
+        } catch (Exception e) {
+            // Логируем ошибку, но не прерываем создание игры
+            System.err.println("Failed to send Telegram notification: " + e.getMessage());
+        }
+        
+        return gameDto;
     }
     
     @Transactional(readOnly = true)
