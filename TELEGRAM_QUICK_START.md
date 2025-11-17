@@ -19,8 +19,11 @@
 TELEGRAM_BOT_ENABLED=true
 TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
 TELEGRAM_BOT_CHAT_ID=123456789
+TELEGRAM_BOT_THREAD_ID=  # Опционально, для топиков
 FRONTEND_URL=http://localhost:5173
 ```
+
+**Для топиков в супергруппах:** см. [docs/TELEGRAM_TOPICS.md](docs/TELEGRAM_TOPICS.md)
 
 ### Перезапустите
 ```bash

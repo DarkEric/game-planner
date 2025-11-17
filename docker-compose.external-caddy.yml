@@ -41,6 +41,7 @@ services:
       TELEGRAM_BOT_ENABLED: ${TELEGRAM_BOT_ENABLED:-false}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_BOT_CHAT_ID: ${TELEGRAM_BOT_CHAT_ID:-}
+      TELEGRAM_BOT_THREAD_ID: ${TELEGRAM_BOT_THREAD_ID:-}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
     # Открываем порт для внешнего Caddy (настраивается через .env)
     ports:

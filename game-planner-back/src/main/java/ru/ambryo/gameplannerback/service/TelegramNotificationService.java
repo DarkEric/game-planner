@@ -28,6 +28,9 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     @Value("${telegram.bot.chat-id:}")
     private String chatId;
     
+    @Value("${telegram.bot.thread-id:}")
+    private String threadId;
+    
     @Value("${app.frontend.url:http://localhost:5173}")
     private String frontendUrl;
     
@@ -62,6 +65,16 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             sendMessage.setChatId(chatId);
             sendMessage.setText(message);
             sendMessage.setParseMode("HTML");
+            
+            // Если указан Thread ID (для топиков в супергруппах)
+            if (threadId != null && !threadId.isEmpty()) {
+                try {
+                    sendMessage.setMessageThreadId(Integer.parseInt(threadId));
+                    logger.debug("Sending to thread ID: {}", threadId);
+                } catch (NumberFormatException e) {
+                    logger.warn("Invalid thread ID format: {}", threadId);
+                }
+            }
             
             execute(sendMessage);
             logger.info("Telegram notification sent for game: {}", game.getTitle());

@@ -79,6 +79,7 @@ app.frontend.url=${FRONTEND_URL:http://localhost:5173}
 | `TELEGRAM_BOT_ENABLED` | No | `false` | Enable/disable notifications |
 | `TELEGRAM_BOT_TOKEN` | Yes* | - | Bot token from @BotFather |
 | `TELEGRAM_BOT_CHAT_ID` | Yes* | - | Target chat/channel ID |
+| `TELEGRAM_BOT_THREAD_ID` | No | - | Thread ID for topics in supergroups |
 | `FRONTEND_URL` | No | `http://localhost:5173` | Frontend URL for links |
 
 *Required only when `TELEGRAM_BOT_ENABLED=true`
@@ -171,6 +172,19 @@ public void sendGameUpdatedNotification(GameDto game) {
 ```java
 telegramNotificationService.sendGameUpdatedNotification(gameDto);
 ```
+
+### Using Topics in Supergroups
+
+Topics (threads) are supported via `TELEGRAM_BOT_THREAD_ID`:
+
+```env
+TELEGRAM_BOT_CHAT_ID=-1001234567890
+TELEGRAM_BOT_THREAD_ID=5
+```
+
+The service automatically adds `message_thread_id` to the message if Thread ID is configured.
+
+See [TELEGRAM_TOPICS.md](TELEGRAM_TOPICS.md) for detailed setup instructions.
 
 ### Supporting Multiple Chats
 
