@@ -158,7 +158,16 @@ docker-compose up -d
 
 ### Минимальная настройка
 
-1. **Создайте `.env`:**
+1. **⚠️ ВАЖНО! Настройте email для SSL:**
+   ```bash
+   nano Caddyfile.prod
+   ```
+   Измените:
+   ```
+   email your-email@example.com  # ← Ваша почта!
+   ```
+
+2. **Создайте `.env`:**
    ```env
    POSTGRES_PASSWORD=сложный_пароль
    JWT_SECRET=случайная_строка_минимум_256_бит
@@ -166,19 +175,19 @@ docker-compose up -d
    DOMAIN=ваш-домен.com
    ```
 
-2. **Запустите:**
+3. **Запустите:**
    ```bash
    docker-compose -f docker-compose.prod.yml up -d
    ```
 
-3. **Настройте DNS:**
+4. **Настройте DNS:**
    - A-запись: ваш-домен.com → IP сервера
 
-4. **Откройте порты:**
+5. **Откройте порты:**
    - 80 (HTTP)
    - 443 (HTTPS)
 
-Caddy автоматически получит SSL сертификат.
+Caddy автоматически получит SSL сертификат (если email указан правильно).
 
 **Подробнее:** [PRODUCTION_SETUP.md](PRODUCTION_SETUP.md)
 

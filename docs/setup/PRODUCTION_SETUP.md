@@ -2,7 +2,30 @@
 
 ## Подготовка к production развертыванию
 
-### 1. Создайте production .env файл
+### 1. Настройте email для SSL сертификата
+
+**⚠️ ВАЖНО:** Перед запуском отредактируйте `Caddyfile.prod`:
+
+```bash
+nano Caddyfile.prod
+```
+
+Измените email на свой:
+```caddyfile
+{
+    # Глобальные настройки
+    email your-email@example.com  # ← Укажите ВАШУ почту!
+}
+```
+
+Этот email нужен для:
+- Получения SSL сертификата от Let's Encrypt
+- Уведомлений об истечении сертификата
+- Восстановления доступа к сертификатам
+
+**Без правильного email SSL сертификат не будет получен!**
+
+### 2. Создайте production .env файл
 
 ```bash
 cp .env.example .env
@@ -31,7 +54,7 @@ BACKEND_PORT=8080
 FRONTEND_PORT=3000
 ```
 
-### 2. Настройка CORS для production
+### 3. Настройка CORS для production
 
 **ВАЖНО:** Переменная `CORS_ALLOWED_ORIGINS` должна содержать все домены, с которых будет доступно приложение.
 
@@ -57,7 +80,7 @@ CORS_ALLOWED_ORIGINS=https://game-planner.example.com,https://api.example.com
 CORS_ALLOWED_ORIGINS=*
 ```
 
-### 3. Запуск production версии
+### 4. Запуск production версии
 
 #### Вариант A: Со встроенным Caddy (рекомендуется)
 

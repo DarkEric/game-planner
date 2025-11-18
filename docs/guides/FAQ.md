@@ -189,6 +189,29 @@ docker exec -i game-planner-db psql -U postgres game_planner < backup.sql
 ### Нужен ли SSL сертификат?
 Нет, Caddy получает его автоматически (Let's Encrypt).
 
+**⚠️ ВАЖНО:** Укажите свой email в `Caddyfile.prod`, иначе сертификат не будет получен!
+
+### Почему не получается получить SSL сертификат?
+**Самая частая причина:** Не указан email в `Caddyfile.prod`
+
+Откройте файл:
+```bash
+nano Caddyfile.prod
+```
+
+Измените:
+```caddyfile
+{
+    email your-email@example.com  # ← Укажите ВАШУ почту!
+}
+```
+
+Перезапустите:
+```bash
+docker-compose -f docker-compose.prod.yml down
+docker-compose -f docker-compose.prod.yml up -d
+```
+
 ### Какие порты нужно открыть?
 - 80 (HTTP)
 - 443 (HTTPS)
