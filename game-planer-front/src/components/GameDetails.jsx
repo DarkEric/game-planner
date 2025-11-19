@@ -1,7 +1,6 @@
 import './GameDetails.css'
 import { useState } from 'react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import DOMPurify from 'dompurify'
 import { gameApi } from '../services/gameApi'
 
 const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, onUpdate }) => {
@@ -97,9 +96,7 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
                 lineHeight: '1.5'
               }}>
                 <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#81c784' }}>Ключевые события:</h4>
-                <div className="markdown-content">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{game.keyEvents}</ReactMarkdown>
-                </div>
+                <div className="markdown-content" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(game.keyEvents) }} />
               </div>
             )}
 
@@ -217,7 +214,7 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
           <div className="modal-overlay" onClick={() => setShowHeldModal(false)}>
             <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: '600px', maxWidth: '90%' }}>
               <h3>Завершение игры</h3>
-              <p>Опишите ключевые события игры (поддерживается Markdown):</p>
+              <p>Опишите ключевые события игры (поддерживается HTML):</p>
 
               <div className="tabs" style={{ display: 'flex', marginBottom: '10px', borderBottom: '1px solid #444' }}>
                 <button
@@ -271,9 +268,7 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
                   background: '#222',
                   border: '1px solid #444',
                   borderRadius: '4px'
-                }}>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{keyEvents || '*Ничего не написано*'}</ReactMarkdown>
-                </div>
+                }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(keyEvents || '<i>Ничего не написано</i>') }} />
               )}
 
               <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
@@ -291,8 +286,8 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
                   {isSubmitting ? 'Сохранение...' : 'Сохранить и завершить'}
                 </button>
               </div>
-            </div>
-          </div>
+            </div >
+          </div >
         )}
     </>
   )
