@@ -44,18 +44,18 @@ function App() {
       const padding = 32
       const hoursColumnWidth = 80
       const dayColumnWidth = 80
-      
+
       const availableWidth = window.innerWidth - leftPanelWidth - gap - padding - hoursColumnWidth
       const calculatedDays = Math.floor(availableWidth / dayColumnWidth)
-      
+
       // Минимум 7 дней, максимум 60 день, на FullHD (1920px) будет ~14 дней
       const days = Math.max(7, Math.min(60, calculatedDays))
       setDaysToShow(days)
     }
-    
+
     calculateDaysToShow()
     window.addEventListener('resize', calculateDaysToShow)
-    
+
     return () => window.removeEventListener('resize', calculateDaysToShow)
   }, [])
 
@@ -120,13 +120,13 @@ function App() {
     try {
       setLoading(true)
       setError(null)
-      
+
       // Вычисляем диапазон дат для фильтрации (текущая неделя + 1 день назад и вперед для запаса)
       const startDate = new Date(currentStartDate)
       startDate.setDate(startDate.getDate() - 1)
       const endDate = new Date(currentStartDate)
       endDate.setDate(endDate.getDate() + daysToShow + 1)
-      
+
       // Загружаем текущего пользователя, всех игроков и игры с фильтрацией
       const [current, all, gamesData] = await Promise.all([
         playerApi.getCurrentPlayer(startDate, endDate),
@@ -168,7 +168,7 @@ function App() {
       const updatedPlayer = await playerApi.updateCurrentPlayer(name, color, timezone)
       setCurrentPlayer(updatedPlayer)
       // Обновляем в списке всех игроков
-      setAllPlayers(allPlayers.map(p => 
+      setAllPlayers(allPlayers.map(p =>
         p.id === updatedPlayer.id ? updatedPlayer : p
       ))
     } catch (err) {
@@ -179,7 +179,7 @@ function App() {
 
   const handleTimezoneChange = async (timezone) => {
     if (!currentPlayer) return
-    
+
     try {
       setError(null)
       // Обновляем timezone в API сразу
@@ -194,7 +194,7 @@ function App() {
   const handleTimeSlotClick = async (date, hour) => {
     try {
       setError(null)
-      
+
       // Создаем "наивную" дату с компонентами из date и указанным часом
       // Эти компоненты будут интерпретированы как время в timezone пользователя
       const slotDate = new Date(
@@ -206,7 +206,7 @@ function App() {
         0,
         0
       )
-      
+
       console.log('handleTimeSlotClick:', {
         date: date.toString(),
         hour,
@@ -221,10 +221,10 @@ function App() {
 
       // Отправляем запрос на сервер для текущего пользователя
       const updatedPlayer = await playerApi.toggleTimeSlot(slotDate, 1)
-      
+
       // Обновляем локальное состояние
       setCurrentPlayer(updatedPlayer)
-      setAllPlayers(allPlayers.map(p => 
+      setAllPlayers(allPlayers.map(p =>
         p.id === updatedPlayer.id ? updatedPlayer : p
       ))
     } catch (err) {
@@ -238,14 +238,14 @@ function App() {
 
     try {
       setError(null)
-      
+
       // Отправляем запрос на сервер для массового переключения
       // duration можно настроить (по умолчанию 1 час)
       const updatedPlayer = await playerApi.toggleTimeSlots(slots, duration)
-      
+
       // Обновляем локальное состояние
       setCurrentPlayer(updatedPlayer)
-      setAllPlayers(allPlayers.map(p => 
+      setAllPlayers(allPlayers.map(p =>
         p.id === updatedPlayer.id ? updatedPlayer : p
       ))
     } catch (err) {
@@ -306,14 +306,19 @@ function App() {
     }
   }
 
+  const handleUpdateGame = (updatedGame) => {
+    setGames(games.map(g => g.id === updatedGame.id ? updatedGame : g))
+    setSelectedGame(updatedGame)
+  }
+
   if (!isAuthenticated) {
     return showRegister ? (
-      <Register 
+      <Register
         onRegister={handleRegister}
         onSwitchToLogin={() => setShowRegister(false)}
       />
     ) : (
-      <Login 
+      <Login
         onLogin={handleLogin}
         onSwitchToRegister={() => setShowRegister(true)}
       />
@@ -364,21 +369,21 @@ function App() {
           </div>
         </div>
         {error && (
-          <div style={{ 
-            marginTop: '1rem', 
-            padding: '0.75rem', 
-            backgroundColor: '#ff6b6b', 
-            color: '#fff', 
+          <div style={{
+            marginTop: '1rem',
+            padding: '0.75rem',
+            backgroundColor: '#ff6b6b',
+            color: '#fff',
             borderRadius: '6px',
             fontSize: '0.9rem'
           }}>
             {error}
-            <button 
+            <button
               onClick={() => setError(null)}
-              style={{ 
-                marginLeft: '1rem', 
-                background: 'none', 
-                border: '1px solid #fff', 
+              style={{
+                marginLeft: '1rem',
+                background: 'none',
+                border: '1px solid #fff',
                 color: '#fff',
                 padding: '0.25rem 0.5rem',
                 borderRadius: '4px',
@@ -510,6 +515,7 @@ function App() {
           onJoin={handleJoinGame}
           onLeave={handleLeaveGame}
           onDelete={handleDeleteGame}
+          onUpdate={handleUpdateGame}
           onClose={() => setSelectedGame(null)}
         />
       )}
