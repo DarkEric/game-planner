@@ -201,7 +201,6 @@ export const gameApi = {
     }
 
     const data = await response.json()
-    console.log('markGameAsHeld API response:', data)
     return {
       id: data.id,
       startTime: parseFromServer(data.startTime, userTimezone),

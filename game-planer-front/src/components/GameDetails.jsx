@@ -12,8 +12,6 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
   const isCreator = game.creatorId === currentUserId
   const isParticipant = game.participants.some(p => p.id === currentUserId)
 
-  console.log('GameDetails render:', { id: game.id, isHeld: game.isHeld, held: game.held, game })
-
   const formatDateTime = (date) => {
     return new Date(date).toLocaleString('ru-RU', {
       weekday: 'long',
@@ -35,7 +33,6 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
     try {
       setIsSubmitting(true)
       const updatedGame = await gameApi.markGameAsHeld(game.id, keyEvents)
-      console.log('Updated game from API:', updatedGame)
       if (onUpdate) {
         onUpdate(updatedGame)
       }
