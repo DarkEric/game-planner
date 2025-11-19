@@ -41,13 +41,13 @@ function App() {
       const appPadding = 32
       const hoursColumnWidth = 80
       const dayColumnWidth = 80
-      const reservedSpace = 100 // Небольшой запас для прокрутки и отступов
+      const reservedSpace = 20 // Минимальный запас для прокрутки
 
       const availableWidth = window.innerWidth - appPadding - hoursColumnWidth - reservedSpace
       const calculatedDays = Math.floor(availableWidth / dayColumnWidth)
 
       // Минимум 7 дней, максимум 90 дней (больше места = больше дней)
-      // На FullHD (1920px) теперь будет ~21 день вместо ~14
+      // На FullHD (1920px) теперь будет ~22 дня, на 2K (2560px) ~30 дней
       const days = Math.max(7, Math.min(90, calculatedDays))
       setDaysToShow(days)
     }
