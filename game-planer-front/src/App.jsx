@@ -36,19 +36,19 @@ function App() {
   // Вычисление количества дней на основе ширины экрана
   useEffect(() => {
     const calculateDaysToShow = () => {
-      // Ширина левой панели (300px) + gap (1rem = 16px) + отступы (2rem = 32px)
-      // Ширина колонки часов (80px) + ширина одной колонки дня (80px)
-      const leftPanelWidth = 300
-      const gap = 16
-      const padding = 32
+      // Теперь у нас нет левой панели, только отступы приложения
+      // Отступы приложения (2rem = 32px) + колонка часов (80px) + ширина одной колонки дня (80px)
+      const appPadding = 32
       const hoursColumnWidth = 80
       const dayColumnWidth = 80
+      const reservedSpace = 100 // Небольшой запас для прокрутки и отступов
 
-      const availableWidth = window.innerWidth - leftPanelWidth - gap - padding - hoursColumnWidth
+      const availableWidth = window.innerWidth - appPadding - hoursColumnWidth - reservedSpace
       const calculatedDays = Math.floor(availableWidth / dayColumnWidth)
 
-      // Минимум 7 дней, максимум 60 день, на FullHD (1920px) будет ~14 дней
-      const days = Math.max(7, Math.min(60, calculatedDays))
+      // Минимум 7 дней, максимум 90 дней (больше места = больше дней)
+      // На FullHD (1920px) теперь будет ~21 день вместо ~14
+      const days = Math.max(7, Math.min(90, calculatedDays))
       setDaysToShow(days)
     }
 
