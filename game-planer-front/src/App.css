@@ -91,113 +91,58 @@
 }
 
 .app-content {
-  display: grid;
-  grid-template-columns: 300px 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 1rem;
   flex: 1;
   min-height: 0;
 }
 
-.left-panel {
+.calendar-tab {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  overflow-y: auto;
+  flex: 1;
 }
 
-.right-panel {
+.calendar-header {
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  min-height: 0;
+  justify-content: flex-end;
+  padding: 0.5rem 0;
 }
 
-.calendar-wrapper {
+.schedule-game-button {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #646cff, #5a5fd7);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(100, 108, 255, 0.3);
+}
+
+.schedule-game-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(100, 108, 255, 0.4);
+}
+
+.calendar-content {
   flex: 1;
   min-height: 500px;
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
-  display: flex;
-  flex-direction: column;
 }
 
-.player-selector {
-  background-color: #242424;
-  border-radius: 8px;
-  padding: 1.5rem;
-  border: 1px solid #333;
-}
-
-.player-selector h3 {
-  margin: 0 0 1rem 0;
-  font-size: 1.2rem;
-  color: #fff;
-}
-
-.player-selector-buttons {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.player-select-button {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
-  border: 2px solid;
-  background-color: transparent;
-  color: #fff;
-  cursor: pointer;
-  font-size: 1rem;
-  font-weight: 500;
-  transition: all 0.2s;
-  text-align: left;
-}
-
-.player-select-button:hover {
-  transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.player-select-button.selected {
-  font-weight: 600;
-  box-shadow: 0 0 0 2px rgba(100, 108, 255, 0.3);
-}
-
-.player-select-color {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.3);
-  flex-shrink: 0;
-}
-
-.selector-hint {
-  margin: 0;
-  padding: 0.75rem;
-  background-color: rgba(100, 108, 255, 0.1);
-  border-radius: 6px;
-  color: #aaa;
-  font-size: 0.9rem;
-  border-left: 3px solid #646cff;
-}
-
-.profile-timezone {
+.best-slots-section {
   margin-top: 1rem;
-  padding-top: 1rem;
-  border-top: 1px solid #333;
 }
 
-@media (max-width: 1200px) {
-  .app-content {
-    grid-template-columns: 1fr;
-  }
-
-  .left-panel {
-    max-height: 400px;
+@media (max-width: 768px) {
+  .schedule-game-button {
+    width: 100%;
   }
 }

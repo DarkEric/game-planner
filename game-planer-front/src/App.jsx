@@ -1,14 +1,12 @@
 import { useState, useMemo, useEffect } from 'react'
-import CalendarTimeline from './components/CalendarTimeline'
-import PlayerManager from './components/PlayerManager'
-import BestTimeSlots from './components/BestTimeSlots'
 import Login from './components/Login'
 import Register from './components/Register'
-import TimezoneSelector from './components/TimezoneSelector'
 import GameScheduler from './components/GameScheduler'
 import GameDetails from './components/GameDetails'
-import InviteManager from './components/InviteManager'
 import LanguageSwitcher from './components/LanguageSwitcher'
+import TabNavigation from './components/TabNavigation'
+import CalendarTab from './components/CalendarTab'
+import ProfileTab from './components/ProfileTab'
 import { playerApi, authApi, setUserTimezone } from './services/api'
 import { gameApi } from './services/gameApi'
 import { useLanguage } from './i18n/LanguageContext'
@@ -33,6 +31,7 @@ function App() {
   const [showGameScheduler, setShowGameScheduler] = useState(false)
   const [games, setGames] = useState([])
   const [selectedGame, setSelectedGame] = useState(null)
+  const [activeTab, setActiveTab] = useState('calendar')
 
   // Вычисление количества дней на основе ширины экрана
   useEffect(() => {
@@ -397,107 +396,33 @@ function App() {
       </header>
 
       <div className="app-content">
-        <div className="left-panel">
-          {currentPlayer && (
-            <div className="player-profile">
-              <h2>{t('yourProfile')}</h2>
-              <div className="profile-info">
-                <div className="profile-field">
-                  <label>{t('name')}:</label>
-                  <input
-                    type="text"
-                    value={currentPlayer.name}
-                    onChange={(e) => {
-                      const newName = e.target.value
-                      setCurrentPlayer({ ...currentPlayer, name: newName })
-                    }}
-                    onBlur={() => handleUpdateProfile(currentPlayer.name, currentPlayer.color, currentPlayer.timezone)}
-                    className="profile-input"
-                  />
-                </div>
-                <div className="profile-field">
-                  <label>{t('color')}:</label>
-                  <input
-                    type="color"
-                    value={currentPlayer.color}
-                    onChange={(e) => {
-                      const newColor = e.target.value
-                      setCurrentPlayer({ ...currentPlayer, color: newColor })
-                    }}
-                    onBlur={() => handleUpdateProfile(currentPlayer.name, currentPlayer.color, currentPlayer.timezone)}
-                    className="profile-color-input"
-                  />
-                </div>
-              </div>
-              <div className="profile-timezone">
-                <TimezoneSelector
-                  currentTimezone={currentPlayer.timezone}
-                  onTimezoneChange={handleTimezoneChange}
-                />
-              </div>
-              <p className="selector-hint">
-                {t('clickToMark')}
-              </p>
-              <button
-                onClick={() => setShowGameScheduler(true)}
-                style={{
-                  marginTop: '1rem',
-                  padding: '0.75rem 1.5rem',
-                  background: '#646cff',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: '1rem',
-                  fontWeight: '500',
-                  width: '100%'
-                }}
-              >
-                🎲 {t('scheduleGame')}
-              </button>
-              <InviteManager />
-            </div>
-          )}
-        </div>
+        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-        <div className="right-panel">
-          <div className="calendar-wrapper">
-            <CalendarTimeline
-              startDate={currentStartDate}
-              daysToShow={daysToShow}
-              players={allPlayers}
-              selectedPlayerId={currentPlayer?.id}
-              events={games.map(game => ({
-                id: game.id,
-                start: game.startTime,
-                end: game.endTime,
-                title: game.title || `🎲 Игра`,
-                description: game.description || `${game.participants.length} игроков`,
-                color: '#646cff',
-                duration: Math.ceil((game.endTime - game.startTime) / (1000 * 60 * 60)),
-                game: game
-              }))}
-              onTimeSlotClick={(date, hour) => handleTimeSlotClick(date, hour)}
-              onTimeSlotsSelect={(slots) => handleTimeSlotsSelect(slots, 1)}
-              onEventClick={(event) => {
-                if (event.game) {
-                  setSelectedGame(event.game)
-                }
-              }}
-              showAvailabilityOverlap={true}
-              onDateChange={setCurrentStartDate}
-            />
-          </div>
-
-          {allPlayers.length >= 2 && (
-            <BestTimeSlots
-              players={allPlayers}
-              dates={dates}
-              hours={hours}
-              minPlayers={2}
-            />
-          )}
-        </div>
+        {activeTab === 'calendar' ? (
+          <CalendarTab
+            currentStartDate={currentStartDate}
+            daysToShow={daysToShow}
+            allPlayers={allPlayers}
+            currentPlayer={currentPlayer}
+            games={games}
+            dates={dates}
+            hours={hours}
+            onTimeSlotClick={handleTimeSlotClick}
+            onTimeSlotsSelect={handleTimeSlotsSelect}
+            onEventClick={(event) => {
+              if (event.game) {
+                setSelectedGame(event.game)
+              }
+            }}
+            onDateChange={setCurrentStartDate}
+            onScheduleGame={() => setShowGameScheduler(true)}
+          />
+        ) : (
+          <ProfileTab
+            currentPlayer={currentPlayer}
+            onUpdateProfile={handleUpdateProfile}
+          />
+        )}
       </div>
 
       {showGameScheduler && (
