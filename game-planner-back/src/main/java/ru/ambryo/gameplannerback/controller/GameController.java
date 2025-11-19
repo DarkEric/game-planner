@@ -7,6 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import ru.ambryo.gameplannerback.dto.CreateGameRequest;
 import ru.ambryo.gameplannerback.dto.GameDto;
+import ru.ambryo.gameplannerback.dto.MarkGameHeldRequest;
 import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.service.GameService;
 
@@ -95,6 +96,20 @@ public class GameController {
         try {
             User user = (User) authentication.getPrincipal();
             GameDto game = gameService.leaveGame(gameId, user);
+            return ResponseEntity.ok(game);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PostMapping("/{gameId}/hold")
+    public ResponseEntity<GameDto> markGameAsHeld(
+            @PathVariable Long gameId,
+            @RequestBody MarkGameHeldRequest request,
+            Authentication authentication) {
+        try {
+            User user = (User) authentication.getPrincipal();
+            GameDto game = gameService.markGameAsHeld(gameId, request.getKeyEvents(), user);
             return ResponseEntity.ok(game);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();

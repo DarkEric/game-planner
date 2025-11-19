@@ -9,13 +9,24 @@
     <include file="db/changelog/changes/002-create-time-slots-table.xml"/>
     <include file="db/changelog/changes/003-create-users-table.xml"/>
     <include file="db/changelog/changes/004-add-user-id-to-players.xml"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <include file="db/changelog/changes/001-create-players-table.xml"/>
+    <include file="db/changelog/changes/002-create-time-slots-table.xml"/>
+    <include file="db/changelog/changes/003-create-users-table.xml"/>
+    <include file="db/changelog/changes/004-add-user-id-to-players.xml"/>
     <include file="db/changelog/changes/005-merge-user-player.xml"/>
     <include file="db/changelog/changes/006-add-user-timezone.xml"/>
     <include file="db/changelog/changes/007-migrate-timeslots-to-utc.xml"/>
     <include file="db/changelog/changes/008-create-games-table.xml"/>
     <include file="db/changelog/changes/009-add-game-title-description.xml"/>
     <include file="db/changelog/changes/010-create-invites-table.xml"/>
-    <include file="db/changelog/changes/011-create-initial-invite.xml"/>
+    <include file="changes/011-create-initial-invite.xml" relativeToChangelogFile="true"/>
+    <include file="changes/012-add-game-history-fields.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
-

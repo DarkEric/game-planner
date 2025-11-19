@@ -25,6 +25,12 @@ public class Game {
     @Column(length = 1000)
     private String description; // Описание игры
     
+    @Column(nullable = false)
+    private boolean isHeld = false; // Состоялась ли игра
+    
+    @Column(columnDefinition = "TEXT")
+    private String keyEvents; // Ключевые события (Markdown)
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "creator_id", nullable = false)
     private User creator; // Создатель игры
@@ -122,5 +128,21 @@ public class Game {
     
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public boolean isHeld() {
+        return isHeld;
+    }
+
+    public void setHeld(boolean held) {
+        isHeld = held;
+    }
+
+    public String getKeyEvents() {
+        return keyEvents;
+    }
+
+    public void setKeyEvents(String keyEvents) {
+        this.keyEvents = keyEvents;
     }
 }

@@ -13,12 +13,15 @@ public class GameDto {
     private String description;
     private List<ParticipantDto> participants;
     private Instant createdAt;
+    private boolean isHeld;
+    private String keyEvents;
     
     public GameDto() {
     }
     
     public GameDto(Long id, Instant startTime, Instant endTime, Long creatorId, String creatorName, 
-                   String title, String description, List<ParticipantDto> participants, Instant createdAt) {
+                   String title, String description, List<ParticipantDto> participants, Instant createdAt,
+                   boolean isHeld, String keyEvents) {
         this.id = id;
         this.startTime = startTime;
         this.endTime = endTime;
@@ -28,6 +31,8 @@ public class GameDto {
         this.description = description;
         this.participants = participants;
         this.createdAt = createdAt;
+        this.isHeld = isHeld;
+        this.keyEvents = keyEvents;
     }
     
     public Long getId() {
@@ -100,6 +105,22 @@ public class GameDto {
     
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public boolean isHeld() {
+        return isHeld;
+    }
+
+    public void setHeld(boolean held) {
+        isHeld = held;
+    }
+
+    public String getKeyEvents() {
+        return keyEvents;
+    }
+
+    public void setKeyEvents(String keyEvents) {
+        this.keyEvents = keyEvents;
     }
     
     public static class ParticipantDto {

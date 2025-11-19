@@ -200,6 +200,37 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             logger.error("Failed to send Telegram cancellation notification for game: {}", game.getTitle(), e);
         }
     }
+
+    public void sendGameHeldNotification(GameDto game) {
+        if (!enabled || chatId == null || chatId.isEmpty()) {
+            logger.debug("Telegram notifications disabled or chat ID not configured");
+            return;
+        }
+        
+        logger.info("Preparing to send game held notification for game: {}", game.getTitle());
+        
+        try {
+            String message = buildGameHeldMessage(game);
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatId);
+            sendMessage.setText(message);
+            sendMessage.setParseMode("HTML");
+            
+            if (threadId != null && !threadId.trim().isEmpty()) {
+                try {
+                    int threadIdInt = Integer.parseInt(threadId.trim());
+                    sendMessage.setMessageThreadId(threadIdInt);
+                } catch (NumberFormatException e) {
+                    logger.warn("Invalid thread ID format: '{}', sending to main chat", threadId, e);
+                }
+            }
+            
+            execute(sendMessage);
+            logger.info("Telegram held notification successfully sent for game: {}", game.getTitle());
+        } catch (TelegramApiException e) {
+            logger.error("Failed to send Telegram held notification for game: {}", game.getTitle(), e);
+        }
+    }
     
     private String buildGameCancelledMessage(GameDto game, String cancellationReason) {
         StringBuilder message = new StringBuilder();
@@ -222,6 +253,32 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         if (cancellationReason != null && !cancellationReason.trim().isEmpty()) {
             message.append("\n💬 <b>Причина отмены:</b>\n")
                 .append(escapeHtml(cancellationReason));
+        }
+        
+        return message.toString();
+    }
+
+    private String buildGameHeldMessage(GameDto game) {
+        StringBuilder message = new StringBuilder();
+        message.append("✅ <b>Игра состоялась!</b>\n\n");
+        
+        if (game.getTitle() != null && !game.getTitle().isEmpty()) {
+            message.append("📌 <b>").append(escapeHtml(game.getTitle())).append("</b>\n");
+        }
+        
+        message.append("🕐 <b>Время:</b> ")
+            .append(formatInstant(game.getStartTime()))
+            .append(" - ")
+            .append(formatInstant(game.getEndTime()))
+            .append(" (")
+            .append(getTimezoneName())
+            .append(")\n");
+        
+        message.append("👤 <b>Организатор:</b> ").append(escapeHtml(game.getCreatorName())).append("\n");
+        
+        if (game.getKeyEvents() != null && !game.getKeyEvents().trim().isEmpty()) {
+            message.append("\n📝 <b>Ключевые события:</b>\n\n")
+                .append(escapeHtml(game.getKeyEvents()));
         }
         
         return message.toString();

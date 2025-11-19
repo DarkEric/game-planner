@@ -1,9 +1,18 @@
 import './GameDetails.css'
+import { useState } from 'react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { gameApi } from '../services/gameApi'
 
-const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose }) => {
+const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, onUpdate }) => {
+  const [showHeldModal, setShowHeldModal] = useState(false)
+  const [keyEvents, setKeyEvents] = useState('')
+  const [activeTab, setActiveTab] = useState('write') // 'write' or 'preview'
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const isCreator = game.creatorId === currentUserId
   const isParticipant = game.participants.some(p => p.id === currentUserId)
-  
+
   const formatDateTime = (date) => {
     return new Date(date).toLocaleString('ru-RU', {
       weekday: 'long',
@@ -21,136 +30,271 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose }
     return `${hours} ч`
   }
 
+  const handleMarkAsHeld = async () => {
+    try {
+      setIsSubmitting(true)
+      const updatedGame = await gameApi.markGameAsHeld(game.id, keyEvents)
+      if (onUpdate) {
+        onUpdate(updatedGame)
+      }
+      setShowHeldModal(false)
+    } catch (error) {
+      console.error('Failed to mark game as held:', error)
+      alert('Не удалось отметить игру как проведенную')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   return (
-    <div className="game-details-overlay" onClick={onClose}>
-      <div className="game-details-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="game-details-header">
-          <h2>🎲 Детали игры</h2>
-          <button className="close-button" onClick={onClose}>×</button>
-        </div>
-
-        <div className="game-details-content">
-          {game.title && (
-            <div className="game-title-section">
-              <h3 style={{ margin: '0 0 0.5rem 0', color: '#fff', fontSize: '1.2rem' }}>
-                {game.title}
-              </h3>
-            </div>
-          )}
-          
-          {game.description && (
-            <div className="game-description-section" style={{ 
-              marginBottom: '1rem', 
-              padding: '0.75rem', 
-              background: '#2a2a2a', 
-              borderRadius: '6px',
-              color: '#ccc',
-              fontSize: '0.95rem',
-              lineHeight: '1.5'
-            }}>
-              {game.description}
-            </div>
-          )}
-          
-          <div className="game-info-section">
-            <div className="game-info-item">
-              <div className="game-info-label">Начало</div>
-              <div className="game-info-value">{formatDateTime(game.startTime)}</div>
-            </div>
-            
-            <div className="game-info-item">
-              <div className="game-info-label">Окончание</div>
-              <div className="game-info-value">{formatDateTime(game.endTime)}</div>
-            </div>
-            
-            <div className="game-info-item">
-              <div className="game-info-label">Длительность</div>
-              <div className="game-info-value">{getDuration()}</div>
-            </div>
-            
-            <div className="game-info-item">
-              <div className="game-info-label">Организатор</div>
-              <div className="game-info-value">{game.creatorName}</div>
-            </div>
+    <>
+      <div className="game-details-overlay" onClick={onClose}>
+        <div className="game-details-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="game-details-header">
+            <h2>🎲 Детали игры</h2>
+            <button className="close-button" onClick={onClose}>×</button>
           </div>
 
-          <div className="game-participants">
-            <div className="game-info-label">
-              Участники ({game.participants.length})
-            </div>
-            {game.participants.length > 0 ? (
-              <div className="participants-list">
-                {game.participants.map(participant => (
-                  <div
-                    key={participant.id}
-                    className={`participant-badge ${participant.id === game.creatorId ? 'creator' : ''}`}
-                    style={{ backgroundColor: participant.color }}
-                  >
-                    {participant.name}
-                  </div>
-                ))}
+          <div className="game-details-content">
+            {game.title && (
+              <div className="game-title-section">
+                <h3 style={{ margin: '0 0 0.5rem 0', color: '#fff', fontSize: '1.2rem' }}>
+                  {game.title}
+                  {game.isHeld && <span className="held-badge" style={{
+                    marginLeft: '10px',
+                    fontSize: '0.8rem',
+                    background: '#4caf50',
+                    padding: '2px 8px',
+                    borderRadius: '4px',
+                    verticalAlign: 'middle'
+                  }}>Проведена</span>}
+                </h3>
               </div>
-            ) : (
-              <div className="no-participants">Пока нет участников</div>
             )}
-          </div>
 
-          <div className="game-details-actions">
-            {isCreator ? (
-              <>
-                <button 
-                  className="game-action-button delete-button"
-                  onClick={() => {
-                    const reason = prompt('Причина отмены игры (опционально):')
-                    if (reason !== null) { // null если нажали Cancel
-                      onDelete(game.id, reason)
-                    }
-                  }}
-                >
-                  Удалить игру
-                </button>
-                <button 
-                  className="game-action-button close-button-game"
-                  onClick={onClose}
-                >
-                  Закрыть
-                </button>
-              </>
-            ) : isParticipant ? (
-              <>
-                <button 
-                  className="game-action-button leave-button"
-                  onClick={() => onLeave(game.id)}
-                >
-                  Покинуть игру
-                </button>
-                <button 
-                  className="game-action-button close-button-game"
-                  onClick={onClose}
-                >
-                  Закрыть
-                </button>
-              </>
-            ) : (
-              <>
-                <button 
-                  className="game-action-button join-button"
-                  onClick={() => onJoin(game.id)}
-                >
-                  Записаться на игру
-                </button>
-                <button 
-                  className="game-action-button close-button-game"
-                  onClick={onClose}
-                >
-                  Закрыть
-                </button>
-              </>
+            {game.description && (
+              <div className="game-description-section" style={{
+                marginBottom: '1rem',
+                padding: '0.75rem',
+                background: '#2a2a2a',
+                borderRadius: '6px',
+                color: '#ccc',
+                fontSize: '0.95rem',
+                lineHeight: '1.5'
+              }}>
+                {game.description}
+              </div>
             )}
+
+            {game.isHeld && game.keyEvents && (
+              <div className="game-key-events-section" style={{
+                marginBottom: '1rem',
+                padding: '0.75rem',
+                background: '#1e3a2a',
+                borderRadius: '6px',
+                color: '#e0e0e0',
+                fontSize: '0.95rem',
+                lineHeight: '1.5'
+              }}>
+                <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#81c784' }}>Ключевые события:</h4>
+                <div className="markdown-content">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{game.keyEvents}</ReactMarkdown>
+                </div>
+              </div>
+            )}
+
+            <div className="game-info-section">
+              <div className="game-info-item">
+                <div className="game-info-label">Начало</div>
+                <div className="game-info-value">{formatDateTime(game.startTime)}</div>
+              </div>
+
+              <div className="game-info-item">
+                <div className="game-info-label">Окончание</div>
+                <div className="game-info-value">{formatDateTime(game.endTime)}</div>
+              </div>
+
+              <div className="game-info-item">
+                <div className="game-info-label">Длительность</div>
+                <div className="game-info-value">{getDuration()}</div>
+              </div>
+
+              <div className="game-info-item">
+                <div className="game-info-label">Организатор</div>
+                <div className="game-info-value">{game.creatorName}</div>
+              </div>
+            </div>
+
+            <div className="game-participants">
+              <div className="game-info-label">
+                Участники ({game.participants.length})
+              </div>
+              {game.participants.length > 0 ? (
+                <div className="participants-list">
+                  {game.participants.map(participant => (
+                    <div
+                      key={participant.id}
+                      className={`participant-badge ${participant.id === game.creatorId ? 'creator' : ''}`}
+                      style={{ backgroundColor: participant.color }}
+                    >
+                      {participant.name}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="no-participants">Пока нет участников</div>
+              )}
+            </div>
+
+            <div className="game-details-actions">
+              {isCreator ? (
+                <>
+                  {!game.isHeld && (
+                    <button
+                      className="game-action-button held-button"
+                      style={{ backgroundColor: '#4caf50' }}
+                      onClick={() => setShowHeldModal(true)}
+                    >
+                      Игра состоялась
+                    </button>
+                  )}
+                  <button
+                    className="game-action-button delete-button"
+                    onClick={() => {
+                      const reason = prompt('Причина отмены игры (опционально):')
+                      if (reason !== null) { // null если нажали Cancel
+                        onDelete(game.id, reason)
+                      }
+                    }}
+                  >
+                    Удалить игру
+                  </button>
+                  <button
+                    className="game-action-button close-button-game"
+                    onClick={onClose}
+                  >
+                    Закрыть
+                  </button>
+                </>
+              ) : isParticipant ? (
+                <>
+                  <button
+                    className="game-action-button leave-button"
+                    onClick={() => onLeave(game.id)}
+                  >
+                    Покинуть игру
+                  </button>
+                  <button
+                    className="game-action-button close-button-game"
+                    onClick={onClose}
+                  >
+                    Закрыть
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    className="game-action-button join-button"
+                    onClick={() => onJoin(game.id)}
+                  >
+                    Записаться на игру
+                  </button>
+                  <button
+                    className="game-action-button close-button-game"
+                    onClick={onClose}
+                  >
+                    Закрыть
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {
+        showHeldModal && (
+          <div className="modal-overlay" onClick={() => setShowHeldModal(false)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: '600px', maxWidth: '90%' }}>
+              <h3>Завершение игры</h3>
+              <p>Опишите ключевые события игры (поддерживается Markdown):</p>
+
+              <div className="tabs" style={{ display: 'flex', marginBottom: '10px', borderBottom: '1px solid #444' }}>
+                <button
+                  style={{
+                    padding: '8px 16px',
+                    background: activeTab === 'write' ? '#444' : 'transparent',
+                    border: 'none',
+                    color: activeTab === 'write' ? '#fff' : '#aaa',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setActiveTab('write')}
+                >
+                  Редактор
+                </button>
+                <button
+                  style={{
+                    padding: '8px 16px',
+                    background: activeTab === 'preview' ? '#444' : 'transparent',
+                    border: 'none',
+                    color: activeTab === 'preview' ? '#fff' : '#aaa',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setActiveTab('preview')}
+                >
+                  Предпросмотр
+                </button>
+              </div>
+
+              {activeTab === 'write' ? (
+                <textarea
+                  value={keyEvents}
+                  onChange={e => setKeyEvents(e.target.value)}
+                  placeholder="Что интересного произошло? Кто победил? Какие были смешные моменты?"
+                  style={{
+                    width: '100%',
+                    height: '200px',
+                    padding: '10px',
+                    background: '#222',
+                    color: '#fff',
+                    border: '1px solid #444',
+                    borderRadius: '4px',
+                    resize: 'vertical',
+                    fontFamily: 'monospace'
+                  }}
+                />
+              ) : (
+                <div style={{
+                  height: '200px',
+                  overflowY: 'auto',
+                  padding: '10px',
+                  background: '#222',
+                  border: '1px solid #444',
+                  borderRadius: '4px'
+                }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{keyEvents || '*Ничего не написано*'}</ReactMarkdown>
+                </div>
+              )}
+
+              <div className="modal-actions" style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  onClick={() => setShowHeldModal(false)}
+                  style={{ padding: '8px 16px', background: 'transparent', border: '1px solid #666', color: '#fff', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={handleMarkAsHeld}
+                  disabled={isSubmitting}
+                  style={{ padding: '8px 16px', background: '#4caf50', border: 'none', color: '#fff', borderRadius: '4px', cursor: 'pointer', opacity: isSubmitting ? 0.7 : 1 }}
+                >
+                  {isSubmitting ? 'Сохранение...' : 'Сохранить и завершить'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+    </>
   )
 }
 

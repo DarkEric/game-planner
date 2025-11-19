@@ -68,9 +68,10 @@ public class CleanupService {
     
     private int cleanupOldGames(Instant cutoffDate) {
         try {
-            // Находим и удаляем игры, которые закончились раньше cutoffDate
+            // Находим и удаляем игры, которые закончились раньше cutoffDate и не были проведены
             var oldGames = gameRepository.findAll().stream()
                     .filter(game -> game.getEndTime().isBefore(cutoffDate))
+                    .filter(game -> !game.isHeld())
                     .toList();
             
             int count = oldGames.size();
@@ -126,6 +127,7 @@ public class CleanupService {
         // Подсчитываем количество данных для удаления
         long oldGamesCount = gameRepository.findAll().stream()
                 .filter(game -> game.getEndTime().isBefore(cutoffDate))
+                .filter(game -> !game.isHeld())
                 .count();
         
         long oldTimeSlotsCount = timeSlotRepository.findAll().stream()

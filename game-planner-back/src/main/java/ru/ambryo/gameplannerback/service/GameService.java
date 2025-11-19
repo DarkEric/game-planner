@@ -201,6 +201,31 @@ public class GameService {
         return convertToDto(game);
     }
     
+    @Transactional
+    public GameDto markGameAsHeld(Long gameId, String keyEvents, User user) {
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new RuntimeException("Game not found"));
+
+        if (!game.getCreator().getId().equals(user.getId())) {
+            throw new RuntimeException("Only creator can mark the game as held");
+        }
+
+        game.setHeld(true);
+        game.setKeyEvents(keyEvents);
+        game = gameRepository.save(game);
+        
+        GameDto gameDto = convertToDto(game);
+        
+        // Отправляем уведомление в Telegram
+        try {
+            telegramNotificationService.sendGameHeldNotification(gameDto);
+        } catch (Exception e) {
+            System.err.println("Failed to send Telegram notification: " + e.getMessage());
+        }
+        
+        return gameDto;
+    }
+
     private GameDto convertToDto(Game game) {
         List<GameDto.ParticipantDto> participants = game.getParticipants().stream()
                 .map(user -> new GameDto.ParticipantDto(user.getId(), user.getName(), user.getColor()))
@@ -215,7 +240,9 @@ public class GameService {
                 game.getTitle(),
                 game.getDescription(),
                 participants,
-                game.getCreatedAt()
+                game.getCreatedAt(),
+                game.isHeld(),
+                game.getKeyEvents()
         );
     }
 }
