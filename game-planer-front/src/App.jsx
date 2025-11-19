@@ -346,6 +346,33 @@ function App() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <LanguageSwitcher />
+            {activeTab === 'calendar' && (
+              <button
+                onClick={() => setShowGameScheduler(true)}
+                style={{
+                  padding: '0.5rem 1rem',
+                  borderRadius: '6px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #646cff, #5a5fd7)',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  boxShadow: '0 2px 8px rgba(100, 108, 255, 0.3)',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'translateY(-2px)'
+                  e.target.style.boxShadow = '0 4px 12px rgba(100, 108, 255, 0.4)'
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'translateY(0)'
+                  e.target.style.boxShadow = '0 2px 8px rgba(100, 108, 255, 0.3)'
+                }}
+              >
+                🎲 {t('scheduleGame')}
+              </button>
+            )}
             {user && (
               <span style={{ color: '#aaa', fontSize: '0.9rem' }}>
                 {user.username}
@@ -415,7 +442,6 @@ function App() {
               }
             }}
             onDateChange={setCurrentStartDate}
-            onScheduleGame={() => setShowGameScheduler(true)}
           />
         ) : (
           <ProfileTab
