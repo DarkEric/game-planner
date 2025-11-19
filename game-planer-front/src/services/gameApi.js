@@ -45,7 +45,7 @@ export const gameApi = {
       participants: data.participants,
       participants: data.participants,
       createdAt: parseFromServer(data.createdAt, userTimezone),
-      isHeld: data.isHeld,
+      isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
       keyEvents: data.keyEvents
     }
   },
@@ -81,7 +81,7 @@ export const gameApi = {
       participants: game.participants,
       participants: game.participants,
       createdAt: parseFromServer(game.createdAt, userTimezone),
-      isHeld: game.isHeld,
+      isHeld: game.isHeld !== undefined ? game.isHeld : game.held,
       keyEvents: game.keyEvents
     }))
   },
@@ -109,7 +109,7 @@ export const gameApi = {
       participants: game.participants,
       participants: game.participants,
       createdAt: parseFromServer(game.createdAt, userTimezone),
-      isHeld: game.isHeld,
+      isHeld: game.isHeld !== undefined ? game.isHeld : game.held,
       keyEvents: game.keyEvents
     }))
   },
@@ -153,7 +153,9 @@ export const gameApi = {
       creatorId: data.creatorId,
       creatorName: data.creatorName,
       participants: data.participants,
-      createdAt: parseFromServer(data.createdAt, userTimezone)
+      createdAt: parseFromServer(data.createdAt, userTimezone),
+      isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
+      keyEvents: data.keyEvents
     }
   },
 
@@ -179,7 +181,9 @@ export const gameApi = {
       creatorId: data.creatorId,
       creatorName: data.creatorName,
       participants: data.participants,
-      createdAt: parseFromServer(data.createdAt, userTimezone)
+      createdAt: parseFromServer(data.createdAt, userTimezone),
+      isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
+      keyEvents: data.keyEvents
     }
   },
 
@@ -197,6 +201,7 @@ export const gameApi = {
     }
 
     const data = await response.json()
+    console.log('markGameAsHeld API response:', data)
     return {
       id: data.id,
       startTime: parseFromServer(data.startTime, userTimezone),
@@ -207,7 +212,7 @@ export const gameApi = {
       creatorName: data.creatorName,
       participants: data.participants,
       createdAt: parseFromServer(data.createdAt, userTimezone),
-      isHeld: data.isHeld,
+      isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
       keyEvents: data.keyEvents
     }
   }
