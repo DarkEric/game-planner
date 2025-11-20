@@ -26,6 +26,10 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
     const [editedDescription, setEditedDescription] = useState('')
     const [showDeleteModal, setShowDeleteModal] = useState(false)
     const [deleteConfirmation, setDeleteConfirmation] = useState('')
+    const [editingPlayerId, setEditingPlayerId] = useState(null)
+    const [editCharacterName, setEditCharacterName] = useState('')
+    const [editCharacterClass, setEditCharacterClass] = useState('')
+    const [editCharacterNotes, setEditCharacterNotes] = useState('')
 
     useEffect(() => {
         loadCampaignDetails()
@@ -240,6 +244,25 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
         } catch (error) {
             console.error('Failed to delete campaign:', error)
             alert('Не удалось удалить кампанию')
+        }
+    }
+
+    const handleUpdateCharacter = async () => {
+        try {
+            if (!editCharacterName.trim()) {
+                alert('Имя персонажа не может быть пустым')
+                return
+            }
+            await campaignApi.updateCharacter(campaignId, editingPlayerId, {
+                characterName: editCharacterName,
+                characterClass: editCharacterClass,
+                characterNotes: editCharacterNotes
+            })
+            setEditingPlayerId(null)
+            loadCampaignDetails()
+        } catch (error) {
+            console.error('Failed to update character:', error)
+            alert('Не удалось обновить персонажа')
         }
     }
 
@@ -621,15 +644,113 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                                 setExpandedPlayers(newExpanded)
                             }
 
+                            const isOwnCharacter = player.playerId === currentUserId
+                            const canEdit = isCreator || isOwnCharacter
+
                             return (
                                 <div key={player.id} className="player-card">
-                                    <div className="player-name">{player.playerName}</div>
-                                    {player.characterName && (
-                                        <div className="character-info">
-                                            <strong>{player.characterName}</strong>
-                                            {player.characterClass && ` - ${player.characterClass}`}
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div className="player-name">{player.playerName}</div>
+                                        {canEdit && editingPlayerId !== player.id && (
+                                            <button
+                                                onClick={() => {
+                                                    setEditingPlayerId(player.id)
+                                                    setEditCharacterName(player.characterName || '')
+                                                    setEditCharacterClass(player.characterClass || '')
+                                                    setEditCharacterNotes(player.characterNotes || '')
+                                                }}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    fontSize: '1rem',
+                                                    padding: '0.25rem'
+                                                }}
+                                                title="Редактировать персонажа"
+                                            >
+                                                ✏️
+                                            </button>
+                                        )}
+                                    </div>
+                                    {editingPlayerId === player.id ? (
+                                        <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            <input
+                                                type="text"
+                                                value={editCharacterName}
+                                                onChange={(e) => setEditCharacterName(e.target.value)}
+                                                placeholder="Имя персонажа"
+                                                style={{
+                                                    padding: '0.5rem',
+                                                    background: '#2a2a2a',
+                                                    color: '#fff',
+                                                    border: '1px solid #444',
+                                                    borderRadius: '4px'
+                                                }}
+                                            />
+                                            <input
+                                                type="text"
+                                                value={editCharacterClass}
+                                                onChange={(e) => setEditCharacterClass(e.target.value)}
+                                                placeholder="Класс/Роль"
+                                                style={{
+                                                    padding: '0.5rem',
+                                                    background: '#2a2a2a',
+                                                    color: '#fff',
+                                                    border: '1px solid #444',
+                                                    borderRadius: '4px'
+                                                }}
+                                            />
+                                            <textarea
+                                                value={editCharacterNotes}
+                                                onChange={(e) => setEditCharacterNotes(e.target.value)}
+                                                placeholder="Предыстория персонажа"
+                                                style={{
+                                                    padding: '0.5rem',
+                                                    background: '#2a2a2a',
+                                                    color: '#fff',
+                                                    border: '1px solid #444',
+                                                    borderRadius: '4px',
+                                                    minHeight: '80px',
+                                                    resize: 'vertical'
+                                                }}
+                                            />
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <button
+                                                    onClick={handleUpdateCharacter}
+                                                    style={{
+                                                        padding: '0.5rem 1rem',
+                                                        background: '#4caf50',
+                                                        color: '#fff',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    💾 Сохранить
+                                                </button>
+                                                <button
+                                                    onClick={() => setEditingPlayerId(null)}
+                                                    style={{
+                                                        padding: '0.5rem 1rem',
+                                                        background: '#f44336',
+                                                        color: '#fff',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        cursor: 'pointer'
+                                                    }}
+                                                >
+                                                    ❌ Отмена
+                                                </button>
+                                            </div>
                                         </div>
-                                    )}
+                                    ) : (
+                                        <>
+                                            {player.characterName && (
+                                                <div className="character-info">
+                                                    <strong>{player.characterName}</strong>
+                                                    {player.characterClass && ` - ${player.characterClass}`}
+                                                </div>
+                                            )}
                                     {player.sessionNumber && (
                                         <div className="player-joined">
                                             Присоединился с {player.sessionNumber} сессии
@@ -667,6 +788,8 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                                                 </div>
                                             )}
                                         </div>
+                                    )}
+                                        </>
                                     )}
                                 </div>
                             )

@@ -226,6 +226,31 @@ public class CampaignService {
     }
 
     @Transactional
+    public CampaignPlayerDto updateCharacter(Long campaignPlayerId, String characterName,
+                                            String characterClass, String characterNotes,
+                                            Long userId) {
+        CampaignPlayer campaignPlayer = campaignPlayerRepository.findById(campaignPlayerId)
+                .orElseThrow(() -> new RuntimeException("Campaign player not found"));
+
+        Campaign campaign = campaignPlayer.getCampaign();
+        
+        // Allow both creator and the player themselves to update
+        boolean isCreator = campaign.getCreator().getId().equals(userId);
+        boolean isOwnCharacter = campaignPlayer.getPlayer().getId().equals(userId);
+        
+        if (!isCreator && !isOwnCharacter) {
+            throw new RuntimeException("Only campaign creator or the player can update character");
+        }
+
+        campaignPlayer.setCharacterName(characterName);
+        campaignPlayer.setCharacterClass(characterClass);
+        campaignPlayer.setCharacterNotes(characterNotes);
+
+        CampaignPlayer saved = campaignPlayerRepository.save(campaignPlayer);
+        return convertPlayerToDto(saved, campaign);
+    }
+
+    @Transactional
     public void removePlayerFromCampaign(Long campaignId, Long playerId, Long userId) {
         Campaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new RuntimeException("Campaign not found"));
