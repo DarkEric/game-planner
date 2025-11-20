@@ -62,6 +62,16 @@ public class GameController {
         }
     }
     
+    @GetMapping("/{gameId}")
+    public ResponseEntity<GameDto> getGameById(@PathVariable Long gameId) {
+        try {
+            GameDto game = gameService.getGameById(gameId);
+            return ResponseEntity.ok(game);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+    
     @DeleteMapping("/{gameId}")
     public ResponseEntity<Void> deleteGame(
             @PathVariable Long gameId,

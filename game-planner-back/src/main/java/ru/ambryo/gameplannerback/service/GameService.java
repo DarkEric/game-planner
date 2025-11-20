@@ -89,6 +89,13 @@ public class GameService {
                 .collect(Collectors.toList());
     }
     
+    @Transactional(readOnly = true)
+    public GameDto getGameById(Long gameId) {
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new RuntimeException("Game not found"));
+        return convertToDto(game);
+    }
+    
     @Transactional
     public void deleteGame(Long gameId, User user, String cancellationReason) {
         Game game = gameRepository.findById(gameId)
