@@ -30,6 +30,8 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
     const [editCharacterName, setEditCharacterName] = useState('')
     const [editCharacterClass, setEditCharacterClass] = useState('')
     const [editCharacterNotes, setEditCharacterNotes] = useState('')
+    const [showRemovePlayerModal, setShowRemovePlayerModal] = useState(false)
+    const [playerToRemove, setPlayerToRemove] = useState(null)
 
     useEffect(() => {
         loadCampaignDetails()
@@ -263,6 +265,24 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
         } catch (error) {
             console.error('Failed to update character:', error)
             alert('Не удалось обновить персонажа')
+        }
+    }
+
+    const handleRemovePlayer = async () => {
+        try {
+            await campaignApi.removePlayerFromCampaign(campaignId, playerToRemove.playerId)
+            setShowRemovePlayerModal(false)
+            setPlayerToRemove(null)
+            
+            // If player removed themselves, go back to campaign list
+            if (playerToRemove.playerId === currentUserId) {
+                onBack()
+            } else {
+                loadCampaignDetails()
+            }
+        } catch (error) {
+            console.error('Failed to remove player:', error)
+            alert('Не удалось удалить игрока')
         }
     }
 
@@ -651,25 +671,48 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                                 <div key={player.id} className="player-card">
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <div className="player-name">{player.playerName}</div>
-                                        {canEdit && editingPlayerId !== player.id && (
-                                            <button
-                                                onClick={() => {
-                                                    setEditingPlayerId(player.id)
-                                                    setEditCharacterName(player.characterName || '')
-                                                    setEditCharacterClass(player.characterClass || '')
-                                                    setEditCharacterNotes(player.characterNotes || '')
-                                                }}
-                                                style={{
-                                                    background: 'none',
-                                                    border: 'none',
-                                                    cursor: 'pointer',
-                                                    fontSize: '1rem',
-                                                    padding: '0.25rem'
-                                                }}
-                                                title="Редактировать персонажа"
-                                            >
-                                                ✏️
-                                            </button>
+                                        {editingPlayerId !== player.id && (
+                                            <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                                {canEdit && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingPlayerId(player.id)
+                                                            setEditCharacterName(player.characterName || '')
+                                                            setEditCharacterClass(player.characterClass || '')
+                                                            setEditCharacterNotes(player.characterNotes || '')
+                                                        }}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            fontSize: '1rem',
+                                                            padding: '0.25rem'
+                                                        }}
+                                                        title="Редактировать персонажа"
+                                                    >
+                                                        ✏️
+                                                    </button>
+                                                )}
+                                                {(isCreator || isOwnCharacter) && (
+                                                    <button
+                                                        onClick={() => {
+                                                            setPlayerToRemove(player)
+                                                            setShowRemovePlayerModal(true)
+                                                        }}
+                                                        style={{
+                                                            background: 'none',
+                                                            border: 'none',
+                                                            cursor: 'pointer',
+                                                            fontSize: '1rem',
+                                                            padding: '0.25rem',
+                                                            color: '#f44336'
+                                                        }}
+                                                        title={isOwnCharacter ? "Покинуть кампанию" : "Удалить игрока"}
+                                                    >
+                                                        {isOwnCharacter ? '🚪' : '🗑️'}
+                                                    </button>
+                                                )}
+                                            </div>
                                         )}
                                     </div>
                                     {editingPlayerId === player.id ? (
@@ -947,6 +990,64 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                         >
                             Отмена
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Remove Player Modal */}
+            {showRemovePlayerModal && playerToRemove && (
+                <div className="modal-overlay" style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                }}>
+                    <div className="modal-content" style={{
+                        background: '#1a1a1a', padding: '2rem', borderRadius: '8px', width: '90%', maxWidth: '400px',
+                        border: '2px solid #f44336'
+                    }}>
+                        <h3 style={{ color: '#f44336', marginTop: 0 }}>
+                            {playerToRemove.playerId === currentUserId ? '⚠️ Покинуть кампанию?' : '⚠️ Удалить игрока?'}
+                        </h3>
+                        <p style={{ color: '#ccc', marginBottom: '1.5rem' }}>
+                            {playerToRemove.playerId === currentUserId 
+                                ? `Вы уверены, что хотите покинуть кампанию "${campaign.name}"? Ваш персонаж "${playerToRemove.characterName}" будет удален.`
+                                : `Вы уверены, что хотите удалить игрока "${playerToRemove.playerName}" (${playerToRemove.characterName}) из кампании?`
+                            }
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                                onClick={handleRemovePlayer}
+                                style={{
+                                    flex: 1,
+                                    padding: '0.75rem',
+                                    background: '#f44336',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                {playerToRemove.playerId === currentUserId ? 'Покинуть' : 'Удалить'}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowRemovePlayerModal(false)
+                                    setPlayerToRemove(null)
+                                }}
+                                style={{
+                                    flex: 1,
+                                    padding: '0.75rem',
+                                    background: 'transparent',
+                                    border: '1px solid #666',
+                                    color: '#fff',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Отмена
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

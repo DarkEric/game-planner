@@ -255,12 +255,16 @@ public class CampaignService {
         Campaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new RuntimeException("Campaign not found"));
 
-        if (!campaign.getCreator().getId().equals(userId)) {
-            throw new RuntimeException("Only campaign creator can remove players");
-        }
-
         User player = userRepository.findById(playerId)
                 .orElseThrow(() -> new RuntimeException("Player not found"));
+
+        // Allow both creator to kick players and players to leave themselves
+        boolean isCreator = campaign.getCreator().getId().equals(userId);
+        boolean isLeavingSelf = playerId.equals(userId);
+        
+        if (!isCreator && !isLeavingSelf) {
+            throw new RuntimeException("Only campaign creator can remove players, or players can leave themselves");
+        }
 
         campaignPlayerRepository.deleteByCampaignAndPlayer(campaign, player);
     }
