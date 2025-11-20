@@ -354,10 +354,33 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                 )}
             </div>
 
-            {campaign.totalMilestones && (
+            {(campaign.totalMilestones || isCreator) && (
                 <div className="milestones-section">
                     <h2>📊 Прогресс кампании</h2>
-                    {isCreator ? (
+                    {isCreator && !campaign.totalMilestones ? (
+                        <div className="milestone-details">
+                            <p style={{ color: '#888', marginBottom: '1rem' }}>
+                                Вехи не настроены. Установите количество вех для отслеживания прогресса кампании.
+                            </p>
+                            <button
+                                onClick={() => {
+                                    setEditedCompletedMilestones(0)
+                                    setEditedTotalMilestones(10)
+                                    setIsEditingMilestones(true)
+                                }}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    background: '#646cff',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Настроить вехи
+                            </button>
+                        </div>
+                    ) : isCreator ? (
                         <div className="milestone-details">
                             <div className="milestone-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                 {isEditingMilestones ? (
