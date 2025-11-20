@@ -62,6 +62,16 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
 
     const isCreator = campaign?.creator?.id === currentUserId
 
+    const handleStatusChange = async (newStatus) => {
+        try {
+            await campaignApi.updateCampaignStatus(campaignId, newStatus)
+            loadCampaignDetails()
+        } catch (error) {
+            console.error('Failed to update status:', error)
+            alert('Не удалось изменить статус кампании')
+        }
+    }
+
     if (loading) {
         return (
             <div className="campaign-details">
@@ -108,6 +118,61 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                         <span className="meta-value">{formatDate(campaign.createdAt)}</span>
                     </div>
                 </div>
+
+                {isCreator && (
+                    <div className="status-controls" style={{
+                        marginTop: '1rem',
+                        display: 'flex',
+                        gap: '0.5rem',
+                        flexWrap: 'wrap'
+                    }}>
+                        <button
+                            onClick={() => handleStatusChange('ACTIVE')}
+                            disabled={campaign.status === 'ACTIVE'}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: campaign.status === 'ACTIVE' ? '#4caf50' : '#2a2a2a',
+                                border: '1px solid #4caf50',
+                                borderRadius: '6px',
+                                color: '#fff',
+                                cursor: campaign.status === 'ACTIVE' ? 'default' : 'pointer',
+                                opacity: campaign.status === 'ACTIVE' ? 0.7 : 1
+                            }}
+                        >
+                            🟢 Активна
+                        </button>
+                        <button
+                            onClick={() => handleStatusChange('ON_HOLD')}
+                            disabled={campaign.status === 'ON_HOLD'}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: campaign.status === 'ON_HOLD' ? '#ff9800' : '#2a2a2a',
+                                border: '1px solid #ff9800',
+                                borderRadius: '6px',
+                                color: '#fff',
+                                cursor: campaign.status === 'ON_HOLD' ? 'default' : 'pointer',
+                                opacity: campaign.status === 'ON_HOLD' ? 0.7 : 1
+                            }}
+                        >
+                            ⏸️ На паузе
+                        </button>
+                        <button
+                            onClick={() => handleStatusChange('COMPLETED')}
+                            disabled={campaign.status === 'COMPLETED'}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: campaign.status === 'COMPLETED' ? '#646cff' : '#2a2a2a',
+                                border: '1px solid #646cff',
+                                borderRadius: '6px',
+                                color: '#fff',
+                                cursor: campaign.status === 'COMPLETED' ? 'default' : 'pointer',
+                                opacity: campaign.status === 'COMPLETED' ? 0.7 : 1
+                            }}
+                        >
+                            ✅ Завершена
+                        </button>
+                    </div>
+                )}
             </div>
 
             {campaign.totalMilestones && (
