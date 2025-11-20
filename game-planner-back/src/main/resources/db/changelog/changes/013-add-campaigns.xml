@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="013-add-campaigns" author="system">
+        <!-- Create campaigns table -->
+        <createTable tableName="campaigns">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_campaigns"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="creator_id" type="BIGINT">
+                <constraints nullable="false" 
+                             foreignKeyName="fk_campaign_creator" 
+                             references="users(id)"/>
+            </column>
+            <column name="status" type="VARCHAR(50)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_milestones" type="INTEGER"/>
+            <column name="completed_milestones" type="INTEGER" defaultValueNumeric="0"/>
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Create campaign_players table -->
+        <createTable tableName="campaign_players">
+            <column name="id" type="BIGINT" autoIncrement="true">
+                <constraints primaryKey="true" primaryKeyName="pk_campaign_players"/>
+            </column>
+            <column name="campaign_id" type="BIGINT">
+                <constraints nullable="false" 
+                             foreignKeyName="fk_campaign_player_campaign" 
+                             references="campaigns(id)" 
+                             deleteCascade="true"/>
+            </column>
+            <column name="player_id" type="BIGINT">
+                <constraints nullable="false" 
+                             foreignKeyName="fk_campaign_player_user" 
+                             references="users(id)"/>
+            </column>
+            <column name="joined_in_game_id" type="BIGINT">
+                <constraints foreignKeyName="fk_campaign_player_game" 
+                             references="games(id)"/>
+            </column>
+            <column name="character_name" type="VARCHAR(255)"/>
+            <column name="character_class" type="VARCHAR(100)"/>
+            <column name="character_notes" type="TEXT"/>
+        </createTable>
+
+        <!-- Add campaign_id column to games table -->
+        <addColumn tableName="games">
+            <column name="campaign_id" type="BIGINT">
+                <constraints foreignKeyName="fk_game_campaign" 
+                             references="campaigns(id)" 
+                             deleteCascade="false"/>
+            </column>
+        </addColumn>
+
+        <!-- Create index for better query performance -->
+        <createIndex indexName="idx_games_campaign_id" tableName="games">
+            <column name="campaign_id"/>
+        </createIndex>
+
+        <createIndex indexName="idx_campaign_players_campaign_id" tableName="campaign_players">
+            <column name="campaign_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

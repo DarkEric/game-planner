@@ -43,6 +43,10 @@ public class Game {
     )
     private List<User> participants = new ArrayList<>();
     
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "campaign_id")
+    private Campaign campaign;
+    
     @Column(nullable = false)
     private Instant createdAt;
     
@@ -144,5 +148,13 @@ public class Game {
 
     public void setKeyEvents(String keyEvents) {
         this.keyEvents = keyEvents;
+    }
+
+    public Campaign getCampaign() {
+        return campaign;
+    }
+
+    public void setCampaign(Campaign campaign) {
+        this.campaign = campaign;
     }
 }

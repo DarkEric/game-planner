@@ -17,5 +17,6 @@
     <include file="db/changelog/changes/010-create-invites-table.xml"/>
     <include file="changes/011-create-initial-invite.xml" relativeToChangelogFile="true"/>
     <include file="changes/012-add-game-history-fields.xml" relativeToChangelogFile="true"/>
+    <include file="changes/013-add-campaigns.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
