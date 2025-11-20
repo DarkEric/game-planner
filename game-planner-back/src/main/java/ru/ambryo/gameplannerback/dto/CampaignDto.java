@@ -20,6 +20,8 @@ public class CampaignDto {
     private Boolean hasInvite; // Does current user have a pending invite?
     private Boolean isPlayer; // Is current user a player in this campaign?
     private Boolean isCreator; // Is current user the creator?
+    private Integer completedGamesCount; // Number of held games
+    private Integer upcomingGamesCount; // Number of upcoming games
 
     // Constructors
     public CampaignDto() {
@@ -153,6 +155,22 @@ public class CampaignDto {
 
     public void setIsCreator(Boolean isCreator) {
         this.isCreator = isCreator;
+    }
+
+    public Integer getCompletedGamesCount() {
+        return completedGamesCount;
+    }
+
+    public void setCompletedGamesCount(Integer completedGamesCount) {
+        this.completedGamesCount = completedGamesCount;
+    }
+
+    public Integer getUpcomingGamesCount() {
+        return upcomingGamesCount;
+    }
+
+    public void setUpcomingGamesCount(Integer upcomingGamesCount) {
+        this.upcomingGamesCount = upcomingGamesCount;
     }
 
     // Helper method to calculate progress percentage

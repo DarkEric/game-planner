@@ -113,8 +113,13 @@ const CampaignList = ({ onSelectCampaign, onCreateCampaign }) => {
 
                             <div className="campaign-stats">
                                 <div className="stat">
-                                    <span className="stat-label">Игр проведено:</span>
-                                    <span className="stat-value">{campaign.gameIds?.length || 0}</span>
+                                    <span className="stat-label">Завершено:</span>
+                                    <span className="stat-value">{campaign.completedGamesCount || 0}</span>
+                                </div>
+
+                                <div className="stat">
+                                    <span className="stat-label">Запланировано:</span>
+                                    <span className="stat-value">{campaign.upcomingGamesCount || 0}</span>
                                 </div>
 
                                 {campaign.totalMilestones && (

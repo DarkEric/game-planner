@@ -365,6 +365,16 @@ public class CampaignService {
                 .collect(Collectors.toList());
         dto.setGameIds(gameIds);
         
+        // Count completed and upcoming games
+        long completedGames = campaign.getGames().stream()
+                .filter(Game::isHeld)
+                .count();
+        long upcomingGames = campaign.getGames().stream()
+                .filter(game -> !game.isHeld())
+                .count();
+        dto.setCompletedGamesCount((int) completedGames);
+        dto.setUpcomingGamesCount((int) upcomingGames);
+        
         dto.setCreatedAt(campaign.getCreatedAt());
         dto.setUpdatedAt(campaign.getUpdatedAt());
         
