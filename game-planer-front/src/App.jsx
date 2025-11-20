@@ -7,6 +7,7 @@ import LanguageSwitcher from './components/LanguageSwitcher'
 import TabNavigation from './components/TabNavigation'
 import CalendarTab from './components/CalendarTab'
 import ProfileTab from './components/ProfileTab'
+import CampaignTab from './components/CampaignTab'
 import { playerApi, authApi, setUserTimezone } from './services/api'
 import { gameApi } from './services/gameApi'
 import { useLanguage } from './i18n/LanguageContext'
@@ -425,7 +426,7 @@ function App() {
       <div className="app-content">
         <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
-        {activeTab === 'calendar' ? (
+        {activeTab === 'calendar' && (
           <CalendarTab
             currentStartDate={currentStartDate}
             daysToShow={daysToShow}
@@ -443,7 +444,13 @@ function App() {
             }}
             onDateChange={setCurrentStartDate}
           />
-        ) : (
+        )}
+
+        {activeTab === 'campaigns' && (
+          <CampaignTab />
+        )}
+
+        {activeTab === 'profile' && (
           <ProfileTab
             currentPlayer={currentPlayer}
             onUpdateProfile={handleUpdateProfile}

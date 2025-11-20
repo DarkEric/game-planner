@@ -3,6 +3,7 @@ import './TabNavigation.css'
 const TabNavigation = ({ activeTab, onTabChange }) => {
     const tabs = [
         { id: 'calendar', label: 'Календарь игр', icon: '📅' },
+        { id: 'campaigns', label: 'Кампании', icon: '📚' },
         { id: 'profile', label: 'Личный кабинет', icon: '👤' }
     ]
 
