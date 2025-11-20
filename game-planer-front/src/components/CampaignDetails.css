@@ -1,0 +1,278 @@
+.campaign-details {
+    padding: 1rem;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.back-btn {
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    margin-bottom: 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.back-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateX(-4px);
+}
+
+.loading,
+.error {
+    text-align: center;
+    padding: 3rem;
+    color: #aaa;
+    font-size: 1.1rem;
+}
+
+.error {
+    color: #ff6b6b;
+}
+
+.campaign-header {
+    background: rgba(30, 30, 30, 0.6);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.campaign-title-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.campaign-title-section h1 {
+    margin: 0;
+    color: #fff;
+    font-size: 2rem;
+    flex: 1;
+}
+
+.campaign-status-badge {
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.campaign-description {
+    color: #ccc;
+    line-height: 1.6;
+    margin: 1rem 0;
+}
+
+.campaign-meta {
+    display: flex;
+    gap: 2rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.meta-item {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.meta-label {
+    color: #888;
+}
+
+.meta-value {
+    color: #fff;
+    font-weight: 600;
+}
+
+.milestones-section,
+.players-section,
+.history-section {
+    background: rgba(30, 30, 30, 0.6);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.milestones-section h2,
+.players-section h2,
+.history-section h2 {
+    margin: 0 0 1.5rem 0;
+    color: #fff;
+    font-size: 1.5rem;
+}
+
+.milestone-details {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.milestone-details p {
+    margin: 0;
+    color: #ccc;
+}
+
+.progress-bar-large {
+    height: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.progress-bar-large .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #646cff, #5a5fd7);
+    transition: width 0.5s ease;
+}
+
+.progress-percentage {
+    text-align: center;
+    color: #fff;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.players-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.player-card {
+    background: rgba(40, 40, 40, 0.6);
+    border-radius: 12px;
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.player-name {
+    color: #fff;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.character-info {
+    color: #ccc;
+    margin-bottom: 0.5rem;
+}
+
+.player-joined {
+    color: #888;
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+
+.character-notes {
+    color: #aaa;
+    font-size: 0.9rem;
+    font-style: italic;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.no-games {
+    text-align: center;
+    color: #888;
+    padding: 2rem;
+}
+
+.games-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.game-entry {
+    background: rgba(40, 40, 40, 0.6);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border-left: 4px solid;
+    transition: all 0.3s ease;
+}
+
+.game-entry.held {
+    border-left-color: #4ade80;
+}
+
+.game-entry.upcoming {
+    border-left-color: #646cff;
+    opacity: 0.7;
+}
+
+.game-entry:hover {
+    background: rgba(40, 40, 40, 0.8);
+    transform: translateX(4px);
+}
+
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.session-number {
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.game-date {
+    color: #888;
+    font-size: 0.9rem;
+}
+
+.game-title {
+    margin: 0 0 1rem 0;
+    color: #fff;
+    font-size: 1.2rem;
+}
+
+.key-events {
+    color: #ccc;
+    line-height: 1.6;
+}
+
+.key-events ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.key-events li {
+    margin: 0.25rem 0;
+}
+
+.upcoming-note {
+    color: #888;
+    font-style: italic;
+    margin: 0;
+}
+
+@media (max-width: 768px) {
+    .campaign-title-section {
+        flex-direction: column;
+    }
+
+    .campaign-meta {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .players-list {
+        grid-template-columns: 1fr;
+    }
+
+    .game-entry {
+        padding: 1rem;
+    }
+}

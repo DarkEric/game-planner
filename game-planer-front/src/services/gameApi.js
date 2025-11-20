@@ -214,5 +214,33 @@ export const gameApi = {
       isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
       keyEvents: data.keyEvents
     }
+  },
+
+  async getGameById(gameId) {
+    const userTimezone = getUserTimezoneForAPI()
+
+    const response = await fetch(`${API_BASE_URL}/games/${gameId}`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to get game')
+    }
+
+    const data = await response.json()
+    return {
+      id: data.id,
+      startTime: parseFromServer(data.startTime, userTimezone),
+      endTime: parseFromServer(data.endTime, userTimezone),
+      title: data.title,
+      description: data.description,
+      creatorId: data.creatorId,
+      creatorName: data.creatorName,
+      participants: data.participants,
+      createdAt: parseFromServer(data.createdAt, userTimezone),
+      isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
+      keyEvents: data.keyEvents
+    }
   }
 }

@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import CampaignList from './CampaignList'
+import CampaignDetails from './CampaignDetails'
 import CreateCampaign from './CreateCampaign'
 import { campaignApi } from '../services/campaignApi'
 import './CampaignTab.css'
 
-const CampaignTab = () => {
+const CampaignTab = ({ currentUserId }) => {
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [selectedCampaignId, setSelectedCampaignId] = useState(null)
     const [refreshKey, setRefreshKey] = useState(0)
@@ -22,17 +23,28 @@ const CampaignTab = () => {
 
     const handleSelectCampaign = (campaignId) => {
         setSelectedCampaignId(campaignId)
-        // TODO: Navigate to campaign details
-        console.log('Selected campaign:', campaignId)
+    }
+
+    const handleBackToList = () => {
+        setSelectedCampaignId(null)
+        setRefreshKey(prev => prev + 1) // Refresh list when going back
     }
 
     return (
         <div className="campaign-tab">
-            <CampaignList
-                key={refreshKey}
-                onSelectCampaign={handleSelectCampaign}
-                onCreateCampaign={() => setShowCreateModal(true)}
-            />
+            {selectedCampaignId ? (
+                <CampaignDetails
+                    campaignId={selectedCampaignId}
+                    currentUserId={currentUserId}
+                    onBack={handleBackToList}
+                />
+            ) : (
+                <CampaignList
+                    key={refreshKey}
+                    onSelectCampaign={handleSelectCampaign}
+                    onCreateCampaign={() => setShowCreateModal(true)}
+                />
+            )}
 
             {showCreateModal && (
                 <CreateCampaign
