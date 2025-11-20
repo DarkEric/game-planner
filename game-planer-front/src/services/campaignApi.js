@@ -79,6 +79,15 @@ export const campaignApi = {
     return response.json()
   },
 
+  // Delete campaign
+  deleteCampaign: async (campaignId) => {
+    const response = await fetch(`${API_URL}/${campaignId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    })
+    if (!response.ok) throw new Error('Failed to delete campaign')
+  },
+
   // Add game to campaign
   addGameToCampaign: async (campaignId, gameId) => {
     const response = await fetch(`${API_URL}/${campaignId}/games/${gameId}`, {

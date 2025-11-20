@@ -123,6 +123,18 @@ public class CampaignService {
     }
 
     @Transactional
+    public void deleteCampaign(Long campaignId, Long userId) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new RuntimeException("Campaign not found"));
+
+        if (!campaign.getCreator().getId().equals(userId)) {
+            throw new RuntimeException("Only campaign creator can delete campaign");
+        }
+
+        campaignRepository.delete(campaign);
+    }
+
+    @Transactional
     public CampaignDto addGameToCampaign(Long campaignId, Long gameId, Long userId) {
         Campaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new RuntimeException("Campaign not found"));

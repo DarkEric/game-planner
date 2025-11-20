@@ -85,6 +85,15 @@ public class CampaignController {
         return ResponseEntity.ok(campaign);
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteCampaign(
+            @PathVariable Long id,
+            Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        campaignService.deleteCampaign(id, user.getId());
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/games/{gameId}")
     public ResponseEntity<CampaignDto> addGameToCampaign(
             @PathVariable Long id,

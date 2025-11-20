@@ -24,6 +24,8 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
     const [isEditingCampaign, setIsEditingCampaign] = useState(false)
     const [editedName, setEditedName] = useState('')
     const [editedDescription, setEditedDescription] = useState('')
+    const [showDeleteModal, setShowDeleteModal] = useState(false)
+    const [deleteConfirmation, setDeleteConfirmation] = useState('')
 
     useEffect(() => {
         loadCampaignDetails()
@@ -224,6 +226,20 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
         } catch (error) {
             console.error('Failed to update campaign:', error)
             alert('Не удалось обновить кампанию')
+        }
+    }
+
+    const handleDeleteCampaign = async () => {
+        try {
+            if (deleteConfirmation !== campaign.name) {
+                alert('Название кампании введено неверно')
+                return
+            }
+            await campaignApi.deleteCampaign(campaignId)
+            onBack() // Возвращаемся к списку кампаний
+        } catch (error) {
+            console.error('Failed to delete campaign:', error)
+            alert('Не удалось удалить кампанию')
         }
     }
 
@@ -452,6 +468,20 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                             }}
                         >
                             ✅ Завершена
+                        </button>
+                        <button
+                            onClick={() => setShowDeleteModal(true)}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: '#2a2a2a',
+                                border: '1px solid #f44336',
+                                borderRadius: '6px',
+                                color: '#f44336',
+                                cursor: 'pointer',
+                                marginLeft: 'auto'
+                            }}
+                        >
+                            🗑️ Удалить кампанию
                         </button>
                     </div>
                 )}
@@ -797,6 +827,80 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                         >
                             Отмена
                         </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Campaign Modal */}
+            {showDeleteModal && (
+                <div className="modal-overlay" style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                }}>
+                    <div className="modal-content" style={{
+                        background: '#1a1a1a', padding: '2rem', borderRadius: '8px', width: '90%', maxWidth: '500px',
+                        border: '2px solid #f44336'
+                    }}>
+                        <h3 style={{ color: '#f44336', marginTop: 0 }}>⚠️ Удаление кампании</h3>
+                        <p style={{ color: '#ccc', marginBottom: '1rem' }}>
+                            Это действие необратимо! Будут удалены все данные кампании, включая игроков и привязанные игры.
+                        </p>
+                        <p style={{ color: '#ccc', marginBottom: '1rem' }}>
+                            Для подтверждения введите название кампании: <strong style={{ color: '#fff' }}>{campaign.name}</strong>
+                        </p>
+                        
+                        <input
+                            type="text"
+                            value={deleteConfirmation}
+                            onChange={(e) => setDeleteConfirmation(e.target.value)}
+                            placeholder="Введите название кампании"
+                            style={{
+                                width: '100%',
+                                padding: '0.75rem',
+                                background: '#2a2a2a',
+                                color: '#fff',
+                                border: '1px solid #444',
+                                borderRadius: '4px',
+                                marginBottom: '1.5rem',
+                                fontSize: '1rem'
+                            }}
+                        />
+
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                                onClick={handleDeleteCampaign}
+                                disabled={deleteConfirmation !== campaign.name}
+                                style={{
+                                    flex: 1,
+                                    padding: '0.75rem',
+                                    background: deleteConfirmation === campaign.name ? '#f44336' : '#555',
+                                    color: '#fff',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: deleteConfirmation === campaign.name ? 'pointer' : 'not-allowed',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                Удалить кампанию
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowDeleteModal(false)
+                                    setDeleteConfirmation('')
+                                }}
+                                style={{
+                                    flex: 1,
+                                    padding: '0.75rem',
+                                    background: 'transparent',
+                                    border: '1px solid #666',
+                                    color: '#fff',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                Отмена
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
