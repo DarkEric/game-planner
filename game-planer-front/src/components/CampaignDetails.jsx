@@ -20,6 +20,7 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
     const [characterName, setCharacterName] = useState('')
     const [characterClass, setCharacterClass] = useState('')
     const [characterNotes, setCharacterNotes] = useState('')
+    const [expandedPlayers, setExpandedPlayers] = useState(new Set())
 
     useEffect(() => {
         loadCampaignDetails()
@@ -452,25 +453,68 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                     </div>
                     {campaign.players && campaign.players.length > 0 ? (
                         <div className="players-list">
-                        {campaign.players.map(player => (
-                            <div key={player.id} className="player-card">
-                                <div className="player-name">{player.playerName}</div>
-                                {player.characterName && (
-                                    <div className="character-info">
-                                        <strong>{player.characterName}</strong>
-                                        {player.characterClass && ` - ${player.characterClass}`}
-                                    </div>
-                                )}
-                                {player.sessionNumber && (
-                                    <div className="player-joined">
-                                        Присоединился с {player.sessionNumber} сессии
-                                    </div>
-                                )}
-                                {player.characterNotes && (
-                                    <div className="character-notes">{player.characterNotes}</div>
-                                )}
-                            </div>
-                        ))}
+                        {campaign.players.map(player => {
+                            const isExpanded = expandedPlayers.has(player.id)
+                            const toggleExpanded = () => {
+                                const newExpanded = new Set(expandedPlayers)
+                                if (isExpanded) {
+                                    newExpanded.delete(player.id)
+                                } else {
+                                    newExpanded.add(player.id)
+                                }
+                                setExpandedPlayers(newExpanded)
+                            }
+
+                            return (
+                                <div key={player.id} className="player-card">
+                                    <div className="player-name">{player.playerName}</div>
+                                    {player.characterName && (
+                                        <div className="character-info">
+                                            <strong>{player.characterName}</strong>
+                                            {player.characterClass && ` - ${player.characterClass}`}
+                                        </div>
+                                    )}
+                                    {player.sessionNumber && (
+                                        <div className="player-joined">
+                                            Присоединился с {player.sessionNumber} сессии
+                                        </div>
+                                    )}
+                                    {player.characterNotes && (
+                                        <div style={{ marginTop: '0.5rem' }}>
+                                            <button
+                                                onClick={toggleExpanded}
+                                                style={{
+                                                    background: 'none',
+                                                    border: 'none',
+                                                    color: '#646cff',
+                                                    cursor: 'pointer',
+                                                    padding: '0',
+                                                    fontSize: '0.9rem',
+                                                    textDecoration: 'underline',
+                                                    marginBottom: '0.5rem'
+                                                }}
+                                            >
+                                                {isExpanded ? '▼ Скрыть предысторию' : '▶ Показать предысторию'}
+                                            </button>
+                                            {isExpanded && (
+                                                <div className="character-notes" style={{
+                                                    marginTop: '0.5rem',
+                                                    padding: '0.75rem',
+                                                    background: '#2a2a2a',
+                                                    borderRadius: '4px',
+                                                    color: '#ccc',
+                                                    fontSize: '0.9rem',
+                                                    lineHeight: '1.5',
+                                                    whiteSpace: 'pre-wrap'
+                                                }}>
+                                                    {player.characterNotes}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )
+                        })}
                         </div>
                     ) : (
                         <p style={{ color: '#888' }}>Пока нет постоянных игроков</p>
