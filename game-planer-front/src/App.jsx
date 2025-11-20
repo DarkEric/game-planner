@@ -69,20 +69,33 @@ function App() {
     }
   }, [])
 
-  // Перезагружаем игры при изменении даты
+  // Перезагружаем игры и данные игроков при изменении даты или количества дней
   useEffect(() => {
     if (isAuthenticated && !loading) {
-      const loadGames = async () => {
+      const loadGamesAndPlayers = async () => {
         try {
+          // Вычисляем диапазон дат с запасом
+          const startDate = new Date(currentStartDate)
+          startDate.setDate(startDate.getDate() - 1)
           const endDate = new Date(currentStartDate)
-          endDate.setDate(endDate.getDate() + daysToShow)
-          const gamesData = await gameApi.getGames(currentStartDate, endDate)
+          endDate.setDate(endDate.getDate() + daysToShow + 1)
+
+          // Загружаем игры и обновляем данные игроков
+          const [gamesData, current, all] = await Promise.all([
+            gameApi.getGames(startDate, endDate),
+            playerApi.getCurrentPlayer(startDate, endDate),
+            playerApi.getAllPlayers(startDate, endDate)
+          ])
+          
           setGames(gamesData)
+          setCurrentPlayer(current)
+          setAllPlayers(all)
         } catch (err) {
-          console.error('Failed to load games:', err)
+          console.error('Failed to load games and players:', err)
+          setError('Не удалось загрузить данные. Проверьте подключение к серверу.')
         }
       }
-      loadGames()
+      loadGamesAndPlayers()
     }
   }, [currentStartDate, daysToShow, isAuthenticated, loading])
 
