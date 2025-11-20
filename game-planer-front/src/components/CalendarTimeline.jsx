@@ -355,6 +355,7 @@ const CalendarTimeline = ({
   }
 
   const handleEventMouseEnter = (e, event) => {
+    e.stopPropagation() // Предотвращаем всплытие к ячейке
     if (isDragging) return
     
     // Получаем участников из объекта игры
@@ -373,7 +374,8 @@ const CalendarTimeline = ({
     })
   }
 
-  const handleEventMouseLeave = () => {
+  const handleEventMouseLeave = (e) => {
+    e.stopPropagation() // Предотвращаем всплытие к ячейке
     setTooltip({ visible: false, players: [], position: { x: 0, y: 0 }, title: t('available') })
   }
 
