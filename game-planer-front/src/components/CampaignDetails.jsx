@@ -416,6 +416,9 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                         </div>
                     ) : (
                         <div className="milestone-details">
+                            <div className="milestone-header" style={{ marginBottom: '0.5rem' }}>
+                                <p style={{ margin: 0 }}>Вехи: {campaign.completedMilestones} / {campaign.totalMilestones}</p>
+                            </div>
                             <div className="progress-bar-large">
                                 <div
                                     className="progress-fill"
