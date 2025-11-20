@@ -1,7 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useLanguage } from '../i18n/LanguageContext'
 import './PlayerTooltip.css'
 
-const PlayerTooltip = ({ players, visible, position }) => {
+const PlayerTooltip = ({ players, visible, position, title }) => {
+  const { t } = useLanguage()
+  const displayTitle = title || t('available')
   if (!visible || !players || players.length === 0) return null
 
   return (
@@ -13,7 +16,7 @@ const PlayerTooltip = ({ players, visible, position }) => {
       }}
     >
       <div className="player-tooltip-header">
-        Доступны ({players.length})
+        {displayTitle} ({players.length})
       </div>
       <div className="player-tooltip-list">
         {players.map(player => (

@@ -20,7 +20,7 @@ const CalendarTimeline = ({
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState(null)
   const [dragEnd, setDragEnd] = useState(null)
-  const [tooltip, setTooltip] = useState({ visible: false, players: [], position: { x: 0, y: 0 } })
+  const [tooltip, setTooltip] = useState({ visible: false, players: [], position: { x: 0, y: 0 }, title: '' })
   const gridRef = useRef(null)
   const containerRef = useRef(null)
   const { t } = useLanguage()
@@ -345,12 +345,36 @@ const CalendarTimeline = ({
       position: {
         x: rect.right + 10,
         y: rect.top
-      }
+      },
+      title: t('available')
     })
   }
 
   const handleCellMouseLeave = () => {
-    setTooltip({ visible: false, players: [], position: { x: 0, y: 0 } })
+    setTooltip({ visible: false, players: [], position: { x: 0, y: 0 }, title: t('available') })
+  }
+
+  const handleEventMouseEnter = (e, event) => {
+    if (isDragging) return
+    
+    // Получаем участников из объекта игры
+    const participants = event.game?.participants || []
+    if (participants.length === 0) return
+    
+    const rect = e.currentTarget.getBoundingClientRect()
+    setTooltip({
+      visible: true,
+      players: participants,
+      position: {
+        x: rect.right + 10,
+        y: rect.top
+      },
+      title: t('gameParticipants')
+    })
+  }
+
+  const handleEventMouseLeave = () => {
+    setTooltip({ visible: false, players: [], position: { x: 0, y: 0 }, title: t('available') })
   }
 
   return (
@@ -458,6 +482,8 @@ const CalendarTimeline = ({
                               e.stopPropagation()
                               onEventClick && onEventClick(event)
                             }}
+                            onMouseEnter={(e) => handleEventMouseEnter(e, event)}
+                            onMouseLeave={handleEventMouseLeave}
                             style={{
                               backgroundColor: event.color || '#646cff',
                               height: `${displayHeight * 40}px`
@@ -483,6 +509,7 @@ const CalendarTimeline = ({
         players={tooltip.players}
         visible={tooltip.visible}
         position={tooltip.position}
+        title={tooltip.title}
       />
     </div>
   )

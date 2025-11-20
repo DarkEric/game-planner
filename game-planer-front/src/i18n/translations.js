@@ -18,6 +18,8 @@ export const translations = {
     next: 'Следующие',
     clickToMark: 'Кликайте по ячейкам времени или протяните мышь, чтобы отметить свою доступность',
     availablePlayers: 'Доступно игроков',
+    available: 'Доступны',
+    gameParticipants: 'Участники',
     of: 'из',
     
     // Days of week
@@ -120,6 +122,8 @@ export const translations = {
     next: 'Next',
     clickToMark: 'Click on time cells or drag to mark your availability',
     availablePlayers: 'Available players',
+    available: 'Available',
+    gameParticipants: 'Participants',
     of: 'of',
     
     // Days of week
