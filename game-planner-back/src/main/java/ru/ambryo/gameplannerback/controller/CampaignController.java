@@ -73,6 +73,18 @@ public class CampaignController {
         return ResponseEntity.ok(campaign);
     }
 
+    @PutMapping("/{id}")
+    public ResponseEntity<CampaignDto> updateCampaign(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> request,
+            Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        String name = request.get("name");
+        String description = request.get("description");
+        CampaignDto campaign = campaignService.updateCampaign(id, name, description, user.getId());
+        return ResponseEntity.ok(campaign);
+    }
+
     @PostMapping("/{id}/games/{gameId}")
     public ResponseEntity<CampaignDto> addGameToCampaign(
             @PathVariable Long id,

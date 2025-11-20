@@ -104,6 +104,25 @@ public class CampaignService {
     }
 
     @Transactional
+    public CampaignDto updateCampaign(Long campaignId, String name, String description, Long userId) {
+        Campaign campaign = campaignRepository.findById(campaignId)
+                .orElseThrow(() -> new RuntimeException("Campaign not found"));
+
+        if (!campaign.getCreator().getId().equals(userId)) {
+            throw new RuntimeException("Only campaign creator can update campaign");
+        }
+
+        if (name != null && !name.trim().isEmpty()) {
+            campaign.setName(name);
+        }
+        if (description != null) {
+            campaign.setDescription(description);
+        }
+        Campaign saved = campaignRepository.save(campaign);
+        return convertToDto(saved, userId);
+    }
+
+    @Transactional
     public CampaignDto addGameToCampaign(Long campaignId, Long gameId, Long userId) {
         Campaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new RuntimeException("Campaign not found"));

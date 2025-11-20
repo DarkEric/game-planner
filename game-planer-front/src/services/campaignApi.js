@@ -68,6 +68,17 @@ export const campaignApi = {
     return response.json()
   },
 
+  // Update campaign name and description
+  updateCampaign: async (campaignId, name, description) => {
+    const response = await fetch(`${API_URL}/${campaignId}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ name, description })
+    })
+    if (!response.ok) throw new Error('Failed to update campaign')
+    return response.json()
+  },
+
   // Add game to campaign
   addGameToCampaign: async (campaignId, gameId) => {
     const response = await fetch(`${API_URL}/${campaignId}/games/${gameId}`, {

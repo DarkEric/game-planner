@@ -21,6 +21,9 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
     const [characterClass, setCharacterClass] = useState('')
     const [characterNotes, setCharacterNotes] = useState('')
     const [expandedPlayers, setExpandedPlayers] = useState(new Set())
+    const [isEditingCampaign, setIsEditingCampaign] = useState(false)
+    const [editedName, setEditedName] = useState('')
+    const [editedDescription, setEditedDescription] = useState('')
 
     useEffect(() => {
         loadCampaignDetails()
@@ -209,6 +212,21 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
         }
     }
 
+    const handleUpdateCampaign = async () => {
+        try {
+            if (!editedName.trim()) {
+                alert('Название кампании не может быть пустым')
+                return
+            }
+            await campaignApi.updateCampaign(campaignId, editedName, editedDescription)
+            setIsEditingCampaign(false)
+            loadCampaignDetails()
+        } catch (error) {
+            console.error('Failed to update campaign:', error)
+            alert('Не удалось обновить кампанию')
+        }
+    }
+
     if (loading) {
         return (
             <div className="campaign-details">
@@ -277,13 +295,98 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
 
             <div className="campaign-header">
                 <div className="campaign-title-section">
-                    <h1>{campaign.name}</h1>
-                    <span className="campaign-status-badge">
-                        {getStatusIcon(campaign.status)} {getStatusText(campaign.status)}
-                    </span>
+                    {isEditingCampaign ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+                            <input
+                                type="text"
+                                value={editedName}
+                                onChange={(e) => setEditedName(e.target.value)}
+                                placeholder="Название кампании"
+                                style={{
+                                    fontSize: '1.5rem',
+                                    fontWeight: 'bold',
+                                    padding: '0.5rem',
+                                    background: '#2a2a2a',
+                                    color: '#fff',
+                                    border: '1px solid #444',
+                                    borderRadius: '4px'
+                                }}
+                            />
+                            <textarea
+                                value={editedDescription}
+                                onChange={(e) => setEditedDescription(e.target.value)}
+                                placeholder="Описание кампании (необязательно)"
+                                style={{
+                                    padding: '0.5rem',
+                                    background: '#2a2a2a',
+                                    color: '#fff',
+                                    border: '1px solid #444',
+                                    borderRadius: '4px',
+                                    minHeight: '80px',
+                                    resize: 'vertical'
+                                }}
+                            />
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button
+                                    onClick={handleUpdateCampaign}
+                                    style={{
+                                        padding: '0.5rem 1rem',
+                                        background: '#4caf50',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    💾 Сохранить
+                                </button>
+                                <button
+                                    onClick={() => setIsEditingCampaign(false)}
+                                    style={{
+                                        padding: '0.5rem 1rem',
+                                        background: '#f44336',
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    ❌ Отмена
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <h1>{campaign.name}</h1>
+                                {isCreator && (
+                                    <button
+                                        onClick={() => {
+                                            setEditedName(campaign.name)
+                                            setEditedDescription(campaign.description || '')
+                                            setIsEditingCampaign(true)
+                                        }}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            fontSize: '1.2rem',
+                                            padding: '0.25rem'
+                                        }}
+                                        title="Редактировать кампанию"
+                                    >
+                                        ✏️
+                                    </button>
+                                )}
+                            </div>
+                            <span className="campaign-status-badge">
+                                {getStatusIcon(campaign.status)} {getStatusText(campaign.status)}
+                            </span>
+                        </>
+                    )}
                 </div>
 
-                {campaign.description && (
+                {!isEditingCampaign && campaign.description && (
                     <p className="campaign-details-description">{campaign.description}</p>
                 )}
 
