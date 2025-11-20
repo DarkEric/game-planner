@@ -90,9 +90,18 @@ const CampaignList = ({ onSelectCampaign, onCreateCampaign }) => {
                             key={campaign.id}
                             className="campaign-card"
                             onClick={() => onSelectCampaign(campaign.id)}
+                            style={{
+                                border: campaign.hasInvite ? '2px solid #646cff' : undefined,
+                                boxShadow: campaign.hasInvite ? '0 0 10px rgba(100, 108, 255, 0.3)' : undefined
+                            }}
                         >
                             <div className="campaign-card-header">
-                                <h3>{campaign.name}</h3>
+                                <h3>
+                                    {campaign.name}
+                                    {campaign.isCreator && <span style={{ marginLeft: '8px', fontSize: '0.8rem' }}>👑</span>}
+                                    {campaign.isPlayer && <span style={{ marginLeft: '8px', fontSize: '0.8rem' }}>🎭</span>}
+                                    {campaign.hasInvite && <span style={{ marginLeft: '8px', fontSize: '0.8rem' }}>✉️</span>}
+                                </h3>
                                 <span className="campaign-status">
                                     {getStatusIcon(campaign.status)} {getStatusText(campaign.status)}
                                 </span>

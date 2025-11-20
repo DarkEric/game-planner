@@ -17,6 +17,9 @@ public class CampaignDto {
     private List<Long> gameIds;
     private Instant createdAt;
     private Instant updatedAt;
+    private Boolean hasInvite; // Does current user have a pending invite?
+    private Boolean isPlayer; // Is current user a player in this campaign?
+    private Boolean isCreator; // Is current user the creator?
 
     // Constructors
     public CampaignDto() {
@@ -126,6 +129,30 @@ public class CampaignDto {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public Boolean getHasInvite() {
+        return hasInvite;
+    }
+
+    public void setHasInvite(Boolean hasInvite) {
+        this.hasInvite = hasInvite;
+    }
+
+    public Boolean getIsPlayer() {
+        return isPlayer;
+    }
+
+    public void setIsPlayer(Boolean isPlayer) {
+        this.isPlayer = isPlayer;
+    }
+
+    public Boolean getIsCreator() {
+        return isCreator;
+    }
+
+    public void setIsCreator(Boolean isCreator) {
+        this.isCreator = isCreator;
     }
 
     // Helper method to calculate progress percentage

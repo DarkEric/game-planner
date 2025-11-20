@@ -118,5 +118,57 @@ export const campaignApi = {
     })
     if (!response.ok) throw new Error('Failed to remove player from campaign')
     return response.json()
+  },
+
+  // Invite player to campaign
+  invitePlayerToCampaign: async (campaignId, playerId) => {
+    const response = await fetch(`${API_URL}/${campaignId}/invites`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ playerId })
+    })
+    if (!response.ok) throw new Error('Failed to invite player')
+    return response.json()
+  },
+
+  // Get campaign invites (for master)
+  getCampaignInvites: async (campaignId) => {
+    const response = await fetch(`${API_URL}/${campaignId}/invites`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    })
+    if (!response.ok) throw new Error('Failed to get campaign invites')
+    return response.json()
+  },
+
+  // Get pending invites for current user
+  getPendingInvites: async () => {
+    const response = await fetch(`${API_URL}/invites/pending`, {
+      method: 'GET',
+      headers: getAuthHeaders()
+    })
+    if (!response.ok) throw new Error('Failed to get pending invites')
+    return response.json()
+  },
+
+  // Accept campaign invite
+  acceptCampaignInvite: async (inviteId, characterData) => {
+    const response = await fetch(`${API_URL}/invites/${inviteId}/accept`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(characterData)
+    })
+    if (!response.ok) throw new Error('Failed to accept invite')
+    return response.json()
+  },
+
+  // Decline campaign invite
+  declineCampaignInvite: async (inviteId) => {
+    const response = await fetch(`${API_URL}/invites/${inviteId}/decline`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    })
+    if (!response.ok) throw new Error('Failed to decline invite')
+    return response.json()
   }
 }

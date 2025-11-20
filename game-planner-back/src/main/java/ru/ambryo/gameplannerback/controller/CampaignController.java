@@ -4,6 +4,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import ru.ambryo.gameplannerback.dto.CampaignDto;
+import ru.ambryo.gameplannerback.dto.CampaignInviteDto;
 import ru.ambryo.gameplannerback.dto.CampaignPlayerDto;
 import ru.ambryo.gameplannerback.dto.CreateCampaignRequest;
 import ru.ambryo.gameplannerback.entity.CampaignStatus;
@@ -134,6 +135,56 @@ public class CampaignController {
             Authentication authentication) {
         User user = (User) authentication.getPrincipal();
         campaignService.removePlayerFromCampaign(id, playerId, user.getId());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/invites")
+    public ResponseEntity<CampaignInviteDto> invitePlayer(
+            @PathVariable Long id,
+            @RequestBody Map<String, Long> request,
+            Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Long playerId = request.get("playerId");
+        CampaignInviteDto invite = campaignService.invitePlayerToCampaign(id, playerId, user.getId());
+        return ResponseEntity.ok(invite);
+    }
+
+    @GetMapping("/{id}/invites")
+    public ResponseEntity<List<CampaignInviteDto>> getCampaignInvites(
+            @PathVariable Long id,
+            Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        List<CampaignInviteDto> invites = campaignService.getCampaignInvites(id, user.getId());
+        return ResponseEntity.ok(invites);
+    }
+
+    @GetMapping("/invites/pending")
+    public ResponseEntity<List<CampaignInviteDto>> getPendingInvites(Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        List<CampaignInviteDto> invites = campaignService.getPendingInvites(user.getId());
+        return ResponseEntity.ok(invites);
+    }
+
+    @PostMapping("/invites/{inviteId}/accept")
+    public ResponseEntity<CampaignDto> acceptInvite(
+            @PathVariable Long inviteId,
+            @RequestBody Map<String, String> request,
+            Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        String characterName = request.get("characterName");
+        String characterClass = request.get("characterClass");
+        String characterNotes = request.get("characterNotes");
+        CampaignDto campaign = campaignService.acceptCampaignInvite(
+                inviteId, characterName, characterClass, characterNotes, user.getId());
+        return ResponseEntity.ok(campaign);
+    }
+
+    @PostMapping("/invites/{inviteId}/decline")
+    public ResponseEntity<Void> declineInvite(
+            @PathVariable Long inviteId,
+            Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        campaignService.declineCampaignInvite(inviteId, user.getId());
         return ResponseEntity.ok().build();
     }
 }

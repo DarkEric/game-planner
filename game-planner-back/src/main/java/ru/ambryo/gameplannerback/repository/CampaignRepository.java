@@ -18,4 +18,13 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
            "LEFT JOIN c.players cp " +
            "WHERE c.creator = :user OR cp.player = :user")
     List<Campaign> findByUserInvolvement(@Param("user") User user);
+    
+    @Query("SELECT c FROM Campaign c ORDER BY " +
+           "CASE c.status " +
+           "WHEN 'ACTIVE' THEN 1 " +
+           "WHEN 'ON_HOLD' THEN 2 " +
+           "WHEN 'COMPLETED' THEN 3 " +
+           "ELSE 4 END, " +
+           "c.createdAt DESC")
+    List<Campaign> findAllOrderedByStatus();
 }

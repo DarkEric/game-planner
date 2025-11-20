@@ -14,6 +14,12 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
     const [isEditingMilestones, setIsEditingMilestones] = useState(false)
     const [editedCompletedMilestones, setEditedCompletedMilestones] = useState(0)
     const [editedTotalMilestones, setEditedTotalMilestones] = useState(0)
+    const [showInviteModal, setShowInviteModal] = useState(false)
+    const [availablePlayers, setAvailablePlayers] = useState([])
+    const [showAcceptInviteModal, setShowAcceptInviteModal] = useState(false)
+    const [characterName, setCharacterName] = useState('')
+    const [characterClass, setCharacterClass] = useState('')
+    const [characterNotes, setCharacterNotes] = useState('')
 
     useEffect(() => {
         loadCampaignDetails()
@@ -126,6 +132,82 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
         }
     }
 
+    const handleLoadAvailablePlayers = async () => {
+        try {
+            // Load all users except those already in campaign
+            const response = await fetch('/api/players', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                }
+            })
+            const allPlayers = await response.json()
+            
+            // Filter out players already in campaign and the creator
+            const playerIds = campaign.players.map(p => p.playerId)
+            const available = allPlayers.filter(p => 
+                p.id !== campaign.creator.id && !playerIds.includes(p.id)
+            )
+            setAvailablePlayers(available)
+            setShowInviteModal(true)
+        } catch (error) {
+            console.error('Failed to load players:', error)
+            alert('Не удалось загрузить список игроков')
+        }
+    }
+
+    const handleInvitePlayer = async (playerId) => {
+        try {
+            await campaignApi.invitePlayerToCampaign(campaignId, playerId)
+            setShowInviteModal(false)
+            alert('Приглашение отправлено!')
+        } catch (error) {
+            console.error('Failed to invite player:', error)
+            alert('Не удалось отправить приглашение')
+        }
+    }
+
+    const handleAcceptInvite = async () => {
+        try {
+            // Find the invite for this campaign
+            const invites = await campaignApi.getPendingInvites()
+            const invite = invites.find(inv => inv.campaignId === campaignId)
+            
+            if (!invite) {
+                alert('Приглашение не найдено')
+                return
+            }
+
+            await campaignApi.acceptCampaignInvite(invite.id, {
+                characterName,
+                characterClass,
+                characterNotes
+            })
+            setShowAcceptInviteModal(false)
+            loadCampaignDetails()
+        } catch (error) {
+            console.error('Failed to accept invite:', error)
+            alert('Не удалось принять приглашение')
+        }
+    }
+
+    const handleDeclineInvite = async () => {
+        try {
+            const invites = await campaignApi.getPendingInvites()
+            const invite = invites.find(inv => inv.campaignId === campaignId)
+            
+            if (!invite) {
+                alert('Приглашение не найдено')
+                return
+            }
+
+            await campaignApi.declineCampaignInvite(invite.id)
+            loadCampaignDetails()
+        } catch (error) {
+            console.error('Failed to decline invite:', error)
+            alert('Не удалось отклонить приглашение')
+        }
+    }
+
     if (loading) {
         return (
             <div className="campaign-details">
@@ -149,6 +231,48 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
     return (
         <div className="campaign-details">
             <button onClick={onBack} className="back-btn">← Назад к списку</button>
+
+            {campaign.hasInvite && (
+                <div style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    padding: '1.5rem',
+                    borderRadius: '8px',
+                    marginBottom: '1rem',
+                    color: '#fff'
+                }}>
+                    <h3 style={{ margin: '0 0 0.5rem 0' }}>✉️ Вы приглашены в эту кампанию!</h3>
+                    <p style={{ margin: '0 0 1rem 0' }}>Мастер {campaign.creator?.name} приглашает вас присоединиться к кампании.</p>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button
+                            onClick={() => setShowAcceptInviteModal(true)}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: '#4caf50',
+                                border: 'none',
+                                borderRadius: '6px',
+                                color: '#fff',
+                                cursor: 'pointer',
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            Принять приглашение
+                        </button>
+                        <button
+                            onClick={handleDeclineInvite}
+                            style={{
+                                padding: '0.5rem 1rem',
+                                background: 'transparent',
+                                border: '1px solid #fff',
+                                borderRadius: '6px',
+                                color: '#fff',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Отклонить
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="campaign-header">
                 <div className="campaign-title-section">
@@ -305,10 +429,29 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                 </div>
             )}
 
-            {campaign.players && campaign.players.length > 0 && (
+            {((campaign.players && campaign.players.length > 0) || isCreator) && (
                 <div className="players-section">
-                    <h2>👥 Постоянные игроки</h2>
-                    <div className="players-list">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h2 style={{ margin: 0 }}>👥 Постоянные игроки</h2>
+                        {isCreator && (
+                            <button
+                                onClick={handleLoadAvailablePlayers}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    background: '#646cff',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.9rem'
+                                }}
+                            >
+                                + Пригласить игрока
+                            </button>
+                        )}
+                    </div>
+                    {campaign.players && campaign.players.length > 0 ? (
+                        <div className="players-list">
                         {campaign.players.map(player => (
                             <div key={player.id} className="player-card">
                                 <div className="player-name">{player.playerName}</div>
@@ -328,7 +471,10 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                                 )}
                             </div>
                         ))}
-                    </div>
+                        </div>
+                    ) : (
+                        <p style={{ color: '#888' }}>Пока нет постоянных игроков</p>
+                    )}
                 </div>
             )}
 
@@ -436,6 +582,136 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                     </div>
                 )}
             </div>
+
+            {/* Invite Player Modal */}
+            {showInviteModal && (
+                <div className="modal-overlay" style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                }}>
+                    <div className="modal-content" style={{
+                        background: '#1a1a1a', padding: '2rem', borderRadius: '8px', width: '90%', maxWidth: '500px', maxHeight: '80vh', overflowY: 'auto'
+                    }}>
+                        <h3>Пригласить игрока в кампанию</h3>
+                        {availablePlayers.length === 0 ? (
+                            <p>Нет доступных игроков для приглашения.</p>
+                        ) : (
+                            <div className="players-list" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+                                {availablePlayers.map(player => (
+                                    <div key={player.id} style={{
+                                        padding: '1rem', background: '#2a2a2a', borderRadius: '6px',
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                    }}>
+                                        <div>
+                                            <div style={{ fontWeight: 'bold' }}>{player.name}</div>
+                                        </div>
+                                        <button
+                                            onClick={() => handleInvitePlayer(player.id)}
+                                            style={{
+                                                padding: '0.25rem 0.75rem', background: '#646cff', color: 'white',
+                                                border: 'none', borderRadius: '4px', cursor: 'pointer'
+                                            }}
+                                        >
+                                            Пригласить
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <button
+                            onClick={() => setShowInviteModal(false)}
+                            style={{ marginTop: '1rem', padding: '0.5rem 1rem', background: 'transparent', border: '1px solid #666', color: '#fff', borderRadius: '4px', cursor: 'pointer', width: '100%' }}
+                        >
+                            Отмена
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Accept Invite Modal */}
+            {showAcceptInviteModal && (
+                <div className="modal-overlay" style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    background: 'rgba(0,0,0,0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+                }}>
+                    <div className="modal-content" style={{
+                        background: '#1a1a1a', padding: '2rem', borderRadius: '8px', width: '90%', maxWidth: '500px'
+                    }}>
+                        <h3>Присоединиться к кампании</h3>
+                        <p style={{ color: '#aaa', marginBottom: '1rem' }}>Расскажите о своем персонаже:</p>
+                        
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ccc' }}>
+                                Имя персонажа *
+                            </label>
+                            <input
+                                type="text"
+                                value={characterName}
+                                onChange={(e) => setCharacterName(e.target.value)}
+                                placeholder="Например: Арагорн"
+                                style={{
+                                    width: '100%', padding: '0.5rem', background: '#2a2a2a', color: '#fff',
+                                    border: '1px solid #444', borderRadius: '4px'
+                                }}
+                            />
+                        </div>
+
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ccc' }}>
+                                Класс/Роль (необязательно)
+                            </label>
+                            <input
+                                type="text"
+                                value={characterClass}
+                                onChange={(e) => setCharacterClass(e.target.value)}
+                                placeholder="Например: Воин, Маг"
+                                style={{
+                                    width: '100%', padding: '0.5rem', background: '#2a2a2a', color: '#fff',
+                                    border: '1px solid #444', borderRadius: '4px'
+                                }}
+                            />
+                        </div>
+
+                        <div style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', color: '#ccc' }}>
+                                Заметки о персонаже (необязательно)
+                            </label>
+                            <textarea
+                                value={characterNotes}
+                                onChange={(e) => setCharacterNotes(e.target.value)}
+                                placeholder="Краткая предыстория, особенности..."
+                                style={{
+                                    width: '100%', padding: '0.5rem', background: '#2a2a2a', color: '#fff',
+                                    border: '1px solid #444', borderRadius: '4px', minHeight: '80px', resize: 'vertical'
+                                }}
+                            />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.5rem' }}>
+                            <button
+                                onClick={handleAcceptInvite}
+                                disabled={!characterName}
+                                style={{
+                                    flex: 1, padding: '0.75rem', background: characterName ? '#4caf50' : '#555',
+                                    color: '#fff', border: 'none', borderRadius: '4px',
+                                    cursor: characterName ? 'pointer' : 'not-allowed', fontWeight: 'bold'
+                                }}
+                            >
+                                Присоединиться
+                            </button>
+                            <button
+                                onClick={() => setShowAcceptInviteModal(false)}
+                                style={{
+                                    flex: 1, padding: '0.75rem', background: 'transparent',
+                                    border: '1px solid #666', color: '#fff', borderRadius: '4px', cursor: 'pointer'
+                                }}
+                            >
+                                Отмена
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
