@@ -125,7 +125,9 @@ const CampaignList = ({ onSelectCampaign, onCreateCampaign }) => {
                                 {campaign.totalMilestones && (
                                     <div className="stat">
                                         <span className="stat-label">Прогресс:</span>
-                                        <span className="stat-value">{campaign.getProgressPercentage || 0}%</span>
+                                        <span className="stat-value">
+                                            {Math.round((campaign.completedMilestones / campaign.totalMilestones) * 100)}%
+                                        </span>
                                     </div>
                                 )}
 
@@ -143,7 +145,7 @@ const CampaignList = ({ onSelectCampaign, onCreateCampaign }) => {
                                 <div className="progress-bar">
                                     <div
                                         className="progress-fill"
-                                        style={{ width: `${campaign.getProgressPercentage || 0}%` }}
+                                        style={{ width: `${Math.round((campaign.completedMilestones / campaign.totalMilestones) * 100)}%` }}
                                     />
                                 </div>
                             )}
