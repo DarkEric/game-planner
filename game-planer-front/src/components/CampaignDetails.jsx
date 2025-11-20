@@ -64,6 +64,12 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
         return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
     }
 
+    console.log('CampaignDetails Debug:', {
+        campaignCreatorId: campaign?.creator?.id,
+        currentUserId: currentUserId,
+        isCreatorCheck: String(campaign?.creator?.id) === String(currentUserId)
+    })
+
     const isCreator = String(campaign?.creator?.id) === String(currentUserId)
 
     const handleStatusChange = async (newStatus) => {
