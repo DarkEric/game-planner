@@ -122,20 +122,20 @@ const CampaignList = ({ onSelectCampaign, onCreateCampaign }) => {
                                     <span className="stat-value">{campaign.upcomingGamesCount || 0}</span>
                                 </div>
 
-                                {campaign.totalMilestones && (
-                                    <div className="stat">
-                                        <span className="stat-label">Прогресс:</span>
-                                        <span className="stat-value">
-                                            {Math.round((campaign.completedMilestones / campaign.totalMilestones) * 100)}%
-                                        </span>
-                                    </div>
-                                )}
-
                                 {campaign.players && campaign.players.length > 0 && (
                                     <div className="stat">
                                         <span className="stat-label">Игроки:</span>
                                         <span className="stat-value">
                                             {campaign.players.map(p => p.playerName).join(', ')}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {campaign.totalMilestones && (
+                                    <div className="stat">
+                                        <span className="stat-label">Прогресс:</span>
+                                        <span className="stat-value">
+                                            {Math.round((campaign.completedMilestones / campaign.totalMilestones) * 100)}%
                                         </span>
                                     </div>
                                 )}
