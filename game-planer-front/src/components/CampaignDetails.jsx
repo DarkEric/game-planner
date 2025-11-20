@@ -460,7 +460,7 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
             {(campaign.totalMilestones || isCreator) && (
                 <div className="milestones-section">
                     <h2>📊 Прогресс кампании</h2>
-                    {isCreator && !campaign.totalMilestones ? (
+                    {isCreator && !campaign.totalMilestones && !isEditingMilestones ? (
                         <div className="milestone-details">
                             <p style={{ color: '#888', marginBottom: '1rem' }}>
                                 Вехи не настроены. Установите количество вех для отслеживания прогресса кампании.
