@@ -12,7 +12,8 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
     const [showLinkGameModal, setShowLinkGameModal] = useState(false)
     const [availableGames, setAvailableGames] = useState([])
     const [isEditingMilestones, setIsEditingMilestones] = useState(false)
-    const [editedMilestones, setEditedMilestones] = useState(0)
+    const [editedCompletedMilestones, setEditedCompletedMilestones] = useState(0)
+    const [editedTotalMilestones, setEditedTotalMilestones] = useState(0)
 
     useEffect(() => {
         loadCampaignDetails()
@@ -84,7 +85,15 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
 
     const handleUpdateMilestones = async () => {
         try {
-            await campaignApi.updateMilestones(campaignId, parseInt(editedMilestones))
+            const completed = parseInt(editedCompletedMilestones)
+            const total = parseInt(editedTotalMilestones)
+            
+            if (completed > total) {
+                alert('Количество пройденных вех не может быть больше общего количества')
+                return
+            }
+            
+            await campaignApi.updateMilestones(campaignId, completed, total)
             setIsEditingMilestones(false)
             loadCampaignDetails()
         } catch (error) {
@@ -227,25 +236,39 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                         <div className="milestone-details">
                             <div className="milestone-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                 {isEditingMilestones ? (
-                                    <div className="milestone-edit-controls" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max={campaign.totalMilestones}
-                                            value={editedMilestones}
-                                            onChange={(e) => setEditedMilestones(e.target.value)}
-                                            style={{ width: '60px', padding: '0.25rem' }}
-                                        />
-                                        <span>/ {campaign.totalMilestones}</span>
-                                        <button onClick={handleUpdateMilestones} className="save-btn" style={{ padding: '0.25rem 0.5rem', background: '#4caf50', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>💾</button>
-                                        <button onClick={() => setIsEditingMilestones(false)} className="cancel-btn" style={{ padding: '0.25rem 0.5rem', background: '#f44336', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>❌</button>
+                                    <div className="milestone-edit-controls" style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                            <span style={{ fontSize: '0.9rem', color: '#aaa' }}>Пройдено:</span>
+                                            <input
+                                                type="number"
+                                                min="0"
+                                                max={editedTotalMilestones}
+                                                value={editedCompletedMilestones}
+                                                onChange={(e) => setEditedCompletedMilestones(e.target.value)}
+                                                style={{ width: '60px', padding: '0.25rem', background: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px' }}
+                                            />
+                                        </div>
+                                        <span style={{ color: '#666' }}>/</span>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                            <span style={{ fontSize: '0.9rem', color: '#aaa' }}>Всего:</span>
+                                            <input
+                                                type="number"
+                                                min="1"
+                                                value={editedTotalMilestones}
+                                                onChange={(e) => setEditedTotalMilestones(e.target.value)}
+                                                style={{ width: '60px', padding: '0.25rem', background: '#2a2a2a', color: '#fff', border: '1px solid #444', borderRadius: '4px' }}
+                                            />
+                                        </div>
+                                        <button onClick={handleUpdateMilestones} className="save-btn" style={{ padding: '0.25rem 0.5rem', background: '#4caf50', border: 'none', borderRadius: '4px', cursor: 'pointer', color: '#fff' }}>💾</button>
+                                        <button onClick={() => setIsEditingMilestones(false)} className="cancel-btn" style={{ padding: '0.25rem 0.5rem', background: '#f44336', border: 'none', borderRadius: '4px', cursor: 'pointer', color: '#fff' }}>❌</button>
                                     </div>
                                 ) : (
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                         <p style={{ margin: 0 }}>Вехи: {campaign.completedMilestones} / {campaign.totalMilestones}</p>
                                         <button
                                             onClick={() => {
-                                                setEditedMilestones(campaign.completedMilestones)
+                                                setEditedCompletedMilestones(campaign.completedMilestones)
+                                                setEditedTotalMilestones(campaign.totalMilestones)
                                                 setIsEditingMilestones(true)
                                             }}
                                             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}

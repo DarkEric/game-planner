@@ -82,7 +82,7 @@ public class CampaignService {
     }
 
     @Transactional
-    public CampaignDto updateMilestones(Long campaignId, Integer completedMilestones, Long userId) {
+    public CampaignDto updateMilestones(Long campaignId, Integer completedMilestones, Integer totalMilestones, Long userId) {
         Campaign campaign = campaignRepository.findById(campaignId)
                 .orElseThrow(() -> new RuntimeException("Campaign not found"));
 
@@ -90,7 +90,12 @@ public class CampaignService {
             throw new RuntimeException("Only campaign master can update milestones");
         }
 
-        campaign.setCompletedMilestones(completedMilestones);
+        if (completedMilestones != null) {
+            campaign.setCompletedMilestones(completedMilestones);
+        }
+        if (totalMilestones != null) {
+            campaign.setTotalMilestones(totalMilestones);
+        }
         Campaign saved = campaignRepository.save(campaign);
         return convertToDto(saved, userId);
     }

@@ -67,7 +67,8 @@ public class CampaignController {
             Authentication authentication) {
         User user = (User) authentication.getPrincipal();
         Integer completedMilestones = request.get("completedMilestones");
-        CampaignDto campaign = campaignService.updateMilestones(id, completedMilestones, user.getId());
+        Integer totalMilestones = request.get("totalMilestones");
+        CampaignDto campaign = campaignService.updateMilestones(id, completedMilestones, totalMilestones, user.getId());
         return ResponseEntity.ok(campaign);
     }
 

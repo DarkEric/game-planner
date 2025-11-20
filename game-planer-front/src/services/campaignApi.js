@@ -55,11 +55,14 @@ export const campaignApi = {
   },
 
   // Update milestones (master only)
-  updateMilestones: async (campaignId, completedMilestones) => {
+  updateMilestones: async (campaignId, completedMilestones, totalMilestones) => {
     const response = await fetch(`${API_URL}/${campaignId}/milestones`, {
       method: 'PUT',
       headers: getAuthHeaders(),
-      body: JSON.stringify({ completedMilestones })
+      body: JSON.stringify({ 
+        completedMilestones: completedMilestones !== undefined ? completedMilestones : null,
+        totalMilestones: totalMilestones !== undefined ? totalMilestones : null
+      })
     })
     if (!response.ok) throw new Error('Failed to update milestones')
     return response.json()
