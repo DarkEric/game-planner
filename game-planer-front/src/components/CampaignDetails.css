@@ -58,21 +58,6 @@
 
 .campaign-status-badge {
     padding: 0.5rem 1rem;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
-    font-size: 0.9rem;
-    white-space: nowrap;
-}
-
-.campaign-description {
-    color: #ccc;
-    line-height: 1.6;
-    margin: 1rem 0;
-}
-
-.campaign-meta {
-    display: flex;
-    gap: 2rem;
     margin-top: 1.5rem;
     padding-top: 1.5rem;
     border-top: 1px solid rgba(255, 255, 255, 0.1);

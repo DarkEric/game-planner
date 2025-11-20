@@ -447,7 +447,7 @@ function App() {
         )}
 
         {activeTab === 'campaigns' && (
-          <CampaignTab currentUserId={user?.id} />
+          <CampaignTab currentUserId={user?.userId} />
         )}
 
         {activeTab === 'profile' && (

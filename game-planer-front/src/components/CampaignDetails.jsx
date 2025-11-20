@@ -144,7 +144,7 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                 </div>
 
                 {campaign.description && (
-                    <p className="campaign-description">{campaign.description}</p>
+                    <p className="campaign-details-description">{campaign.description}</p>
                 )}
 
                 <div className="campaign-meta">
