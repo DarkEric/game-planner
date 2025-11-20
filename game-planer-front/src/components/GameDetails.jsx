@@ -100,6 +100,28 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
               </div>
             )}
 
+            {game.campaign && (
+              <div className="game-campaign-section" style={{
+                marginBottom: '1rem',
+                padding: '0.75rem',
+                background: 'rgba(100, 108, 255, 0.1)',
+                borderRadius: '6px',
+                border: '1px solid rgba(100, 108, 255, 0.3)'
+              }}>
+                <h4 style={{ marginTop: 0, marginBottom: '0.5rem', color: '#646cff' }}>
+                  📚 Часть кампании
+                </h4>
+                <div style={{ color: '#ccc' }}>
+                  <strong>{game.campaign.name}</strong>
+                  {game.campaign.sessionNumber && (
+                    <span style={{ marginLeft: '0.5rem', color: '#888', fontSize: '0.9rem' }}>
+                      (Сессия {game.campaign.sessionNumber})
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
             <div className="game-info-section">
               <div className="game-info-item">
                 <div className="game-info-label">Начало</div>
