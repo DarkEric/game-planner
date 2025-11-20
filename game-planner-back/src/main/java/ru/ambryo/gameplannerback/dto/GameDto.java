@@ -14,7 +14,6 @@ public class GameDto {
     private List<ParticipantDto> participants;
     private Instant createdAt;
     private boolean isHeld;
-    private boolean isHeld;
     private String keyEvents;
     private Long campaignId;
     private String campaignName;
