@@ -242,7 +242,9 @@ public class GameService {
                 participants,
                 game.getCreatedAt(),
                 game.isHeld(),
-                game.getKeyEvents()
+                game.getKeyEvents(),
+                game.getCampaign() != null ? game.getCampaign().getId() : null,
+                game.getCampaign() != null ? game.getCampaign().getName() : null
         );
     }
 }
