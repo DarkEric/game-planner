@@ -14,7 +14,6 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/invites")
-@CrossOrigin(origins = "*")
 public class InviteController {
     
     @Autowired

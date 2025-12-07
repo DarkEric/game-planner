@@ -14,7 +14,6 @@ import java.time.Instant;
 
 @RestController
 @RequestMapping("/api/players/{playerId}/time-slots")
-@CrossOrigin(origins = "*")
 public class TimeSlotController {
     
     @Autowired

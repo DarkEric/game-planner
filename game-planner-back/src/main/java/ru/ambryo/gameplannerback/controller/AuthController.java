@@ -11,7 +11,6 @@ import ru.ambryo.gameplannerback.service.AuthService;
 
 @RestController
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "*")
 public class AuthController {
     
     @Autowired

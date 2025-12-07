@@ -12,7 +12,6 @@ import ru.ambryo.gameplannerback.service.NotificationSettingsService;
 
 @RestController
 @RequestMapping("/api/notification-settings")
-@CrossOrigin(origins = "*")
 public class NotificationSettingsController {
     
     private static final Logger log = LoggerFactory.getLogger(NotificationSettingsController.class);
