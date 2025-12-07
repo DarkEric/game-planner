@@ -23,7 +23,9 @@ public class UserNotificationSettingsDto {
     @NotNull
     private Boolean timeSlotReminderEnabled;
     
-    private Instant timeSlotReminderDateTime;
+    private Instant timeSlotReminderDateTime; // Устаревшее поле
+    
+    private String timeSlotReminderCron; // Cron выражение для регулярных напоминаний
     
     @NotNull
     private Boolean gameCompletionReminderEnabled;
@@ -103,5 +105,13 @@ public class UserNotificationSettingsDto {
     
     public void setTelegramSubscribed(Boolean telegramSubscribed) {
         this.telegramSubscribed = telegramSubscribed;
+    }
+    
+    public String getTimeSlotReminderCron() {
+        return timeSlotReminderCron;
+    }
+    
+    public void setTimeSlotReminderCron(String timeSlotReminderCron) {
+        this.timeSlotReminderCron = timeSlotReminderCron;
     }
 }

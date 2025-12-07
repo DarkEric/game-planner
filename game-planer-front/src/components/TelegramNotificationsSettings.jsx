@@ -3,6 +3,165 @@ import { notificationApi } from '../services/notificationApi'
 import './TelegramNotificationsSettings.css'
 
 /**
+ * Парсит cron выражение в удобный формат
+ * Формат Spring cron: "секунды минуты часы день_месяца месяц день_недели"
+ * Пример: "0 0 9 * * 1" = каждый понедельник в 9:00
+ */
+const parseCron = (cron) => {
+  if (!cron || cron.trim() === '') {
+    return { frequency: 'daily', hour: 9, minute: 0, dayOfWeek: 1, dayOfMonth: 1 }
+  }
+  
+  const parts = cron.trim().split(/\s+/)
+  if (parts.length < 6) {
+    return { frequency: 'daily', hour: 9, minute: 0, dayOfWeek: 1, dayOfMonth: 1 }
+  }
+  
+  // Spring cron формат: секунды минуты часы день_месяца месяц день_недели
+  const second = parseInt(parts[0]) || 0
+  const minute = parseInt(parts[1]) || 0
+  const hour = parseInt(parts[2]) || 9
+  const dayOfMonth = parts[3] === '*' ? null : parseInt(parts[3])
+  const month = parts[4] === '*' ? null : parseInt(parts[4])
+  const dayOfWeek = parts[5] === '*' ? null : parseInt(parts[5])
+  
+  // Определяем частоту
+  let frequency = 'daily'
+  if (dayOfWeek !== null && dayOfWeek !== '*') {
+    frequency = 'weekly'
+  } else if (dayOfMonth !== null && dayOfMonth !== '*') {
+    frequency = 'monthly'
+  }
+  
+  return {
+    frequency,
+    hour,
+    minute,
+    dayOfWeek: dayOfWeek !== null ? dayOfWeek : 1,
+    dayOfMonth: dayOfMonth !== null ? dayOfMonth : 1
+  }
+}
+
+/**
+ * Преобразует удобный формат в cron выражение
+ * Формат Spring cron: "секунды минуты часы день_месяца месяц день_недели"
+ */
+const buildCron = (config) => {
+  const { frequency, hour, minute, dayOfWeek, dayOfMonth } = config
+  
+  // Spring cron формат: секунды минуты часы день_месяца месяц день_недели
+  // День недели: 0=воскресенье, 1=понедельник, ..., 6=суббота
+  if (frequency === 'weekly') {
+    // Каждый день недели в указанное время
+    return `0 ${minute} ${hour} * * ${dayOfWeek}`
+  } else if (frequency === 'monthly') {
+    // Каждый день месяца в указанное время
+    return `0 ${minute} ${hour} ${dayOfMonth} * *`
+  } else {
+    // Ежедневно
+    return `0 ${minute} ${hour} * * *`
+  }
+}
+
+/**
+ * Компонент для выбора регулярности напоминания (cron-подобный интерфейс)
+ */
+const TimeSlotReminderCronSelector = ({ cron, onChange }) => {
+  const [config, setConfig] = useState(() => parseCron(cron))
+  
+  useEffect(() => {
+    setConfig(parseCron(cron))
+  }, [cron])
+  
+  const handleChange = (field, value) => {
+    const newConfig = { ...config, [field]: value }
+    setConfig(newConfig)
+    onChange(buildCron(newConfig))
+  }
+  
+  const daysOfWeek = [
+    { value: 0, label: 'Воскресенье' },
+    { value: 1, label: 'Понедельник' },
+    { value: 2, label: 'Вторник' },
+    { value: 3, label: 'Среда' },
+    { value: 4, label: 'Четверг' },
+    { value: 5, label: 'Пятница' },
+    { value: 6, label: 'Суббота' }
+  ]
+  
+  return (
+    <div className="cron-selector">
+      <div className="cron-row">
+        <label className="cron-label">Частота:</label>
+        <select
+          value={config.frequency}
+          onChange={(e) => handleChange('frequency', e.target.value)}
+          className="cron-select"
+        >
+          <option value="daily">Ежедневно</option>
+          <option value="weekly">Еженедельно</option>
+          <option value="monthly">Ежемесячно</option>
+        </select>
+      </div>
+      
+      {config.frequency === 'weekly' && (
+        <div className="cron-row">
+          <label className="cron-label">День недели:</label>
+          <select
+            value={config.dayOfWeek}
+            onChange={(e) => handleChange('dayOfWeek', parseInt(e.target.value))}
+            className="cron-select"
+          >
+            {daysOfWeek.map(day => (
+              <option key={day.value} value={day.value}>{day.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+      
+      {config.frequency === 'monthly' && (
+        <div className="cron-row">
+          <label className="cron-label">День месяца:</label>
+          <input
+            type="number"
+            min="1"
+            max="31"
+            value={config.dayOfMonth}
+            onChange={(e) => handleChange('dayOfMonth', parseInt(e.target.value) || 1)}
+            className="cron-input"
+          />
+        </div>
+      )}
+      
+      <div className="cron-row">
+        <label className="cron-label">Время:</label>
+        <div className="time-inputs">
+          <input
+            type="number"
+            min="0"
+            max="23"
+            value={config.hour}
+            onChange={(e) => handleChange('hour', parseInt(e.target.value) || 0)}
+            className="cron-input time-input"
+            placeholder="Час"
+          />
+          <span className="time-separator">:</span>
+          <input
+            type="number"
+            min="0"
+            max="59"
+            value={config.minute}
+            onChange={(e) => handleChange('minute', parseInt(e.target.value) || 0)}
+            className="cron-input time-input"
+            placeholder="Минута"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
  * Конвертирует UTC дату (ISO строка от сервера) в локальное время пользователя
  * для отображения в datetime-local input
  */
@@ -560,26 +719,9 @@ const TelegramNotificationsSettings = ({ userTimezone }) => {
             Напоминание разметить время
           </label>
           {settings.timeSlotReminderEnabled && (
-            <input
-              type="datetime-local"
-              value={settings.timeSlotReminderDateTime 
-                ? convertUTCToLocalDateTimeString(settings.timeSlotReminderDateTime, userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
-                : ''}
-              onChange={(e) => {
-                const effectiveTimezone = userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
-                const utcString = convertLocalDateTimeStringToUTC(e.target.value, effectiveTimezone)
-                
-                // Отладочный вывод
-                console.log('DateTime change:', {
-                  input: e.target.value,
-                  userTimezone: effectiveTimezone,
-                  browserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-                  utcResult: utcString
-                })
-                
-                setSettings({ ...settings, timeSlotReminderDateTime: utcString })
-              }}
-              className="datetime-input"
+            <TimeSlotReminderCronSelector
+              cron={settings.timeSlotReminderCron}
+              onChange={(cron) => setSettings({ ...settings, timeSlotReminderCron: cron })}
             />
           )}
         </div>

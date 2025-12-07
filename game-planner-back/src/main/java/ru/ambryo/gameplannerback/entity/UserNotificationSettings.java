@@ -34,7 +34,10 @@ public class UserNotificationSettings {
     private Boolean timeSlotReminderEnabled = false;
     
     @Column(name = "time_slot_reminder_datetime")
-    private Instant timeSlotReminderDateTime;
+    private Instant timeSlotReminderDateTime; // Устаревшее поле, оставлено для обратной совместимости
+    
+    @Column(name = "time_slot_reminder_cron")
+    private String timeSlotReminderCron; // Cron выражение для регулярных напоминаний (например: "0 9 * * 1" - каждый понедельник в 9:00)
     
     @Column(name = "game_completion_reminder_enabled", nullable = false)
     private Boolean gameCompletionReminderEnabled = false;
@@ -124,5 +127,13 @@ public class UserNotificationSettings {
     
     public void setGameCompletionReminderEnabled(Boolean gameCompletionReminderEnabled) {
         this.gameCompletionReminderEnabled = gameCompletionReminderEnabled;
+    }
+    
+    public String getTimeSlotReminderCron() {
+        return timeSlotReminderCron;
+    }
+    
+    public void setTimeSlotReminderCron(String timeSlotReminderCron) {
+        this.timeSlotReminderCron = timeSlotReminderCron;
     }
 }

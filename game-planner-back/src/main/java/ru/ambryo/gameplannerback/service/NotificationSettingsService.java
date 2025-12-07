@@ -72,6 +72,7 @@ public class NotificationSettingsService {
         settings.setGameAddedToGame(dto.getGameAddedToGame());
         settings.setTimeSlotReminderEnabled(dto.getTimeSlotReminderEnabled());
         settings.setTimeSlotReminderDateTime(dto.getTimeSlotReminderDateTime());
+        settings.setTimeSlotReminderCron(dto.getTimeSlotReminderCron());
         settings.setGameCompletionReminderEnabled(dto.getGameCompletionReminderEnabled());
         
         // Сохраняем напоминания как JSON
@@ -158,6 +159,7 @@ public class NotificationSettingsService {
         dto.setGameAddedToGame(settings.getGameAddedToGame());
         dto.setTimeSlotReminderEnabled(settings.getTimeSlotReminderEnabled());
         dto.setTimeSlotReminderDateTime(settings.getTimeSlotReminderDateTime());
+        dto.setTimeSlotReminderCron(settings.getTimeSlotReminderCron());
         dto.setGameCompletionReminderEnabled(settings.getGameCompletionReminderEnabled());
         
         // Получаем статус подписки из User
