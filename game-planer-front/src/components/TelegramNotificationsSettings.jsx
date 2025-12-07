@@ -18,12 +18,17 @@ const parseCron = (cron) => {
   }
   
   // Spring cron формат: секунды минуты часы день_месяца месяц день_недели
-  const second = parseInt(parts[0]) || 0
-  const minute = parseInt(parts[1]) || 0
-  const hour = parseInt(parts[2]) || 9
+  const second = parseInt(parts[0])
+  const minute = parseInt(parts[1])
+  const hour = parseInt(parts[2])
   const dayOfMonth = parts[3] === '*' ? null : parseInt(parts[3])
   const month = parts[4] === '*' ? null : parseInt(parts[4])
   const dayOfWeek = parts[5] === '*' ? null : parseInt(parts[5])
+  
+  // Используем значения по умолчанию только если парсинг не удался (NaN)
+  const parsedSecond = isNaN(second) ? 0 : second
+  const parsedMinute = isNaN(minute) ? 0 : minute
+  const parsedHour = isNaN(hour) ? 9 : hour
   
   // Определяем частоту
   let frequency = 'daily'
@@ -35,10 +40,10 @@ const parseCron = (cron) => {
   
   return {
     frequency,
-    hour,
-    minute,
-    dayOfWeek: dayOfWeek !== null ? dayOfWeek : 1,
-    dayOfMonth: dayOfMonth !== null ? dayOfMonth : 1
+    hour: parsedHour,
+    minute: parsedMinute,
+    dayOfWeek: dayOfWeek !== null && !isNaN(dayOfWeek) ? dayOfWeek : 1,
+    dayOfMonth: dayOfMonth !== null && !isNaN(dayOfMonth) ? dayOfMonth : 1
   }
 }
 
