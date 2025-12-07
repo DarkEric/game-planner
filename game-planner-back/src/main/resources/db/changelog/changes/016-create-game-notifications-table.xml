@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="016-create-game-notifications-table" author="system">
+        <createTable tableName="game_notifications">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="game_id" type="BIGINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notification_type" type="VARCHAR(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="true"/>
+            </column>
+            <column name="sent_at" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        
+        <addForeignKeyConstraint
+                baseTableName="game_notifications"
+                baseColumnNames="game_id"
+                constraintName="fk_game_notifications_game"
+                referencedTableName="games"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        
+        <addForeignKeyConstraint
+                baseTableName="game_notifications"
+                baseColumnNames="user_id"
+                constraintName="fk_game_notifications_user"
+                referencedTableName="users"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        
+        <createIndex indexName="idx_game_notifications_game_id" tableName="game_notifications">
+            <column name="game_id"/>
+        </createIndex>
+        
+        <createIndex indexName="idx_game_notifications_user_id" tableName="game_notifications">
+            <column name="user_id"/>
+        </createIndex>
+        
+        <createIndex indexName="idx_game_notifications_type" tableName="game_notifications">
+            <column name="notification_type"/>
+        </createIndex>
+        
+        <!-- Уникальный индекс для персональных уведомлений (только когда user_id IS NOT NULL) -->
+        <!-- Используем частичный индекс для PostgreSQL -->
+        <sql>
+            CREATE UNIQUE INDEX uk_game_notification_personal ON game_notifications (game_id, notification_type, user_id) 
+            WHERE user_id IS NOT NULL;
+        </sql>
+        
+        <!-- Уникальный индекс для общих уведомлений (когда user_id = null) -->
+        <!-- Используем частичный индекс для PostgreSQL -->
+        <sql>
+            CREATE UNIQUE INDEX uk_game_notification_group ON game_notifications (game_id, notification_type) 
+            WHERE user_id IS NULL;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

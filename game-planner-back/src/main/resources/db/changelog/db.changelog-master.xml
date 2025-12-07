@@ -19,5 +19,8 @@
     <include file="changes/012-add-game-history-fields.xml" relativeToChangelogFile="true"/>
     <include file="changes/013-add-campaigns.xml" relativeToChangelogFile="true"/>
     <include file="changes/012-create-campaign-invites.xml" relativeToChangelogFile="true"/>
+    <include file="db/changelog/changes/014-add-telegram-user-fields.xml"/>
+    <include file="db/changelog/changes/015-create-user-notification-settings.xml"/>
+    <include file="db/changelog/changes/016-create-game-notifications-table.xml"/>
 
 </databaseChangeLog>

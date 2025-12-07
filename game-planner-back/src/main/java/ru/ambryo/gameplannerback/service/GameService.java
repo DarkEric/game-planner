@@ -6,8 +6,12 @@ import org.springframework.transaction.annotation.Transactional;
 import ru.ambryo.gameplannerback.dto.CreateGameRequest;
 import ru.ambryo.gameplannerback.dto.GameDto;
 import ru.ambryo.gameplannerback.entity.Game;
+import ru.ambryo.gameplannerback.entity.GameNotification;
 import ru.ambryo.gameplannerback.entity.User;
+import ru.ambryo.gameplannerback.entity.UserNotificationSettings;
+import ru.ambryo.gameplannerback.repository.GameNotificationRepository;
 import ru.ambryo.gameplannerback.repository.GameRepository;
+import ru.ambryo.gameplannerback.repository.UserNotificationSettingsRepository;
 import ru.ambryo.gameplannerback.repository.UserRepository;
 
 import java.time.Instant;
@@ -29,6 +33,12 @@ public class GameService {
     
     @Autowired
     private TelegramNotificationService telegramNotificationService;
+    
+    @Autowired
+    private UserNotificationSettingsRepository settingsRepository;
+    
+    @Autowired
+    private GameNotificationRepository gameNotificationRepository;
     
     @Transactional
     public GameDto createGame(CreateGameRequest request, User creator) {
@@ -62,12 +72,19 @@ public class GameService {
         
         GameDto gameDto = convertToDto(game);
         
-        // Отправляем уведомление в Telegram
+        // Отправляем общее уведомление в Telegram
         try {
             telegramNotificationService.sendGameCreatedNotification(gameDto);
         } catch (Exception e) {
             // Логируем ошибку, но не прерываем создание игры
             System.err.println("Failed to send Telegram notification: " + e.getMessage());
+        }
+        
+        // Отправляем персональные уведомления
+        try {
+            sendPersonalGameCreatedNotifications(gameDto, game);
+        } catch (Exception e) {
+            System.err.println("Failed to send personal notifications: " + e.getMessage());
         }
         
         return gameDto;
@@ -110,12 +127,19 @@ public class GameService {
         
         gameRepository.delete(game);
         
-        // Отправляем уведомление об отмене в Telegram
+        // Отправляем общее уведомление об отмене в Telegram
         try {
             telegramNotificationService.sendGameCancelledNotification(gameDto, cancellationReason);
         } catch (Exception e) {
             // Логируем ошибку, но не прерываем удаление игры
             System.err.println("Failed to send Telegram cancellation notification: " + e.getMessage());
+        }
+        
+        // Отправляем персональные уведомления об отмене
+        try {
+            sendPersonalGameCancelledNotifications(gameDto, game);
+        } catch (Exception e) {
+            System.err.println("Failed to send personal cancellation notifications: " + e.getMessage());
         }
     }
     
@@ -160,7 +184,21 @@ public class GameService {
         }
         
         game = gameRepository.save(game);
-        return convertToDto(game);
+        GameDto gameDto = convertToDto(game);
+        
+        // Отправляем уведомление пользователю, если его добавили на игру
+        try {
+            if (managedUser.getTelegramSubscribed() != null && managedUser.getTelegramSubscribed()) {
+                UserNotificationSettings settings = settingsRepository.findByUserId(managedUser.getId()).orElse(null);
+                if (settings != null && settings.getGameAddedToGame()) {
+                    telegramNotificationService.sendGameAddedToGameNotification(gameDto, managedUser);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to send added to game notification: " + e.getMessage());
+        }
+        
+        return gameDto;
     }
     
     @Transactional
@@ -223,11 +261,18 @@ public class GameService {
         
         GameDto gameDto = convertToDto(game);
         
-        // Отправляем уведомление в Telegram
+        // Отправляем общее уведомление в Telegram
         try {
             telegramNotificationService.sendGameHeldNotification(gameDto);
         } catch (Exception e) {
             System.err.println("Failed to send Telegram notification: " + e.getMessage());
+        }
+        
+        // Отправляем персональные уведомления о проведении
+        try {
+            sendPersonalGameHeldNotifications(gameDto, game);
+        } catch (Exception e) {
+            System.err.println("Failed to send personal held notifications: " + e.getMessage());
         }
         
         return gameDto;
@@ -253,5 +298,105 @@ public class GameService {
                 game.getCampaign() != null ? game.getCampaign().getId() : null,
                 game.getCampaign() != null ? game.getCampaign().getName() : null
         );
+    }
+    
+    private void sendPersonalGameCreatedNotifications(GameDto gameDto, Game game) {
+        List<User> allUsers = userRepository.findAll();
+        
+        for (User user : allUsers) {
+            if (user.getTelegramSubscribed() == null || !user.getTelegramSubscribed()) {
+                continue;
+            }
+            
+            UserNotificationSettings settings = settingsRepository.findByUserId(user.getId()).orElse(null);
+            if (settings == null) {
+                continue;
+            }
+            
+            String setting = settings.getGameCreated();
+            boolean shouldNotify = false;
+            
+            if ("ALL".equals(setting)) {
+                shouldNotify = true;
+            } else if ("MY_GAMES".equals(setting)) {
+                // Проверяем, является ли пользователь участником или создателем
+                boolean isParticipant = game.getParticipants().stream()
+                        .anyMatch(p -> p.getId().equals(user.getId()));
+                boolean isCreator = game.getCreator().getId().equals(user.getId());
+                shouldNotify = isParticipant || isCreator;
+            }
+            
+            if (shouldNotify) {
+                // Проверяем, не отправляли ли уже это уведомление
+                GameNotification existing = gameNotificationRepository.findPersonalNotification(
+                        game, "GAME_CREATED", user).orElse(null);
+                
+                if (existing == null) {
+                    telegramNotificationService.sendGameCreatedPersonalNotification(gameDto, user);
+                    
+                    // Сохраняем запись об отправке
+                    GameNotification notification = new GameNotification(game, "GAME_CREATED", user);
+                    gameNotificationRepository.save(notification);
+                }
+            }
+        }
+    }
+    
+    private void sendPersonalGameCancelledNotifications(GameDto gameDto, Game game) {
+        // Отправляем уведомления участникам игры
+        for (User participant : game.getParticipants()) {
+            if (participant.getTelegramSubscribed() == null || !participant.getTelegramSubscribed()) {
+                continue;
+            }
+            
+            UserNotificationSettings settings = settingsRepository.findByUserId(participant.getId()).orElse(null);
+            if (settings == null) {
+                continue;
+            }
+            
+            String setting = settings.getGameCancelled();
+            boolean shouldNotify = "ALL".equals(setting) || "MY_GAMES".equals(setting);
+            
+            if (shouldNotify) {
+                GameNotification existing = gameNotificationRepository.findPersonalNotification(
+                        game, "GAME_CANCELLED", participant).orElse(null);
+                
+                if (existing == null) {
+                    telegramNotificationService.sendGameCancelledPersonalNotification(gameDto, participant);
+                    
+                    GameNotification notification = new GameNotification(game, "GAME_CANCELLED", participant);
+                    gameNotificationRepository.save(notification);
+                }
+            }
+        }
+    }
+    
+    private void sendPersonalGameHeldNotifications(GameDto gameDto, Game game) {
+        // Отправляем уведомления участникам игры
+        for (User participant : game.getParticipants()) {
+            if (participant.getTelegramSubscribed() == null || !participant.getTelegramSubscribed()) {
+                continue;
+            }
+            
+            UserNotificationSettings settings = settingsRepository.findByUserId(participant.getId()).orElse(null);
+            if (settings == null) {
+                continue;
+            }
+            
+            String setting = settings.getGameHeld();
+            boolean shouldNotify = "ALL".equals(setting) || "MY_GAMES".equals(setting);
+            
+            if (shouldNotify) {
+                GameNotification existing = gameNotificationRepository.findPersonalNotification(
+                        game, "GAME_HELD", participant).orElse(null);
+                
+                if (existing == null) {
+                    telegramNotificationService.sendGameHeldPersonalNotification(gameDto, participant);
+                    
+                    GameNotification notification = new GameNotification(game, "GAME_HELD", participant);
+                    gameNotificationRepository.save(notification);
+                }
+            }
+        }
     }
 }

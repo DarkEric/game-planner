@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="015-create-user-notification-settings" author="system">
+        <createTable tableName="user_notification_settings">
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="BIGINT">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="game_created" type="VARCHAR(50)" defaultValue="ALL">
+                <constraints nullable="false"/>
+            </column>
+            <column name="game_cancelled" type="VARCHAR(50)" defaultValue="ALL">
+                <constraints nullable="false"/>
+            </column>
+            <column name="game_held" type="VARCHAR(50)" defaultValue="ALL">
+                <constraints nullable="false"/>
+            </column>
+            <column name="game_added_to_game" type="BOOLEAN" defaultValueBoolean="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="upcoming_game_reminders" type="TEXT" defaultValue="[]">
+                <constraints nullable="true"/>
+            </column>
+            <column name="time_slot_reminder_enabled" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+            <column name="time_slot_reminder_datetime" type="TIMESTAMP">
+                <constraints nullable="true"/>
+            </column>
+            <column name="game_completion_reminder_enabled" type="BOOLEAN" defaultValueBoolean="false">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        
+        <addForeignKeyConstraint
+                baseTableName="user_notification_settings"
+                baseColumnNames="user_id"
+                constraintName="fk_user_notification_settings_user"
+                referencedTableName="users"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+        
+        <createIndex indexName="idx_user_notification_settings_user_id" tableName="user_notification_settings">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

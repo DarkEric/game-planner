@@ -1,6 +1,7 @@
 import './ProfileTab.css'
 import TimezoneSelector from './TimezoneSelector'
 import InviteManager from './InviteManager'
+import TelegramNotificationsSettings from './TelegramNotificationsSettings'
 import { useLanguage } from '../i18n/LanguageContext'
 
 const ProfileTab = ({ currentPlayer, onUpdateProfile }) => {
@@ -91,6 +92,15 @@ const ProfileTab = ({ currentPlayer, onUpdateProfile }) => {
                         <div className="invite-wrapper">
                             <InviteManager />
                         </div>
+                    </section>
+
+                    {/* Telegram уведомления */}
+                    <section className="profile-section">
+                        <h3 className="section-title">
+                            <span className="section-icon">📱</span>
+                            Telegram уведомления
+                        </h3>
+                        <TelegramNotificationsSettings />
                     </section>
                 </div>
             </div>

@@ -30,6 +30,15 @@ public class User {
     @Column(name = "timezone")
     private String timezone; // IANA timezone (например: "Europe/Moscow", "America/New_York")
     
+    @Column(name = "telegram_user_id", unique = true)
+    private Long telegramUserId; // Telegram User ID для персональных уведомлений
+    
+    @Column(name = "telegram_chat_id")
+    private String telegramChatId; // Chat ID для персональных уведомлений (может отличаться от User ID)
+    
+    @Column(name = "telegram_subscribed", nullable = false)
+    private Boolean telegramSubscribed = false; // Флаг подписки на бота
+    
     @OneToMany(mappedBy = "user", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private List<TimeSlot> availableTimes = new ArrayList<>();
     
@@ -114,6 +123,30 @@ public class User {
     
     public void setTimezone(String timezone) {
         this.timezone = timezone;
+    }
+    
+    public Long getTelegramUserId() {
+        return telegramUserId;
+    }
+    
+    public void setTelegramUserId(Long telegramUserId) {
+        this.telegramUserId = telegramUserId;
+    }
+    
+    public String getTelegramChatId() {
+        return telegramChatId;
+    }
+    
+    public void setTelegramChatId(String telegramChatId) {
+        this.telegramChatId = telegramChatId;
+    }
+    
+    public Boolean getTelegramSubscribed() {
+        return telegramSubscribed;
+    }
+    
+    public void setTelegramSubscribed(Boolean telegramSubscribed) {
+        this.telegramSubscribed = telegramSubscribed;
     }
 }
 

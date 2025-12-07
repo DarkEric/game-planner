@@ -17,4 +17,13 @@ public interface GameRepository extends JpaRepository<Game, Long> {
     
     @Query("SELECT g FROM Game g JOIN g.participants p WHERE p.id = :userId AND g.startTime >= :startDate")
     List<Game> findUpcomingGamesByUser(@Param("userId") Long userId, @Param("startDate") Instant startDate);
+    
+    @Query("SELECT g FROM Game g WHERE g.startTime >= :start AND g.startTime < :end")
+    List<Game> findGamesStartingBetween(@Param("start") Instant start, @Param("end") Instant end);
+    
+    @Query("SELECT g FROM Game g JOIN g.participants p WHERE p.id = :userId AND g.startTime >= :start AND g.startTime < :end")
+    List<Game> findGamesByParticipantStartingBetween(@Param("userId") Long userId, @Param("start") Instant start, @Param("end") Instant end);
+    
+    @Query("SELECT g FROM Game g WHERE g.endTime < :before AND g.isHeld = false")
+    List<Game> findGamesEndedButNotHeld(@Param("before") Instant before);
 }

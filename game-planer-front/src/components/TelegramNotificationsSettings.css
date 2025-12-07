@@ -1,0 +1,306 @@
+.telegram-notifications-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.telegram-settings-loading,
+.telegram-settings-error {
+  padding: 1rem;
+  text-align: center;
+  color: #aaa;
+}
+
+.telegram-settings-error {
+  background: rgba(255, 0, 0, 0.1);
+  border: 1px solid rgba(255, 0, 0, 0.3);
+  border-radius: 8px;
+  color: #ff6b6b;
+}
+
+.telegram-subscription-status {
+  background: rgba(40, 40, 40, 0.6);
+  border-radius: 8px;
+  padding: 1.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.status-label {
+  font-size: 0.9rem;
+  color: #aaa;
+  font-weight: 500;
+}
+
+.status-value {
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+}
+
+.status-value.subscribed {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+}
+
+.status-value.not-subscribed {
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.link-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.btn-get-token,
+.btn-unlink {
+  padding: 0.75rem 1.5rem;
+  background: #646cff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-get-token:hover,
+.btn-unlink:hover {
+  background: #535bf2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(100, 108, 255, 0.3);
+}
+
+.btn-unlink {
+  background: #f87171;
+}
+
+.btn-unlink:hover {
+  background: #ef4444;
+}
+
+.token-display {
+  background: rgba(20, 20, 20, 0.6);
+  border-radius: 8px;
+  padding: 1rem;
+  border: 1px solid rgba(100, 108, 255, 0.3);
+}
+
+.token-display p {
+  margin: 0 0 0.75rem 0;
+  color: #aaa;
+  font-size: 0.9rem;
+}
+
+.token-code {
+  display: block;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 0.75rem;
+  border-radius: 6px;
+  font-family: monospace;
+  color: #646cff;
+  margin-bottom: 0.75rem;
+  word-break: break-all;
+}
+
+.btn-copy-token {
+  padding: 0.5rem 1rem;
+  background: rgba(100, 108, 255, 0.2);
+  color: #646cff;
+  border: 1px solid rgba(100, 108, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.btn-copy-token:hover {
+  background: rgba(100, 108, 255, 0.3);
+}
+
+.notification-settings-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  background: rgba(40, 40, 40, 0.4);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.setting-label {
+  font-size: 0.95rem;
+  color: #fff;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-left: 1.5rem;
+}
+
+.radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ccc;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.radio-group input[type="radio"] {
+  cursor: pointer;
+}
+
+.reminders-group {
+  gap: 1rem;
+}
+
+.reminders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-left: 1.5rem;
+}
+
+.reminder-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(20, 20, 20, 0.6);
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.reminder-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.reminder-input:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.reminder-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #ccc;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.btn-remove-reminder {
+  padding: 0.25rem 0.5rem;
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.btn-remove-reminder:hover {
+  background: rgba(248, 113, 113, 0.3);
+}
+
+.btn-add-reminder {
+  margin-left: 1.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(100, 108, 255, 0.2);
+  color: #646cff;
+  border: 1px solid rgba(100, 108, 255, 0.3);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.btn-add-reminder:hover {
+  background: rgba(100, 108, 255, 0.3);
+}
+
+.datetime-input {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+}
+
+.datetime-input:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-save {
+  padding: 0.75rem 2rem;
+  background: #646cff;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-save:hover:not(:disabled) {
+  background: #535bf2;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(100, 108, 255, 0.3);
+}
+
+.btn-save:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .reminder-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .btn-remove-reminder {
+    align-self: flex-end;
+  }
+}

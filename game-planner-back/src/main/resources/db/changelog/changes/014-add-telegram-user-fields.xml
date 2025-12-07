@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="014-add-telegram-user-fields" author="system">
+        <addColumn tableName="users">
+            <column name="telegram_user_id" type="BIGINT">
+                <constraints nullable="true" unique="true"/>
+            </column>
+            <column name="telegram_chat_id" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+            <column name="telegram_subscribed" type="BOOLEAN">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        
+        <createIndex indexName="idx_users_telegram_user_id" tableName="users">
+            <column name="telegram_user_id"/>
+        </createIndex>
+    </changeSet>
+    
+    <changeSet id="014-add-telegram-user-fields-set-defaults" author="system">
+        <update tableName="users">
+            <column name="telegram_subscribed" valueBoolean="false"/>
+        </update>
+    </changeSet>
+    
+    <changeSet id="014-add-telegram-user-fields-add-not-null" author="system">
+        <addNotNullConstraint tableName="users" columnName="telegram_subscribed" columnDataType="BOOLEAN"/>
+    </changeSet>
+
+</databaseChangeLog>
