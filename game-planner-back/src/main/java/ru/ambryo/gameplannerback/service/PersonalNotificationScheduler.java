@@ -59,7 +59,7 @@ public class PersonalNotificationScheduler {
     private boolean groupTimeSlotReminderEnabled;
     
     @Scheduled(fixedRateString = "${telegram.notifications.check-interval:60000}")
-    @Transactional
+    @Transactional(readOnly = false)
     public void checkAndSendUpcomingGameReminders() {
         if (!scheduledEnabled) {
             return;
@@ -138,7 +138,7 @@ public class PersonalNotificationScheduler {
     }
     
     @Scheduled(fixedRateString = "${telegram.notifications.check-interval:60000}")
-    @Transactional
+    @Transactional(readOnly = false)
     public void checkAndSendTimeSlotReminders() {
         if (!scheduledEnabled) {
             return;
@@ -185,7 +185,7 @@ public class PersonalNotificationScheduler {
      * Метод не будет запускаться, если cron выражение не задано
      */
     @Scheduled(cron = "${telegram.notifications.group.time-slot-reminder-cron:0 0 0 * * ?}")
-    @Transactional
+    @Transactional(readOnly = false)
     public void checkAndSendGroupTimeSlotReminder() {
         // Проверяем, что cron выражение задано (не пустое)
         if (groupTimeSlotReminderCron == null || groupTimeSlotReminderCron.trim().isEmpty()) {
@@ -205,7 +205,7 @@ public class PersonalNotificationScheduler {
     }
     
     @Scheduled(fixedRateString = "${telegram.notifications.check-interval:60000}")
-    @Transactional
+    @Transactional(readOnly = false)
     public void checkAndSendGameCompletionReminders() {
         if (!scheduledEnabled) {
             return;
