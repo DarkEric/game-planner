@@ -100,7 +100,7 @@ const ProfileTab = ({ currentPlayer, onUpdateProfile }) => {
                             <span className="section-icon">📱</span>
                             Telegram уведомления
                         </h3>
-                        <TelegramNotificationsSettings />
+                        <TelegramNotificationsSettings userTimezone={currentPlayer.timezone} />
                     </section>
                 </div>
             </div>

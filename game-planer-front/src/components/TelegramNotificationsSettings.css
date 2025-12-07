@@ -194,8 +194,16 @@
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.reminder-input-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
 .reminder-input {
   flex: 1;
+  min-width: 80px;
   padding: 0.5rem 0.75rem;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -205,6 +213,22 @@
 }
 
 .reminder-input:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.reminder-unit-select {
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 0.9rem;
+  cursor: pointer;
+  min-width: 100px;
+}
+
+.reminder-unit-select:focus {
   outline: none;
   border-color: #646cff;
 }
