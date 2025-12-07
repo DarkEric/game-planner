@@ -55,6 +55,9 @@ public class PersonalNotificationScheduler {
     @Value("${telegram.notifications.check-interval:60000}")
     private long checkInterval;
     
+    @Value("${telegram.notifications.group.time-slot-reminder-enabled:false}")
+    private boolean groupTimeSlotReminderEnabled;
+    
     @Scheduled(fixedRateString = "${telegram.notifications.check-interval:60000}")
     @Transactional
     public void checkAndSendUpcomingGameReminders() {
@@ -142,8 +145,10 @@ public class PersonalNotificationScheduler {
         }
         
         try {
-            List<User> subscribedUsers = userRepository.findByTelegramSubscribedTrue();
             Instant now = Instant.now();
+            
+            // Персональные напоминания
+            List<User> subscribedUsers = userRepository.findByTelegramSubscribedTrue();
             
             for (User user : subscribedUsers) {
                 try {
@@ -165,8 +170,38 @@ public class PersonalNotificationScheduler {
                     logger.error("Error processing time slot reminder for user {}", user.getId(), e);
                 }
             }
+            
         } catch (Exception e) {
             logger.error("Error in checkAndSendTimeSlotReminders", e);
+        }
+    }
+    
+    @Value("${telegram.notifications.group.time-slot-reminder-cron:}")
+    private String groupTimeSlotReminderCron;
+    
+    /**
+     * Групповое напоминание о разметке времени в общий чат
+     * Запускается по cron выражению из конфигурации
+     * Метод не будет запускаться, если cron выражение не задано
+     */
+    @Scheduled(cron = "${telegram.notifications.group.time-slot-reminder-cron:0 0 0 1 1 ? 2099}")
+    @Transactional
+    public void checkAndSendGroupTimeSlotReminder() {
+        // Проверяем, что cron выражение задано (не пустое и не дефолтное значение)
+        if (groupTimeSlotReminderCron == null || groupTimeSlotReminderCron.trim().isEmpty() || 
+            "0 0 0 1 1 ? 2099".equals(groupTimeSlotReminderCron.trim())) {
+            return;
+        }
+        
+        if (!scheduledEnabled || !groupTimeSlotReminderEnabled) {
+            return;
+        }
+        
+        try {
+            logger.info("Sending group time slot reminder");
+            telegramNotificationService.sendGroupTimeSlotReminder();
+        } catch (Exception e) {
+            logger.error("Error sending group time slot reminder", e);
         }
     }
     

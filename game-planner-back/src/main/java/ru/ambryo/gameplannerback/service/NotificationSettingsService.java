@@ -46,6 +46,13 @@ public class NotificationSettingsService {
         UserNotificationSettings settings = settingsRepository.findByUserId(userId)
                 .orElseGet(() -> createDefaultSettings(userId));
         
+        // Убеждаемся, что User загружен
+        if (settings.getUser() == null) {
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            settings.setUser(user);
+        }
+        
         return convertToDto(settings);
     }
     
@@ -152,6 +159,14 @@ public class NotificationSettingsService {
         dto.setTimeSlotReminderEnabled(settings.getTimeSlotReminderEnabled());
         dto.setTimeSlotReminderDateTime(settings.getTimeSlotReminderDateTime());
         dto.setGameCompletionReminderEnabled(settings.getGameCompletionReminderEnabled());
+        
+        // Получаем статус подписки из User
+        User user = settings.getUser();
+        if (user != null) {
+            dto.setTelegramSubscribed(user.getTelegramSubscribed() != null && user.getTelegramSubscribed());
+        } else {
+            dto.setTelegramSubscribed(false);
+        }
         
         // Парсим JSON напоминаний
         try {

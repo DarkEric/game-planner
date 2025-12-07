@@ -100,7 +100,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             if (text.startsWith("/start")) {
                 handleStartCommand(telegramUserId, chatId.toString());
             } else if (text.startsWith("/stop")) {
-                handleStopCommand(telegramUserId);
+                handleStopCommand(telegramUserId, chatId.toString());
             } else if (text.startsWith("/link")) {
                 String[] parts = text.split("\\s+", 2);
                 if (parts.length == 2) {
@@ -135,16 +135,16 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
-    private void handleStopCommand(Long telegramUserId) {
+    private void handleStopCommand(Long telegramUserId, String chatId) {
         try {
             User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
             
             if (user != null && user.getTelegramSubscribed()) {
                 user.setTelegramSubscribed(false);
                 userRepository.save(user);
-                sendPersonalMessage(user.getTelegramChatId(), "✅ Вы отписались от уведомлений.\n\nИспользуйте /start для повторной подписки.");
+                sendPersonalMessage(chatId, "✅ Вы отписались от уведомлений.\n\nИспользуйте /start для повторной подписки.");
             } else {
-                sendPersonalMessage(telegramUserId.toString(), "Вы не подписаны на уведомления.");
+                sendPersonalMessage(chatId, "Вы не подписаны на уведомления.");
             }
         } catch (Exception e) {
             logger.error("Error handling /stop command", e);
@@ -529,6 +529,44 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             message.append("\n🔗 <a href=\"").append(gameUrl).append("\">Завершить игру</a>");
             
             sendPersonalMessage(creator.getTelegramChatId(), message.toString());
+        }
+    }
+    
+    /**
+     * Отправляет групповое напоминание о разметке времени в общий чат
+     */
+    public void sendGroupTimeSlotReminder() {
+        if (!enabled || chatId == null || chatId.isEmpty()) {
+            logger.debug("Telegram notifications disabled or chat ID not configured");
+            return;
+        }
+        
+        logger.info("Preparing to send group time slot reminder");
+        
+        try {
+            String message = "📅 <b>Напоминание</b>\n\nНе забудьте разметить ваше доступное время в календаре!";
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatId);
+            sendMessage.setText(message);
+            sendMessage.setParseMode("HTML");
+            
+            // Если указан Thread ID (для топиков в супергруппах)
+            if (threadId != null && !threadId.trim().isEmpty()) {
+                try {
+                    int threadIdInt = Integer.parseInt(threadId.trim());
+                    sendMessage.setMessageThreadId(threadIdInt);
+                    logger.info("Sending group reminder to thread ID: {}", threadIdInt);
+                } catch (NumberFormatException e) {
+                    logger.warn("Invalid thread ID format: '{}', sending to main chat", threadId, e);
+                }
+            } else {
+                logger.debug("No thread ID specified, sending to main chat");
+            }
+            
+            execute(sendMessage);
+            logger.info("Group time slot reminder successfully sent");
+        } catch (TelegramApiException e) {
+            logger.error("Failed to send group time slot reminder", e);
         }
     }
 }

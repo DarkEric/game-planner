@@ -28,6 +28,8 @@ public class UserNotificationSettingsDto {
     @NotNull
     private Boolean gameCompletionReminderEnabled;
     
+    private Boolean telegramSubscribed; // Статус подписки на Telegram бота
+    
     public UserNotificationSettingsDto() {
     }
     
@@ -93,5 +95,13 @@ public class UserNotificationSettingsDto {
     
     public void setGameCompletionReminderEnabled(Boolean gameCompletionReminderEnabled) {
         this.gameCompletionReminderEnabled = gameCompletionReminderEnabled;
+    }
+    
+    public Boolean getTelegramSubscribed() {
+        return telegramSubscribed;
+    }
+    
+    public void setTelegramSubscribed(Boolean telegramSubscribed) {
+        this.telegramSubscribed = telegramSubscribed;
     }
 }

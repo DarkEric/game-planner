@@ -20,9 +20,8 @@ const TelegramNotificationsSettings = () => {
       setError(null)
       const data = await notificationApi.getNotificationSettings()
       setSettings(data)
-      // TODO: Get telegram subscription status from user profile
-      // For now, we'll assume it's false if settings exist
-      setTelegramSubscribed(false)
+      // Получаем статус подписки из настроек
+      setTelegramSubscribed(data.telegramSubscribed || false)
     } catch (err) {
       setError('Не удалось загрузить настройки')
       console.error(err)
@@ -50,6 +49,7 @@ const TelegramNotificationsSettings = () => {
       await notificationApi.unlinkTelegramAccount()
       setTelegramSubscribed(false)
       setLinkToken(null)
+      // Перезагружаем настройки, чтобы получить обновленный статус
       await loadSettings()
     } catch (err) {
       setError('Не удалось отвязать аккаунт')
