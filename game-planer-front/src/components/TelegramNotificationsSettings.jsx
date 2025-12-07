@@ -13,8 +13,8 @@ const convertUTCToLocalDateTimeString = (utcDateString, userTimezone) => {
     const utcDate = new Date(utcDateString)
     if (isNaN(utcDate.getTime())) return ''
     
-    // Используем Intl для форматирования в timezone пользователя
-    // Формат 'sv-SE' дает YYYY-MM-DD HH:mm
+    // Форматируем UTC дату в timezone пользователя
+    // Используем формат 'sv-SE' который дает YYYY-MM-DD HH:mm
     const formatter = new Intl.DateTimeFormat('sv-SE', {
       timeZone: userTimezone,
       year: 'numeric',
@@ -24,8 +24,18 @@ const convertUTCToLocalDateTimeString = (utcDateString, userTimezone) => {
       minute: '2-digit'
     })
     
-    // Заменяем пробел на T для формата datetime-local
-    return formatter.format(utcDate).replace(' ', 'T')
+    // Формат 'sv-SE' дает YYYY-MM-DD HH:mm, заменяем пробел на T
+    const result = formatter.format(utcDate).replace(' ', 'T')
+    
+    // Отладочный вывод
+    console.log('convertUTCToLocalDateTimeString:', {
+      input: utcDateString,
+      userTimezone,
+      output: result,
+      utcDate: utcDate.toISOString()
+    })
+    
+    return result
   } catch (error) {
     console.error('Error converting UTC to local datetime:', error)
     return ''
@@ -36,59 +46,33 @@ const convertUTCToLocalDateTimeString = (utcDateString, userTimezone) => {
  * Конвертирует локальное время пользователя (из datetime-local input) в UTC
  * для отправки на сервер
  * 
- * datetime-local возвращает строку в timezone браузера, но мы интерпретируем
- * её как время в timezone пользователя
+ * datetime-local возвращает строку YYYY-MM-DDTHH:mm, которую браузер интерпретирует
+ * как время в своем timezone. Но мы хотим интерпретировать её как время в userTimezone.
  */
 const convertLocalDateTimeStringToUTC = (localDateTimeString, userTimezone) => {
   if (!localDateTimeString) return null
   
   try {
-    // Парсим строку как локальное время браузера
-    const browserLocalDate = new Date(localDateTimeString)
-    if (isNaN(browserLocalDate.getTime())) return null
-    
-    // Получаем компоненты (это время в timezone браузера)
-    const year = browserLocalDate.getFullYear()
-    const month = browserLocalDate.getMonth()
-    const day = browserLocalDate.getDate()
-    const hours = browserLocalDate.getHours()
-    const minutes = browserLocalDate.getMinutes()
-    
-    // Создаем временную UTC дату с этими компонентами
-    const tempUTC = new Date(Date.UTC(year, month, day, hours, minutes))
-    
-    // Форматируем tempUTC в timezone браузера, чтобы получить offset браузера
     const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone
-    const browserFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: browserTz,
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    })
     
-    const browserParts = browserFormatter.formatToParts(tempUTC)
-    const browserComponents = {}
-    browserParts.forEach(part => {
-      if (part.type !== 'literal') {
-        browserComponents[part.type] = parseInt(part.value)
-      }
-    })
+    // Если timezone пользователя совпадает с timezone браузера, просто конвертируем
+    if (userTimezone === browserTz) {
+      const date = new Date(localDateTimeString)
+      return date.toISOString()
+    }
     
-    const browserTzDate = new Date(Date.UTC(
-      browserComponents.year,
-      browserComponents.month - 1,
-      browserComponents.day,
-      browserComponents.hour,
-      browserComponents.minute,
-      browserComponents.second
-    ))
-    const browserOffset = browserTzDate.getTime() - tempUTC.getTime()
+    // Парсим компоненты из строки
+    const [datePart, timePart] = localDateTimeString.split('T')
+    const [year, month, day] = datePart.split('-').map(Number)
+    const [hours, minutes] = timePart.split(':').map(Number)
     
-    // Теперь форматируем tempUTC в timezone пользователя
+    // Создаем дату, как будто эти компоненты относятся к userTimezone
+    // Для этого создаем временную дату и вычисляем offset
+    
+    // Создаем временную дату в UTC с этими компонентами
+    const tempUTC = new Date(Date.UTC(year, month - 1, day, hours, minutes))
+    
+    // Вычисляем, какое время в userTimezone соответствует tempUTC
     const userFormatter = new Intl.DateTimeFormat('en-US', {
       timeZone: userTimezone,
       year: 'numeric',
@@ -108,6 +92,7 @@ const convertLocalDateTimeStringToUTC = (localDateTimeString, userTimezone) => {
       }
     })
     
+    // Создаем дату в UTC с компонентами из userTimezone
     const userTzDate = new Date(Date.UTC(
       userComponents.year,
       userComponents.month - 1,
@@ -116,17 +101,28 @@ const convertLocalDateTimeStringToUTC = (localDateTimeString, userTimezone) => {
       userComponents.minute,
       userComponents.second
     ))
-    const userOffset = userTzDate.getTime() - tempUTC.getTime()
     
-    // Разница между offset'ами - это то, на сколько нужно скорректировать
-    const offsetDiff = userOffset - browserOffset
+    // Вычисляем offset: разница между tempUTC и userTzDate
+    const offset = userTzDate.getTime() - tempUTC.getTime()
     
     // Если компоненты (year, month, day, hours, minutes) интерпретируются
-    // как время в timezone браузера, но должны быть в timezone пользователя,
-    // то нужно скорректировать на разницу offset'ов
-    const correctedUTC = new Date(tempUTC.getTime() - offsetDiff)
+    // как время в userTimezone, то UTC = tempUTC - offset
+    const resultUTC = new Date(tempUTC.getTime() - offset)
     
-    return correctedUTC.toISOString()
+    const result = resultUTC.toISOString()
+    
+    // Отладочный вывод
+    console.log('convertLocalDateTimeStringToUTC:', {
+      input: localDateTimeString,
+      userTimezone,
+      browserTimezone: browserTz,
+      tempUTC: tempUTC.toISOString(),
+      userTzDate: userTzDate.toISOString(),
+      offset: offset / (1000 * 60), // в минутах
+      result
+    })
+    
+    return result
   } catch (error) {
     console.error('Error converting local datetime to UTC:', error)
     return null
@@ -570,10 +566,17 @@ const TelegramNotificationsSettings = ({ userTimezone }) => {
                 ? convertUTCToLocalDateTimeString(settings.timeSlotReminderDateTime, userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
                 : ''}
               onChange={(e) => {
-                const utcString = convertLocalDateTimeStringToUTC(
-                  e.target.value, 
-                  userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
-                )
+                const effectiveTimezone = userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+                const utcString = convertLocalDateTimeStringToUTC(e.target.value, effectiveTimezone)
+                
+                // Отладочный вывод
+                console.log('DateTime change:', {
+                  input: e.target.value,
+                  userTimezone: effectiveTimezone,
+                  browserTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                  utcResult: utcString
+                })
+                
                 setSettings({ ...settings, timeSlotReminderDateTime: utcString })
               }}
               className="datetime-input"
