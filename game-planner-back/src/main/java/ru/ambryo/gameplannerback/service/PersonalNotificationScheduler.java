@@ -184,12 +184,11 @@ public class PersonalNotificationScheduler {
      * Запускается по cron выражению из конфигурации
      * Метод не будет запускаться, если cron выражение не задано
      */
-    @Scheduled(cron = "${telegram.notifications.group.time-slot-reminder-cron:0 0 0 1 1 ? 2099}")
+    @Scheduled(cron = "${telegram.notifications.group.time-slot-reminder-cron:0 0 0 * * ?}")
     @Transactional
     public void checkAndSendGroupTimeSlotReminder() {
-        // Проверяем, что cron выражение задано (не пустое и не дефолтное значение)
-        if (groupTimeSlotReminderCron == null || groupTimeSlotReminderCron.trim().isEmpty() || 
-            "0 0 0 1 1 ? 2099".equals(groupTimeSlotReminderCron.trim())) {
+        // Проверяем, что cron выражение задано (не пустое)
+        if (groupTimeSlotReminderCron == null || groupTimeSlotReminderCron.trim().isEmpty()) {
             return;
         }
         
