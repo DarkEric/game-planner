@@ -41,7 +41,7 @@ public class NotificationSettingsService {
         }
     }
     
-    @Transactional(readOnly = true)
+    @Transactional
     public UserNotificationSettingsDto getSettings(Long userId) {
         UserNotificationSettings settings = settingsRepository.findByUserId(userId)
                 .orElseGet(() -> createDefaultSettings(userId));
