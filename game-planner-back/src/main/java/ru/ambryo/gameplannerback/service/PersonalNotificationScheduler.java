@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ambryo.gameplannerback.dto.GameDto;
 import ru.ambryo.gameplannerback.dto.UpcomingGameReminderDto;
@@ -162,9 +163,8 @@ public class PersonalNotificationScheduler {
                         // Время напоминания наступило
                         telegramNotificationService.sendTimeSlotReminder(user);
                         
-                        // Сбрасываем время напоминания (или можно установить следующее)
-                        settings.setTimeSlotReminderDateTime(null);
-                        settingsRepository.save(settings);
+                        // Сбрасываем время напоминания в отдельной транзакции
+                        resetTimeSlotReminderDateTime(settings.getId());
                     }
                 } catch (Exception e) {
                     logger.error("Error processing time slot reminder for user {}", user.getId(), e);
@@ -248,6 +248,20 @@ public class PersonalNotificationScheduler {
             }
         } catch (Exception e) {
             logger.error("Error in checkAndSendGameCompletionReminders", e);
+        }
+    }
+    
+    /**
+     * Отдельный метод для сохранения настроек в новой транзакции
+     * чтобы гарантировать write-транзакцию
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)
+    private void resetTimeSlotReminderDateTime(Long settingsId) {
+        UserNotificationSettings settings = settingsRepository.findById(settingsId)
+                .orElse(null);
+        if (settings != null) {
+            settings.setTimeSlotReminderDateTime(null);
+            settingsRepository.save(settings);
         }
     }
 }
