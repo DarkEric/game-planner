@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,8 @@ import ru.ambryo.gameplannerback.repository.UserNotificationSettingsRepository;
 import ru.ambryo.gameplannerback.repository.UserRepository;
 
 import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 @Service
@@ -147,6 +150,7 @@ public class PersonalNotificationScheduler {
         
         try {
             Instant now = Instant.now();
+            ZonedDateTime nowZoned = now.atZone(ZoneId.systemDefault());
             
             // Персональные напоминания
             List<User> subscribedUsers = userRepository.findByTelegramSubscribedTrue();
@@ -158,13 +162,70 @@ public class PersonalNotificationScheduler {
                         continue;
                     }
                     
-                    if (settings.getTimeSlotReminderDateTime() != null &&
-                            settings.getTimeSlotReminderDateTime().isBefore(now)) {
-                        // Время напоминания наступило
+                    boolean shouldSend = false;
+                    
+                    // Проверяем cron-выражение (новый способ)
+                    String cronExpression = settings.getTimeSlotReminderCron();
+                    if (cronExpression != null && !cronExpression.trim().isEmpty()) {
+                        try {
+                            CronExpression cron = CronExpression.parse(cronExpression);
+                            
+                            // Проверяем, соответствует ли текущее время cron-выражению
+                            // Используем метод: вычисляем next() от времени минус небольшая дельта
+                            // Если результат равен текущему времени (с точностью до окна), значит время соответствует
+                            long checkIntervalSeconds = checkInterval / 1000;
+                            // Используем окно в 2 раза больше интервала проверки для надежности
+                            long windowSeconds = checkIntervalSeconds * 2;
+                            
+                            // Вычисляем следующее выполнение от времени минус окно
+                            ZonedDateTime checkTime = nowZoned.minusSeconds(windowSeconds);
+                            ZonedDateTime nextExecution = cron.next(checkTime);
+                            
+                            if (nextExecution != null) {
+                                // Проверяем, попадает ли следующее выполнение в текущее окно
+                                long secondsUntilExecution = nextExecution.toInstant().getEpochSecond() - now.getEpochSecond();
+                                
+                                // Если следующее выполнение уже наступило или наступит в ближайшее время
+                                if (secondsUntilExecution >= -windowSeconds && secondsUntilExecution <= windowSeconds) {
+                                    // Проверяем, не отправляли ли мы уже напоминание для этого выполнения
+                                    Instant lastSent = settings.getTimeSlotReminderDateTime();
+                                    
+                                    if (lastSent == null) {
+                                        // Никогда не отправляли - отправляем
+                                        shouldSend = true;
+                                    } else {
+                                        // Проверяем, было ли последнее отправление для другого времени выполнения
+                                        // Вычисляем время выполнения cron, которое соответствует текущему моменту
+                                        // (округляем до минуты для сравнения)
+                                        long currentExecutionMinute = nextExecution.toInstant().getEpochSecond() / 60;
+                                        long lastSentMinute = lastSent.getEpochSecond() / 60;
+                                        
+                                        // Если это другое выполнение (разные минуты), отправляем
+                                        if (currentExecutionMinute != lastSentMinute) {
+                                            shouldSend = true;
+                                        }
+                                    }
+                                }
+                            }
+                            
+                        } catch (Exception e) {
+                            logger.warn("Invalid cron expression '{}' for user {}, skipping", cronExpression, user.getId(), e);
+                            continue;
+                        }
+                    } else {
+                        // Старый способ: проверяем timeSlotReminderDateTime (для обратной совместимости)
+                        if (settings.getTimeSlotReminderDateTime() != null &&
+                                settings.getTimeSlotReminderDateTime().isBefore(now)) {
+                            shouldSend = true;
+                        }
+                    }
+                    
+                    if (shouldSend) {
+                        // Отправляем напоминание
                         telegramNotificationService.sendTimeSlotReminder(user);
                         
-                        // Сбрасываем время напоминания в отдельной транзакции
-                        resetTimeSlotReminderDateTime(settings.getId());
+                        // Обновляем время последнего выполнения
+                        updateTimeSlotReminderDateTime(settings.getId(), now);
                     }
                 } catch (Exception e) {
                     logger.error("Error processing time slot reminder for user {}", user.getId(), e);
@@ -252,15 +313,15 @@ public class PersonalNotificationScheduler {
     }
     
     /**
-     * Отдельный метод для сохранения настроек в новой транзакции
-     * чтобы гарантировать write-транзакцию
+     * Обновляет время последнего выполнения напоминания
+     * Используется для отслеживания последнего времени отправки cron-напоминаний
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)
-    private void resetTimeSlotReminderDateTime(Long settingsId) {
+    private void updateTimeSlotReminderDateTime(Long settingsId, Instant executionTime) {
         UserNotificationSettings settings = settingsRepository.findById(settingsId)
                 .orElse(null);
         if (settings != null) {
-            settings.setTimeSlotReminderDateTime(null);
+            settings.setTimeSlotReminderDateTime(executionTime);
             settingsRepository.save(settings);
         }
     }
