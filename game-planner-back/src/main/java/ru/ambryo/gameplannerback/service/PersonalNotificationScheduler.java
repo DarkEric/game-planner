@@ -163,6 +163,7 @@ public class PersonalNotificationScheduler {
                     }
                     
                     boolean shouldSend = false;
+                    Instant executionTimeToSave = null; // Время выполнения cron для сохранения
                     
                     // Проверяем cron-выражение (новый способ)
                     String cronExpression = settings.getTimeSlotReminderCron();
@@ -170,38 +171,53 @@ public class PersonalNotificationScheduler {
                         try {
                             CronExpression cron = CronExpression.parse(cronExpression);
                             
-                            // Проверяем, соответствует ли текущее время cron-выражению
-                            // Используем метод: вычисляем next() от времени минус небольшая дельта
-                            // Если результат равен текущему времени (с точностью до окна), значит время соответствует
+                            Instant lastSent = settings.getTimeSlotReminderDateTime();
                             long checkIntervalSeconds = checkInterval / 1000;
                             // Используем окно в 2 раза больше интервала проверки для надежности
                             long windowSeconds = checkIntervalSeconds * 2;
                             
-                            // Вычисляем следующее выполнение от времени минус окно
-                            ZonedDateTime checkTime = nowZoned.minusSeconds(windowSeconds);
-                            ZonedDateTime nextExecution = cron.next(checkTime);
+                            // Определяем базовое время для вычисления следующего выполнения
+                            ZonedDateTime baseTime;
+                            if (lastSent != null) {
+                                // Если уже отправляли, вычисляем следующее выполнение после последнего отправления
+                                baseTime = lastSent.atZone(ZoneId.systemDefault());
+                            } else {
+                                // Если никогда не отправляли, вычисляем от текущего времени минус небольшая дельта
+                                // чтобы найти следующее выполнение (не прошлое)
+                                // Используем минус 1 минуту, чтобы если время выполнения только что прошло, мы его не пропустили
+                                baseTime = nowZoned.minusMinutes(1);
+                            }
+                            
+                            // Вычисляем следующее выполнение cron после базового времени
+                            ZonedDateTime nextExecution = cron.next(baseTime);
                             
                             if (nextExecution != null) {
-                                // Проверяем, попадает ли следующее выполнение в текущее окно
-                                long secondsUntilExecution = nextExecution.toInstant().getEpochSecond() - now.getEpochSecond();
+                                Instant nextExecutionInstant = nextExecution.toInstant();
+                                executionTimeToSave = nextExecutionInstant; // Сохраняем для последующего обновления
                                 
-                                // Если следующее выполнение уже наступило или наступит в ближайшее время
-                                if (secondsUntilExecution >= -windowSeconds && secondsUntilExecution <= windowSeconds) {
-                                    // Проверяем, не отправляли ли мы уже напоминание для этого выполнения
-                                    Instant lastSent = settings.getTimeSlotReminderDateTime();
-                                    
+                                // Проверяем, наступило ли время выполнения (с учетом окна)
+                                long secondsUntilExecution = nextExecutionInstant.getEpochSecond() - now.getEpochSecond();
+                                
+                                // Отправляем только если время выполнения наступило недавно (в пределах окна)
+                                // или наступит в ближайшие секунды (но не более чем через минуту)
+                                // Не отправляем, если время выполнения было слишком давно (больше окна назад)
+                                // или еще не скоро (больше минуты вперед)
+                                if (secondsUntilExecution >= -windowSeconds && secondsUntilExecution >= -60 && secondsUntilExecution <= 60) {
+                                    // Проверяем, не отправляли ли мы уже для этого конкретного времени выполнения
+                                    // Сравниваем с точностью до дня и часа, чтобы не отправлять несколько раз в один день
                                     if (lastSent == null) {
                                         // Никогда не отправляли - отправляем
                                         shouldSend = true;
                                     } else {
-                                        // Проверяем, было ли последнее отправление для другого времени выполнения
-                                        // Вычисляем время выполнения cron, которое соответствует текущему моменту
-                                        // (округляем до минуты для сравнения)
-                                        long currentExecutionMinute = nextExecution.toInstant().getEpochSecond() / 60;
-                                        long lastSentMinute = lastSent.getEpochSecond() / 60;
+                                        // Проверяем, было ли последнее отправление для другого дня/времени выполнения
+                                        ZonedDateTime lastSentZoned = lastSent.atZone(ZoneId.systemDefault());
                                         
-                                        // Если это другое выполнение (разные минуты), отправляем
-                                        if (currentExecutionMinute != lastSentMinute) {
+                                        // Сравниваем день выполнения
+                                        boolean isDifferentDay = !nextExecution.toLocalDate().equals(lastSentZoned.toLocalDate());
+                                        
+                                        // Отправляем только если это другое выполнение (другой день)
+                                        // Для ежедневных напоминаний достаточно проверки дня
+                                        if (isDifferentDay) {
                                             shouldSend = true;
                                         }
                                     }
@@ -217,6 +233,7 @@ public class PersonalNotificationScheduler {
                         if (settings.getTimeSlotReminderDateTime() != null &&
                                 settings.getTimeSlotReminderDateTime().isBefore(now)) {
                             shouldSend = true;
+                            executionTimeToSave = now;
                         }
                     }
                     
@@ -224,8 +241,13 @@ public class PersonalNotificationScheduler {
                         // Отправляем напоминание
                         telegramNotificationService.sendTimeSlotReminder(user);
                         
-                        // Обновляем время последнего выполнения
-                        updateTimeSlotReminderDateTime(settings.getId(), now);
+                        // Обновляем время последнего выполнения на время выполнения cron (а не текущее время)
+                        // Это важно для правильного определения следующего выполнения
+                        if (executionTimeToSave != null) {
+                            updateTimeSlotReminderDateTime(settings.getId(), executionTimeToSave);
+                        } else {
+                            updateTimeSlotReminderDateTime(settings.getId(), now);
+                        }
                     }
                 } catch (Exception e) {
                     logger.error("Error processing time slot reminder for user {}", user.getId(), e);
