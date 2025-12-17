@@ -32,14 +32,23 @@ const ResetPasswordModal = ({ user, onClose, onConfirm, loading: externalLoading
       }
       console.log('Normalized response:', normalizedResponse)
       setResult(normalizedResponse)
-      if (onConfirm) {
-        onConfirm()
-      }
+      // НЕ вызываем onConfirm здесь - вызовем при закрытии модального окна
     } catch (err) {
       setError(err.message || 'Произошла ошибка при сбросе пароля')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleClose = () => {
+    // Если есть результат (пароль был сброшен), вызываем onConfirm для обновления списка
+    if (result && onConfirm) {
+      onConfirm()
+    }
+    // Сбрасываем состояние и закрываем модальное окно
+    setResult(null)
+    setError(null)
+    onClose()
   }
 
   if (result) {
@@ -57,7 +66,7 @@ const ResetPasswordModal = ({ user, onClose, onConfirm, loading: externalLoading
     })
     
     return (
-      <div className="admin-modal-overlay" onClick={onClose}>
+      <div className="admin-modal-overlay" onClick={handleClose}>
         <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
           <h3>Результат сброса пароля</h3>
           {wasSentViaTelegram && (
@@ -99,7 +108,7 @@ const ResetPasswordModal = ({ user, onClose, onConfirm, loading: externalLoading
           <div className="admin-modal-actions">
             <button
               className="admin-button-confirm"
-              onClick={onClose}
+              onClick={handleClose}
             >
               Закрыть
             </button>
