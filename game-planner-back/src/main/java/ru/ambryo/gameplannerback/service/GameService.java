@@ -217,33 +217,37 @@ public class GameService {
         User managedUser = userRepository.findById(user.getId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
         
-        // Автоматически удаляем доступность на время игры
-        Instant gameStart = game.getStartTime();
-        Instant gameEnd = game.getEndTime();
-        
-        // Вычисляем количество часов
-        long durationHours = (gameEnd.getEpochSecond() - gameStart.getEpochSecond()) / 3600;
-        
-        // Удаляем слоты по часам
-        for (long i = 0; i < durationHours; i++) {
-            Instant slotStart = Instant.ofEpochSecond(gameStart.getEpochSecond() + i * 3600);
-            
-            // Проверяем, есть ли такой слот
-            boolean slotExists = managedUser.getAvailableTimes().stream()
-                    .anyMatch(ts -> {
-                        long startEpochHour = slotStart.getEpochSecond() / 3600;
-                        long slotStartEpochHour = ts.getStart().getEpochSecond() / 3600;
-                        return startEpochHour == slotStartEpochHour;
-                    });
-            
-            if (slotExists) {
-                // Удаляем слот (toggleTimeSlot удалит существующий слот)
-                userService.toggleTimeSlot(managedUser, slotStart, 1);
-            }
-        }
-        
         // Удаляем пользователя из участников
         game.getParticipants().removeIf(p -> p.getId().equals(user.getId()));
+        
+        game = gameRepository.save(game);
+        return convertToDto(game);
+    }
+    
+    @Transactional
+    public GameDto removePlayerFromGame(Long gameId, Long playerId, User creator) {
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new RuntimeException("Game not found"));
+        
+        // Проверяем, что пользователь является создателем игры
+        if (!game.getCreator().getId().equals(creator.getId())) {
+            throw new RuntimeException("Only creator can remove players from the game");
+        }
+        
+        // Проверяем, что удаляемый игрок не является создателем
+        if (game.getCreator().getId().equals(playerId)) {
+            throw new RuntimeException("Cannot remove creator from the game");
+        }
+        
+        // Проверяем, что игрок является участником игры
+        boolean isParticipant = game.getParticipants().stream()
+                .anyMatch(p -> p.getId().equals(playerId));
+        if (!isParticipant) {
+            throw new RuntimeException("Player is not a participant of this game");
+        }
+        
+        // Удаляем игрока из участников
+        game.getParticipants().removeIf(p -> p.getId().equals(playerId));
         
         game = gameRepository.save(game);
         return convertToDto(game);

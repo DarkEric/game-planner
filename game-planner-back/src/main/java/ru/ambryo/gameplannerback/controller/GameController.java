@@ -110,6 +110,24 @@ public class GameController {
             return ResponseEntity.badRequest().build();
         }
     }
+    
+    @DeleteMapping("/{gameId}/players/{playerId}")
+    public ResponseEntity<GameDto> removePlayerFromGame(
+            @PathVariable Long gameId,
+            @PathVariable Long playerId,
+            Authentication authentication) {
+        try {
+            User user = (User) authentication.getPrincipal();
+            GameDto game = gameService.removePlayerFromGame(gameId, playerId, user);
+            return ResponseEntity.ok(game);
+        } catch (RuntimeException e) {
+            String message = e.getMessage();
+            if (message != null && message.contains("Only creator")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            return ResponseEntity.badRequest().build();
+        }
+    }
 
     @PostMapping("/{gameId}/hold")
     public ResponseEntity<GameDto> markGameAsHeld(

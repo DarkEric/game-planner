@@ -45,6 +45,22 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
     }
   }
 
+  const handleRemovePlayer = async (playerId) => {
+    if (!confirm('Удалить этого игрока из игры?')) {
+      return
+    }
+
+    try {
+      const updatedGame = await gameApi.removePlayerFromGame(game.id, playerId)
+      if (onUpdate) {
+        onUpdate(updatedGame)
+      }
+    } catch (error) {
+      console.error('Failed to remove player:', error)
+      alert('Не удалось удалить игрока из игры')
+    }
+  }
+
   return (
     <>
       <div className="game-details-overlay" onClick={onClose}>
@@ -154,9 +170,40 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
                     <div
                       key={participant.id}
                       className={`participant-badge ${participant.id === game.creatorId ? 'creator' : ''}`}
-                      style={{ backgroundColor: participant.color }}
+                      style={{ 
+                        backgroundColor: participant.color,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
                     >
-                      {participant.name}
+                      <span>{participant.name}</span>
+                      {isCreator && participant.id !== game.creatorId && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            handleRemovePlayer(participant.id)
+                          }}
+                          style={{
+                            background: 'rgba(255, 255, 255, 0.2)',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '20px',
+                            height: '20px',
+                            color: '#fff',
+                            cursor: 'pointer',
+                            fontSize: '14px',
+                            lineHeight: '1',
+                            padding: '0',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          title="Удалить игрока"
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
