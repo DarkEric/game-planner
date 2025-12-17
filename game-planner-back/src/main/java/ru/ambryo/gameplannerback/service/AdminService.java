@@ -54,27 +54,6 @@ public class AdminService {
     @Autowired
     private UserNotificationSettingsRepository userNotificationSettingsRepository;
     
-    @Autowired
-    private CampaignPlayerRepository campaignPlayerRepository;
-    
-    @Autowired
-    private GameRepository gameRepository;
-    
-    @Autowired
-    private CampaignRepository campaignRepository;
-    
-    @Autowired
-    private CampaignInviteRepository campaignInviteRepository;
-    
-    @Autowired
-    private InviteRepository inviteRepository;
-    
-    @Autowired
-    private GameNotificationRepository gameNotificationRepository;
-    
-    @Autowired
-    private UserNotificationSettingsRepository userNotificationSettingsRepository;
-    
     /**
      * Проверяет, является ли пользователь администратором
      */
