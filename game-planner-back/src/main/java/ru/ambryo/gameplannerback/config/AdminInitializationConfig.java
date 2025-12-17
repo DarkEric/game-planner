@@ -74,6 +74,64 @@ public class AdminInitializationConfig {
                 }
             } else {
                 logger.info("🟢 [INIT] ✅ Found {} administrator(s) in the system", adminCount);
+                
+                // Показываем, кто именно является администратором
+                var allAdmins = userRepository.findAll().stream()
+                        .filter(u -> u.getIsAdmin() != null && u.getIsAdmin())
+                        .toList();
+                logger.info("🟢 [INIT] Administrator details: {}", allAdmins.stream()
+                        .map(u -> String.format("id=%d, username='%s'", u.getId(), u.getUsername()))
+                        .toList());
+                
+                // Убираем флаг администратора у системного пользователя, если он установлен
+                Optional<User> systemUserOpt = userRepository.findByUsername("system");
+                if (systemUserOpt.isPresent()) {
+                    User systemUser = systemUserOpt.get();
+                    if (systemUser.getIsAdmin() != null && systemUser.getIsAdmin()) {
+                        logger.warn("🟢 [INIT] ⚠️ System user has admin flag. Removing it...");
+                        systemUser.setIsAdmin(false);
+                        userRepository.save(systemUser);
+                        logger.info("🟢 [INIT] ✅ System user admin flag removed");
+                        
+                        // Пересчитываем количество администраторов после снятия флага у системного
+                        adminCount = userRepository.countByIsAdminTrue();
+                        logger.info("🟢 [INIT] Admin count after removing system user flag: {}", adminCount);
+                        
+                        // Обновляем список администраторов после снятия флага у системного
+                        allAdmins = userRepository.findAll().stream()
+                                .filter(u -> u.getIsAdmin() != null && u.getIsAdmin())
+                                .toList();
+                    }
+                }
+                
+                // Проверяем, есть ли среди администраторов реальные пользователи (не системный)
+                boolean hasRealAdmin = allAdmins.stream()
+                        .anyMatch(u -> u.getId() != null && u.getId() > 0 && !"system".equals(u.getUsername()));
+                
+                if (!hasRealAdmin && adminCount > 0) {
+                    logger.warn("🟢 [INIT] ⚠️ WARNING: Only system user is administrator! No real admin found.");
+                    logger.warn("🟢 [INIT] ⚠️ Assigning first real user as administrator...");
+                    
+                    var allUsers = userRepository.findAll();
+                    Optional<User> firstRealUserOpt = allUsers.stream()
+                            .filter(u -> u.getId() != null && u.getId() > 0 && !"system".equals(u.getUsername()))
+                            .sorted((u1, u2) -> Long.compare(u1.getId(), u2.getId()))
+                            .findFirst();
+                    
+                    if (firstRealUserOpt.isPresent()) {
+                        User firstUser = firstRealUserOpt.get();
+                        logger.info("🟢 [INIT] ✅ Found first real user - id: {}, username: '{}'", 
+                                firstUser.getId(), firstUser.getUsername());
+                        
+                        firstUser.setIsAdmin(true);
+                        userRepository.save(firstUser);
+                        
+                        logger.info("🟢 [INIT] ✅ User '{}' (ID: {}) has been assigned as administrator", 
+                                firstUser.getUsername(), firstUser.getId());
+                    } else {
+                        logger.warn("🟢 [INIT] ⚠️ No real users found. First registered user will become administrator.");
+                    }
+                }
             }
         } catch (Exception e) {
             logger.error("🟢 [INIT] ❌ Error during admin initialization", e);
