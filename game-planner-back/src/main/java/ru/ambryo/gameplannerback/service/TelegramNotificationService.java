@@ -161,7 +161,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
-    private void sendPersonalMessage(String chatId, String text) {
+    public void sendPersonalMessage(String chatId, String text) {
         try {
             SendMessage sendMessage = new SendMessage();
             sendMessage.setChatId(chatId);
