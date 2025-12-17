@@ -11,6 +11,7 @@ public class CreateGameRequest {
     private List<Long> participantIds;
     private Boolean autoAddPlayers;
     private Integer maxParticipants;
+    private Long campaignId;
     
     public CreateGameRequest() {
     }
@@ -77,5 +78,13 @@ public class CreateGameRequest {
     
     public void setMaxParticipants(Integer maxParticipants) {
         this.maxParticipants = maxParticipants;
+    }
+    
+    public Long getCampaignId() {
+        return campaignId;
+    }
+    
+    public void setCampaignId(Long campaignId) {
+        this.campaignId = campaignId;
     }
 }

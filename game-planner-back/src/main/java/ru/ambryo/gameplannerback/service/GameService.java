@@ -5,10 +5,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ambryo.gameplannerback.dto.CreateGameRequest;
 import ru.ambryo.gameplannerback.dto.GameDto;
+import ru.ambryo.gameplannerback.entity.Campaign;
 import ru.ambryo.gameplannerback.entity.Game;
 import ru.ambryo.gameplannerback.entity.GameNotification;
 import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.entity.UserNotificationSettings;
+import ru.ambryo.gameplannerback.repository.CampaignRepository;
 import ru.ambryo.gameplannerback.repository.GameNotificationRepository;
 import ru.ambryo.gameplannerback.repository.GameRepository;
 import ru.ambryo.gameplannerback.repository.UserNotificationSettingsRepository;
@@ -39,6 +41,9 @@ public class GameService {
     
     @Autowired
     private GameNotificationRepository gameNotificationRepository;
+    
+    @Autowired
+    private CampaignRepository campaignRepository;
     
     @Transactional
     public GameDto createGame(CreateGameRequest request, User creator) {
@@ -72,6 +77,20 @@ public class GameService {
         
         game.setParticipants(participants);
         game.setMaxParticipants(request.getMaxParticipants());
+        
+        // Устанавливаем кампанию, если указана
+        if (request.getCampaignId() != null) {
+            Campaign campaign = campaignRepository.findById(request.getCampaignId())
+                    .orElseThrow(() -> new RuntimeException("Campaign not found"));
+            
+            // Проверяем, что создатель игры является создателем кампании
+            if (!campaign.getCreator().getId().equals(creator.getId())) {
+                throw new RuntimeException("Only campaign creator can create games for this campaign");
+            }
+            
+            game.setCampaign(campaign);
+        }
+        
         game = gameRepository.save(game);
         
         GameDto gameDto = convertToDto(game);

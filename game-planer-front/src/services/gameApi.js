@@ -14,7 +14,7 @@ const getAuthHeaders = () => {
 }
 
 export const gameApi = {
-  async createGame(startTime, endTime, title, description, participantIds, autoAddPlayers = true, maxParticipants = null) {
+  async createGame(startTime, endTime, title, description, participantIds, autoAddPlayers = true, maxParticipants = null, campaignId = null) {
     const userTimezone = getUserTimezoneForAPI()
 
     const response = await fetch(`${API_BASE_URL}/games`, {
@@ -27,7 +27,8 @@ export const gameApi = {
         description: description || null,
         participantIds,
         autoAddPlayers,
-        maxParticipants: maxParticipants || null
+        maxParticipants: maxParticipants || null,
+        campaignId: campaignId || null
       })
     })
 
@@ -48,6 +49,8 @@ export const gameApi = {
       createdAt: parseFromServer(data.createdAt, userTimezone),
       isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
       keyEvents: data.keyEvents,
+      campaignId: data.campaignId,
+      campaignName: data.campaignName,
       maxParticipants: data.maxParticipants
     }
   },
@@ -112,7 +115,10 @@ export const gameApi = {
       participants: game.participants,
       createdAt: parseFromServer(game.createdAt, userTimezone),
       isHeld: game.isHeld !== undefined ? game.isHeld : game.held,
-      keyEvents: game.keyEvents
+      keyEvents: game.keyEvents,
+      campaignId: game.campaignId,
+      campaignName: game.campaignName,
+      maxParticipants: game.maxParticipants
     }))
   },
 
