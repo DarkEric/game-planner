@@ -1,5 +1,7 @@
 package ru.ambryo.gameplannerback.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -11,6 +13,8 @@ import ru.ambryo.gameplannerback.util.JwtUtil;
 
 @Service
 public class AuthService {
+    
+    private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
     
     @Autowired
     private UserRepository userRepository;
@@ -50,10 +54,17 @@ public class AuthService {
         
         User savedUser = userRepository.save(user);
         
-        // Проверяем, является ли это первым пользователем
-        if (userRepository.count() == 1) {
+        // Проверяем, является ли это первым реальным пользователем (исключая системного пользователя)
+        // Системный пользователь имеет ID=0 и username="system"
+        long realUserCount = userRepository.findAll().stream()
+                .filter(u -> u.getId() != null && u.getId() > 0 && !"system".equals(u.getUsername()))
+                .count();
+        
+        if (realUserCount == 1) {
             savedUser.setIsAdmin(true);
             savedUser = userRepository.save(savedUser);
+            logger.info("First real user '{}' (ID: {}) automatically assigned as administrator", 
+                    savedUser.getUsername(), savedUser.getId());
         }
         
         // Отмечаем инвайт как использованный
