@@ -8,8 +8,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ambryo.gameplannerback.dto.AdminUserDto;
 import ru.ambryo.gameplannerback.dto.ResetPasswordResponse;
-import ru.ambryo.gameplannerback.entity.User;
-import ru.ambryo.gameplannerback.repository.UserRepository;
+import ru.ambryo.gameplannerback.entity.*;
+import ru.ambryo.gameplannerback.repository.*;
 
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -32,6 +32,48 @@ public class AdminService {
     
     @Autowired
     private TelegramNotificationService telegramNotificationService;
+    
+    @Autowired
+    private CampaignPlayerRepository campaignPlayerRepository;
+    
+    @Autowired
+    private GameRepository gameRepository;
+    
+    @Autowired
+    private CampaignRepository campaignRepository;
+    
+    @Autowired
+    private CampaignInviteRepository campaignInviteRepository;
+    
+    @Autowired
+    private InviteRepository inviteRepository;
+    
+    @Autowired
+    private GameNotificationRepository gameNotificationRepository;
+    
+    @Autowired
+    private UserNotificationSettingsRepository userNotificationSettingsRepository;
+    
+    @Autowired
+    private CampaignPlayerRepository campaignPlayerRepository;
+    
+    @Autowired
+    private GameRepository gameRepository;
+    
+    @Autowired
+    private CampaignRepository campaignRepository;
+    
+    @Autowired
+    private CampaignInviteRepository campaignInviteRepository;
+    
+    @Autowired
+    private InviteRepository inviteRepository;
+    
+    @Autowired
+    private GameNotificationRepository gameNotificationRepository;
+    
+    @Autowired
+    private UserNotificationSettingsRepository userNotificationSettingsRepository;
     
     /**
      * Проверяет, является ли пользователь администратором
@@ -164,6 +206,119 @@ public class AdminService {
             password.append(chars.charAt(random.nextInt(chars.length())));
         }
         return password.toString();
+    }
+    
+    /**
+     * Удаляет пользователя
+     * Требует прав администратора
+     */
+    @Transactional
+    public void deleteUser(Long userId, Long currentAdminId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
+        
+        // Проверка: нельзя удалить самого себя
+        if (user.getId().equals(currentAdminId)) {
+            throw new RuntimeException("Вы не можете удалить самого себя");
+        }
+        
+        // Проверка: нельзя удалить системного пользователя
+        if ("system".equals(user.getUsername())) {
+            throw new RuntimeException("Нельзя удалить системного пользователя");
+        }
+        
+        // Проверка: нельзя удалить последнего администратора
+        if (user.getIsAdmin() != null && user.getIsAdmin()) {
+            long adminCount = getAdminCount();
+            if (adminCount <= 1) {
+                throw new RuntimeException("Невозможно удалить пользователя: в системе должен остаться минимум один администратор");
+            }
+        }
+        
+        // Получаем системного пользователя для передачи владения
+        User systemUser = userRepository.findByUsername("system")
+                .orElseThrow(() -> new RuntimeException("Системный пользователь не найден"));
+        
+        // Удаляем связи с CampaignPlayer
+        List<CampaignPlayer> campaignPlayers = campaignPlayerRepository.findAll().stream()
+                .filter(cp -> cp.getPlayer().getId().equals(userId))
+                .collect(Collectors.toList());
+        campaignPlayerRepository.deleteAll(campaignPlayers);
+        logger.info("Deleted {} campaign player entries for user: {} (ID: {})", 
+                campaignPlayers.size(), user.getUsername(), user.getId());
+        
+        // Обрабатываем игры: передаем создателя системному пользователю, удаляем из участников
+        List<Game> gamesCreated = gameRepository.findGamesCreatedByUser(userId);
+        for (Game game : gamesCreated) {
+            game.setCreator(systemUser);
+            gameRepository.save(game);
+        }
+        logger.info("Transferred {} games to system user for deleted user: {} (ID: {})", 
+                gamesCreated.size(), user.getUsername(), user.getId());
+        
+        // Удаляем пользователя из участников игр
+        List<Game> allGames = gameRepository.findAll();
+        for (Game game : allGames) {
+            if (game.getParticipants().removeIf(p -> p.getId().equals(userId))) {
+                gameRepository.save(game);
+            }
+        }
+        
+        // Обрабатываем кампании: передаем создателя системному пользователю
+        List<Campaign> campaignsCreated = campaignRepository.findByCreator(user);
+        for (Campaign campaign : campaignsCreated) {
+            campaign.setCreator(systemUser);
+            campaignRepository.save(campaign);
+        }
+        logger.info("Transferred {} campaigns to system user for deleted user: {} (ID: {})", 
+                campaignsCreated.size(), user.getUsername(), user.getId());
+        
+        // Удаляем приглашения в кампании
+        List<CampaignInvite> campaignInvites = campaignInviteRepository.findAll().stream()
+                .filter(ci -> ci.getInvitedUser().getId().equals(userId))
+                .collect(Collectors.toList());
+        campaignInviteRepository.deleteAll(campaignInvites);
+        logger.info("Deleted {} campaign invites for user: {} (ID: {})", 
+                campaignInvites.size(), user.getUsername(), user.getId());
+        
+        // Обрабатываем инвайты: передаем создателя системному пользователю, очищаем usedBy
+        List<Invite> invitesCreated = inviteRepository.findByCreatedBy(user);
+        for (Invite invite : invitesCreated) {
+            invite.setCreatedBy(systemUser);
+            inviteRepository.save(invite);
+        }
+        logger.info("Transferred {} invites to system user for deleted user: {} (ID: {})", 
+                invitesCreated.size(), user.getUsername(), user.getId());
+        
+        // Очищаем usedBy в инвайтах (если пользователь использовал инвайт)
+        List<Invite> allInvites = inviteRepository.findAll();
+        for (Invite invite : allInvites) {
+            if (invite.getUsedBy() != null && invite.getUsedBy().getId().equals(userId)) {
+                invite.setUsedBy(null);
+                inviteRepository.save(invite);
+            }
+        }
+        
+        // Удаляем уведомления игр
+        List<GameNotification> gameNotifications = gameNotificationRepository.findAll().stream()
+                .filter(gn -> gn.getUser() != null && gn.getUser().getId().equals(userId))
+                .collect(Collectors.toList());
+        gameNotificationRepository.deleteAll(gameNotifications);
+        logger.info("Deleted {} game notifications for user: {} (ID: {})", 
+                gameNotifications.size(), user.getUsername(), user.getId());
+        
+        // Удаляем настройки уведомлений
+        userNotificationSettingsRepository.findByUser(user).ifPresent(settings -> {
+            userNotificationSettingsRepository.delete(settings);
+            logger.info("Deleted notification settings for user: {} (ID: {})", 
+                    user.getUsername(), user.getId());
+        });
+        
+        // TimeSlot удаляются каскадно через CASCADE в БД
+        
+        // Удаляем пользователя
+        userRepository.delete(user);
+        logger.info("User deleted: {} (ID: {})", user.getUsername(), user.getId());
     }
     
     /**

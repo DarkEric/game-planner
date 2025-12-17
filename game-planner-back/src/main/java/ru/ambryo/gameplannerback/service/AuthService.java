@@ -53,18 +53,42 @@ public class AuthService {
         user.setColor("#646cff"); // Цвет по умолчанию
         
         User savedUser = userRepository.save(user);
+        logger.info("🔵 [AUTH] User registered - username: {}, id: {}, isAdmin before check: {}", 
+                username, savedUser.getId(), savedUser.getIsAdmin());
         
         // Проверяем, является ли это первым реальным пользователем (исключая системного пользователя)
         // Системный пользователь имеет ID=0 и username="system"
-        long realUserCount = userRepository.findAll().stream()
+        var allUsers = userRepository.findAll();
+        long totalCount = allUsers.size();
+        logger.info("🔵 [AUTH] Total users in DB: {}", totalCount);
+        
+        long realUserCount = allUsers.stream()
                 .filter(u -> u.getId() != null && u.getId() > 0 && !"system".equals(u.getUsername()))
                 .count();
         
+        logger.info("🔵 [AUTH] Real users count (excluding system): {}", realUserCount);
+        logger.info("🔵 [AUTH] All users details: {}", allUsers.stream()
+                .map(u -> String.format("id=%d, username='%s', isAdmin=%s", 
+                        u.getId(), u.getUsername(), u.getIsAdmin()))
+                .toList());
+        
         if (realUserCount == 1) {
+            logger.info("🔵 [AUTH] ✅ First real user detected! Setting isAdmin=true for user {}", savedUser.getId());
             savedUser.setIsAdmin(true);
+            logger.info("🔵 [AUTH] isAdmin flag set to: {} (before save)", savedUser.getIsAdmin());
+            
             savedUser = userRepository.save(savedUser);
-            logger.info("First real user '{}' (ID: {}) automatically assigned as administrator", 
+            
+            // Проверяем, что значение сохранилось
+            User verifyUser = userRepository.findById(savedUser.getId()).orElse(null);
+            logger.info("🔵 [AUTH] ✅ User saved. Verification - id: {}, username: {}, isAdmin in DB: {}", 
+                    savedUser.getId(), savedUser.getUsername(), 
+                    verifyUser != null ? verifyUser.getIsAdmin() : "NULL");
+            
+            logger.info("🔵 [AUTH] ✅ First real user '{}' (ID: {}) automatically assigned as administrator", 
                     savedUser.getUsername(), savedUser.getId());
+        } else {
+            logger.warn("🔵 [AUTH] ⚠️ NOT first user. realUserCount={}, expected 1. Admin NOT assigned.", realUserCount);
         }
         
         // Отмечаем инвайт как использованный

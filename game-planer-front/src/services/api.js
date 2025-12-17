@@ -193,6 +193,20 @@ export const adminApi = {
       throw new Error(errorData.error || 'Ошибка при отзыве прав')
     }
     return await response.json()
+  },
+
+  // Удалить пользователя
+  async deleteUser(userId) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    })
+    if (!response.ok) {
+      handleAuthError(response)
+      const errorData = await response.json().catch(() => ({ error: 'Failed to delete user' }))
+      throw new Error(errorData.error || 'Ошибка при удалении пользователя')
+    }
+    return await response.json()
   }
 }
 
