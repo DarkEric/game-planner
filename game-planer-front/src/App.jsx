@@ -267,12 +267,22 @@ function App() {
     }
   }
 
-  const handleScheduleGame = async (startTime, endTime, title, description, participantIds) => {
+  const handleScheduleGame = async (startTime, endTime, title, description, participantIds, autoAddPlayers, campaignId) => {
     try {
       setError(null)
-      const game = await gameApi.createGame(startTime, endTime, title, description, participantIds)
+      const game = await gameApi.createGame(startTime, endTime, title, description, participantIds, autoAddPlayers)
       setGames([...games, game])
       setShowGameScheduler(false)
+      
+      // Если указана кампания, привязываем игру к кампании
+      if (campaignId) {
+        try {
+          await campaignApi.addGameToCampaign(campaignId, game.id)
+        } catch (err) {
+          console.error('Failed to link game to campaign:', err)
+          // Не показываем ошибку пользователю, так как игра уже создана
+        }
+      }
     } catch (err) {
       console.error('Failed to schedule game:', err)
       setError('Не удалось запланировать игру. Проверьте подключение к серверу.')

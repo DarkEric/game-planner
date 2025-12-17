@@ -10,6 +10,7 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
   const [endTime, setEndTime] = useState('')
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [autoAddPlayers, setAutoAddPlayers] = useState(true)
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [campaigns, setCampaigns] = useState([])
   const [selectedCampaignId, setSelectedCampaignId] = useState('')
@@ -215,7 +216,7 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
       }).map(p => p.id)
     }
 
-    onSchedule(start, end, title, description, participantIds, selectedCampaignId || null)
+    onSchedule(start, end, title, description, participantIds, autoAddPlayers, selectedCampaignId || null)
   }
 
   const changeMonth = (offset) => {
@@ -340,6 +341,21 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
                     fontFamily: 'inherit'
                   }}
                 />
+              </div>
+              <div className="time-input-group">
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={autoAddPlayers}
+                    onChange={(e) => setAutoAddPlayers(e.target.checked)}
+                    style={{
+                      width: '1.2rem',
+                      height: '1.2rem',
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <span>Автоматически добавить доступных игроков</span>
+                </label>
               </div>
               {campaigns.length > 0 && (
                 <div className="time-input-group">

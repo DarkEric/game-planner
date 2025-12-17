@@ -9,6 +9,7 @@ public class CreateGameRequest {
     private String title;
     private String description;
     private List<Long> participantIds;
+    private Boolean autoAddPlayers;
     
     public CreateGameRequest() {
     }
@@ -59,5 +60,13 @@ public class CreateGameRequest {
     
     public void setDescription(String description) {
         this.description = description;
+    }
+    
+    public Boolean getAutoAddPlayers() {
+        return autoAddPlayers;
+    }
+    
+    public void setAutoAddPlayers(Boolean autoAddPlayers) {
+        this.autoAddPlayers = autoAddPlayers;
     }
 }

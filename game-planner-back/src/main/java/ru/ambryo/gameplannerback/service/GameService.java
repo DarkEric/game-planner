@@ -58,8 +58,11 @@ public class GameService {
                 .orElseThrow(() -> new RuntimeException("Creator not found"));
         participants.add(managedCreator);
         
-        // Добавляем других участников (только тех, кто доступен на это время)
-        if (request.getParticipantIds() != null && !request.getParticipantIds().isEmpty()) {
+        // Добавляем других участников только если autoAddPlayers == true
+        // По умолчанию (если поле не передано) autoAddPlayers == null, что считается как false
+        Boolean autoAddPlayers = request.getAutoAddPlayers();
+        if (Boolean.TRUE.equals(autoAddPlayers) && 
+            request.getParticipantIds() != null && !request.getParticipantIds().isEmpty()) {
             List<User> otherParticipants = userRepository.findAllById(request.getParticipantIds());
             // Исключаем создателя, если он уже в списке
             otherParticipants.stream()

@@ -14,7 +14,7 @@ const getAuthHeaders = () => {
 }
 
 export const gameApi = {
-  async createGame(startTime, endTime, title, description, participantIds) {
+  async createGame(startTime, endTime, title, description, participantIds, autoAddPlayers = true) {
     const userTimezone = getUserTimezoneForAPI()
 
     const response = await fetch(`${API_BASE_URL}/games`, {
@@ -25,7 +25,8 @@ export const gameApi = {
         endTime: formatForServer(endTime, userTimezone),
         title: title || null,
         description: description || null,
-        participantIds
+        participantIds,
+        autoAddPlayers
       })
     })
 
