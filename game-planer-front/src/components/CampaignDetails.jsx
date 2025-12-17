@@ -122,9 +122,10 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
 
     const handleLoadAvailableGames = async () => {
         try {
-            const myGames = await gameApi.getMyGames()
+            // Получаем только игры, где текущий пользователь является создателем
+            const myCreatedGames = await gameApi.getMyCreatedGames()
             // Filter games that are not in any campaign
-            const available = myGames.filter(g => !g.campaignId)
+            const available = myCreatedGames.filter(g => !g.campaignId)
             setAvailableGames(available)
             setShowLinkGameModal(true)
         } catch (error) {

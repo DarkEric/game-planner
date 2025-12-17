@@ -130,6 +130,22 @@ public class GameService {
     }
     
     @Transactional(readOnly = true)
+    public List<GameDto> getAllGamesForUser(Long userId) {
+        return gameRepository.findAllGamesByUser(userId)
+                .stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+    
+    @Transactional(readOnly = true)
+    public List<GameDto> getGamesCreatedByUser(Long userId) {
+        return gameRepository.findGamesCreatedByUser(userId)
+                .stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+    
+    @Transactional(readOnly = true)
     public GameDto getGameById(Long gameId) {
         Game game = gameRepository.findById(gameId)
                 .orElseThrow(() -> new RuntimeException("Game not found"));

@@ -54,7 +54,18 @@ public class GameController {
     public ResponseEntity<List<GameDto>> getMyGames(Authentication authentication) {
         try {
             User user = (User) authentication.getPrincipal();
-            List<GameDto> games = gameService.getUpcomingGamesForUser(user.getId());
+            List<GameDto> games = gameService.getAllGamesForUser(user.getId());
+            return ResponseEntity.ok(games);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    @GetMapping("/my/created")
+    public ResponseEntity<List<GameDto>> getMyCreatedGames(Authentication authentication) {
+        try {
+            User user = (User) authentication.getPrincipal();
+            List<GameDto> games = gameService.getGamesCreatedByUser(user.getId());
             return ResponseEntity.ok(games);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();

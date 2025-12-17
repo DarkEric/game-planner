@@ -122,6 +122,36 @@ export const gameApi = {
     }))
   },
 
+  async getMyCreatedGames() {
+    const userTimezone = getUserTimezoneForAPI()
+
+    const response = await fetch(`${API_BASE_URL}/games/my/created`, {
+      headers: getAuthHeaders()
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch my created games')
+    }
+
+    const data = await response.json()
+    return data.map(game => ({
+      id: game.id,
+      startTime: parseFromServer(game.startTime, userTimezone),
+      endTime: parseFromServer(game.endTime, userTimezone),
+      title: game.title,
+      description: game.description,
+      creatorId: game.creatorId,
+      creatorName: game.creatorName,
+      participants: game.participants,
+      createdAt: parseFromServer(game.createdAt, userTimezone),
+      isHeld: game.isHeld !== undefined ? game.isHeld : game.held,
+      keyEvents: game.keyEvents,
+      campaignId: game.campaignId,
+      campaignName: game.campaignName,
+      maxParticipants: game.maxParticipants
+    }))
+  },
+
   async deleteGame(gameId, cancellationReason) {
     const params = new URLSearchParams()
     if (cancellationReason && cancellationReason.trim()) {
