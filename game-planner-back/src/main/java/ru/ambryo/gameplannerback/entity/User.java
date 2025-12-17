@@ -39,6 +39,15 @@ public class User {
     @Column(name = "telegram_subscribed", nullable = false)
     private Boolean telegramSubscribed = false; // Флаг подписки на бота
     
+    @Column(name = "password_reset_token")
+    private String passwordResetToken;
+    
+    @Column(name = "password_reset_expiry")
+    private java.time.Instant passwordResetExpiry;
+    
+    @Column(name = "is_admin", nullable = false)
+    private Boolean isAdmin = false;
+    
     @OneToMany(mappedBy = "user", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
     private List<TimeSlot> availableTimes = new ArrayList<>();
     
@@ -147,6 +156,30 @@ public class User {
     
     public void setTelegramSubscribed(Boolean telegramSubscribed) {
         this.telegramSubscribed = telegramSubscribed;
+    }
+    
+    public String getPasswordResetToken() {
+        return passwordResetToken;
+    }
+    
+    public void setPasswordResetToken(String passwordResetToken) {
+        this.passwordResetToken = passwordResetToken;
+    }
+    
+    public java.time.Instant getPasswordResetExpiry() {
+        return passwordResetExpiry;
+    }
+    
+    public void setPasswordResetExpiry(java.time.Instant passwordResetExpiry) {
+        this.passwordResetExpiry = passwordResetExpiry;
+    }
+    
+    public Boolean getIsAdmin() {
+        return isAdmin != null ? isAdmin : false;
+    }
+    
+    public void setIsAdmin(Boolean isAdmin) {
+        this.isAdmin = isAdmin != null ? isAdmin : false;
     }
 }
 

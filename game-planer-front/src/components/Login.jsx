@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './Login.css'
 
-const Login = ({ onLogin, onSwitchToRegister }) => {
+const Login = ({ onLogin, onSwitchToRegister, onForgotPassword }) => {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -53,6 +53,18 @@ const Login = ({ onLogin, onSwitchToRegister }) => {
             {loading ? 'Вход...' : 'Войти'}
           </button>
         </form>
+        {onForgotPassword && (
+          <p style={{ textAlign: 'center', marginTop: '0.5rem', marginBottom: '0' }}>
+            <button
+              type="button"
+              onClick={onForgotPassword}
+              className="link-button"
+              style={{ fontSize: '0.85rem' }}
+            >
+              Забыли пароль?
+            </button>
+          </p>
+        )}
         <p className="auth-switch">
           Нет аккаунта?{' '}
           <button type="button" onClick={onSwitchToRegister} className="link-button">

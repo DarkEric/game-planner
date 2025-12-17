@@ -50,6 +50,12 @@ public class AuthService {
         
         User savedUser = userRepository.save(user);
         
+        // Проверяем, является ли это первым пользователем
+        if (userRepository.count() == 1) {
+            savedUser.setIsAdmin(true);
+            savedUser = userRepository.save(savedUser);
+        }
+        
         // Отмечаем инвайт как использованный
         inviteService.validateAndUseInvite(inviteCode, savedUser);
         

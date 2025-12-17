@@ -1,11 +1,15 @@
 import './TabNavigation.css'
 
-const TabNavigation = ({ activeTab, onTabChange }) => {
+const TabNavigation = ({ activeTab, onTabChange, isAdmin = false }) => {
     const tabs = [
         { id: 'calendar', label: 'Календарь игр', icon: '📅' },
         { id: 'campaigns', label: 'Кампании', icon: '📚' },
         { id: 'profile', label: 'Личный кабинет', icon: '👤' }
     ]
+
+    if (isAdmin) {
+        tabs.push({ id: 'admin', label: 'Админ-панель', icon: '⚙️' })
+    }
 
     return (
         <nav className="tab-navigation">

@@ -95,6 +95,107 @@ export const authApi = {
   }
 }
 
+export const passwordResetApi = {
+  // Запросить сброс пароля
+  async requestPasswordReset(username) {
+    const response = await fetch(`${API_BASE_URL}/auth/password-reset/request`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ username })
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to request password reset' }))
+      throw new Error(errorData.error || 'Ошибка при запросе сброса пароля')
+    }
+    return await response.json()
+  },
+
+  // Подтвердить сброс пароля
+  async confirmPasswordReset(token, newPassword) {
+    const response = await fetch(`${API_BASE_URL}/auth/password-reset/confirm`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ token, newPassword })
+    })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Failed to reset password' }))
+      throw new Error(errorData.error || 'Ошибка при сбросе пароля')
+    }
+    return await response.json()
+  }
+}
+
+export const adminApi = {
+  // Проверить, является ли текущий пользователь администратором
+  async isAdmin() {
+    const response = await fetch(`${API_BASE_URL}/admin/users/me/is-admin`, {
+      headers: getAuthHeaders()
+    })
+    if (!response.ok) {
+      return { isAdmin: false }
+    }
+    return await response.json()
+  },
+
+  // Получить список всех пользователей
+  async getAllUsers() {
+    const response = await fetch(`${API_BASE_URL}/admin/users`, {
+      headers: getAuthHeaders()
+    })
+    if (!response.ok) {
+      handleAuthError(response)
+      throw new Error('Failed to fetch users')
+    }
+    return await response.json()
+  },
+
+  // Сбросить пароль пользователя
+  async resetUserPassword(userId) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/reset-password`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    })
+    if (!response.ok) {
+      handleAuthError(response)
+      const errorData = await response.json().catch(() => ({ error: 'Failed to reset password' }))
+      throw new Error(errorData.error || 'Ошибка при сбросе пароля')
+    }
+    return await response.json()
+  },
+
+  // Назначить права администратора
+  async grantAdminRights(userId) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/grant-admin`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    })
+    if (!response.ok) {
+      handleAuthError(response)
+      const errorData = await response.json().catch(() => ({ error: 'Failed to grant admin rights' }))
+      throw new Error(errorData.error || 'Ошибка при назначении прав')
+    }
+    return await response.json()
+  },
+
+  // Отозвать права администратора
+  async revokeAdminRights(userId) {
+    const response = await fetch(`${API_BASE_URL}/admin/users/${userId}/revoke-admin`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    })
+    if (!response.ok) {
+      handleAuthError(response)
+      const errorData = await response.json().catch(() => ({ error: 'Failed to revoke admin rights' }))
+      throw new Error(errorData.error || 'Ошибка при отзыве прав')
+    }
+    return await response.json()
+  }
+}
+
 export const playerApi = {
   // Получить всех пользователей (игроков)
   async getAllPlayers(startDate = null, endDate = null) {

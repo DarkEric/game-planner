@@ -509,6 +509,40 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
+    /**
+     * Отправляет токен сброса пароля пользователю в Telegram
+     * @param user пользователь
+     * @param token токен для сброса пароля
+     */
+    public void sendPasswordResetToken(User user, String token) {
+        if (!enabled) {
+            logger.debug("Telegram notifications disabled, cannot send password reset token");
+            return;
+        }
+        
+        if (user.getTelegramSubscribed() == null || !user.getTelegramSubscribed() 
+                || user.getTelegramChatId() == null) {
+            logger.debug("User {} is not subscribed to Telegram or chat ID not available", user.getUsername());
+            return;
+        }
+        
+        try {
+            StringBuilder message = new StringBuilder();
+            message.append("🔐 <b>Сброс пароля</b>\n\n");
+            message.append("Вы запросили сброс пароля для аккаунта: <b>").append(escapeHtml(user.getUsername())).append("</b>\n\n");
+            message.append("Ваш код для сброса: <code>").append(token).append("</code>\n\n");
+            message.append("Используйте этот код на странице восстановления пароля.\n\n");
+            message.append("⚠️ Код действителен 1 час.\n\n");
+            message.append("Если вы не запрашивали сброс пароля, проигнорируйте это сообщение.");
+            
+            sendPersonalMessage(user.getTelegramChatId(), message.toString());
+            logger.info("Password reset token sent to user {} via Telegram", user.getUsername());
+        } catch (Exception e) {
+            logger.error("Failed to send password reset token to user {} via Telegram", user.getUsername(), e);
+            throw e; // Пробрасываем исключение, чтобы вызывающий код мог его обработать
+        }
+    }
+    
     public void sendGameCompletionReminder(GameDto game, User creator) {
         if (creator.getTelegramSubscribed() && creator.getTelegramChatId() != null) {
             StringBuilder message = new StringBuilder();

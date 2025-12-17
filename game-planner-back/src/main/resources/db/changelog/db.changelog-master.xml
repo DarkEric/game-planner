@@ -26,5 +26,7 @@
     <include file="db/changelog/changes/018-add-max-participants.xml"/>
     <include file="db/changelog/changes/019-remove-game-added-to-game.xml"/>
     <include file="db/changelog/changes/020-add-game-removed-from-game.xml"/>
+    <include file="db/changelog/changes/021-add-password-reset-fields.xml"/>
+    <include file="db/changelog/changes/022-add-is-admin-field.xml"/>
 
 </databaseChangeLog>

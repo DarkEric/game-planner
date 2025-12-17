@@ -1,0 +1,250 @@
+.admin-panel {
+  padding: 2rem;
+  color: #fff;
+}
+
+.admin-header {
+  margin-bottom: 2rem;
+}
+
+.admin-header h2 {
+  margin: 0;
+  font-size: 2rem;
+  color: #fff;
+}
+
+.admin-loading {
+  text-align: center;
+  padding: 3rem;
+  color: #aaa;
+}
+
+.admin-error {
+  background-color: rgba(255, 107, 107, 0.1);
+  border: 1px solid #ff6b6b;
+  color: #ff6b6b;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.admin-user-list {
+  background-color: #242424;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #333;
+}
+
+.admin-search {
+  margin-bottom: 1.5rem;
+}
+
+.admin-search input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background-color: #1a1a1a;
+  color: #fff;
+  font-size: 1rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.admin-search input:focus {
+  outline: none;
+  border-color: #646cff;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #333;
+}
+
+.admin-table th {
+  color: #aaa;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+}
+
+.admin-table td {
+  color: #fff;
+}
+
+.admin-table tr:hover {
+  background-color: rgba(100, 108, 255, 0.05);
+}
+
+.admin-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.admin-button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-button-primary {
+  background-color: #646cff;
+  color: #fff;
+}
+
+.admin-button-primary:hover:not(:disabled) {
+  background-color: #535bf2;
+}
+
+.admin-button-danger {
+  background-color: #ff6b6b;
+  color: #fff;
+}
+
+.admin-button-danger:hover:not(:disabled) {
+  background-color: #ff5252;
+}
+
+.admin-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.admin-badge-admin {
+  background-color: rgba(100, 108, 255, 0.2);
+  color: #646cff;
+}
+
+.admin-badge-telegram {
+  background-color: rgba(0, 136, 204, 0.2);
+  color: #0088cc;
+}
+
+.admin-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.admin-modal {
+  background-color: #242424;
+  border-radius: 12px;
+  padding: 2rem;
+  max-width: 500px;
+  width: 90%;
+  border: 1px solid #333;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.admin-modal h3 {
+  margin: 0 0 1.5rem 0;
+  color: #fff;
+}
+
+.admin-modal-message {
+  color: #aaa;
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+
+.admin-modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.admin-modal-actions button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 6px;
+  border: none;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.admin-modal-actions .admin-button-cancel {
+  background-color: #444;
+  color: #fff;
+}
+
+.admin-modal-actions .admin-button-cancel:hover {
+  background-color: #555;
+}
+
+.admin-modal-actions .admin-button-confirm {
+  background-color: #646cff;
+  color: #fff;
+}
+
+.admin-modal-actions .admin-button-confirm:hover {
+  background-color: #535bf2;
+}
+
+.admin-password-display {
+  background-color: #1a1a1a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1rem 0;
+  font-family: monospace;
+  font-size: 1.2rem;
+  text-align: center;
+  color: #646cff;
+  word-break: break-all;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.admin-copy-button {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #646cff;
+  background-color: transparent;
+  color: #646cff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.admin-copy-button:hover {
+  background-color: rgba(100, 108, 255, 0.1);
+}
+
+.admin-success-message {
+  background-color: rgba(76, 175, 80, 0.1);
+  border: 1px solid #4caf50;
+  color: #4caf50;
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin: 1rem 0;
+}

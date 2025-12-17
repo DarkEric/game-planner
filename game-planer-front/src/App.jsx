@@ -1,6 +1,8 @@
 import { useState, useMemo, useEffect } from 'react'
 import Login from './components/Login'
 import Register from './components/Register'
+import PasswordResetRequest from './components/PasswordResetRequest'
+import PasswordResetConfirm from './components/PasswordResetConfirm'
 import GameScheduler from './components/GameScheduler'
 import GameDetails from './components/GameDetails'
 import LanguageSwitcher from './components/LanguageSwitcher'
@@ -8,7 +10,8 @@ import TabNavigation from './components/TabNavigation'
 import CalendarTab from './components/CalendarTab'
 import ProfileTab from './components/ProfileTab'
 import CampaignTab from './components/CampaignTab'
-import { playerApi, authApi, setUserTimezone } from './services/api'
+import AdminPanel from './components/AdminPanel'
+import { playerApi, authApi, adminApi, setUserTimezone } from './services/api'
 import { gameApi } from './services/gameApi'
 import { useLanguage } from './i18n/LanguageContext'
 import './App.css'
@@ -21,6 +24,8 @@ function App() {
   const [currentPlayer, setCurrentPlayer] = useState(null)
   const [allPlayers, setAllPlayers] = useState([])
   const [daysToShow, setDaysToShow] = useState(14)
+  const [showPasswordReset, setShowPasswordReset] = useState(false)
+  const [showPasswordResetConfirm, setShowPasswordResetConfirm] = useState(false)
   // Инициализируем с сегодняшней датой (без времени)
   const [currentStartDate, setCurrentStartDate] = useState(() => {
     const today = new Date()
@@ -33,6 +38,7 @@ function App() {
   const [games, setGames] = useState([])
   const [selectedGame, setSelectedGame] = useState(null)
   const [activeTab, setActiveTab] = useState('calendar')
+  const [isAdmin, setIsAdmin] = useState(false)
 
   // Вычисление количества дней на основе ширины экрана
   useEffect(() => {
@@ -63,11 +69,23 @@ function App() {
   useEffect(() => {
     if (authApi.isAuthenticated()) {
       setIsAuthenticated(true)
+      checkAdminStatus()
       loadData()
     } else {
       setLoading(false)
     }
   }, [])
+
+  // Проверка прав администратора
+  const checkAdminStatus = async () => {
+    try {
+      const response = await adminApi.isAdmin()
+      setIsAdmin(response.isAdmin || false)
+    } catch (err) {
+      console.error('Failed to check admin status:', err)
+      setIsAdmin(false)
+    }
+  }
 
   // Перезагружаем игры и данные игроков при изменении даты или количества дней
   useEffect(() => {
@@ -104,6 +122,7 @@ function App() {
       const response = await authApi.login(username, password)
       setUser(response)
       setIsAuthenticated(true)
+      await checkAdminStatus()
       await loadData()
     } catch (err) {
       throw err
@@ -115,6 +134,7 @@ function App() {
       const response = await authApi.register(username, password, email, inviteCode)
       setUser(response)
       setIsAuthenticated(true)
+      await checkAdminStatus()
       await loadData()
     } catch (err) {
       throw err
@@ -332,6 +352,34 @@ function App() {
   }
 
   if (!isAuthenticated) {
+    if (showPasswordResetConfirm) {
+      return (
+        <PasswordResetConfirm
+          onBackToLogin={() => {
+            setShowPasswordResetConfirm(false)
+            setShowPasswordReset(false)
+          }}
+          onPasswordReset={() => {
+            setShowPasswordResetConfirm(false)
+            setShowPasswordReset(false)
+            alert('Пароль успешно изменен! Вы можете войти с новым паролем.')
+          }}
+        />
+      )
+    }
+    if (showPasswordReset) {
+      return (
+        <PasswordResetRequest
+          onBackToLogin={() => {
+            setShowPasswordReset(false)
+          }}
+          onProceedToConfirm={() => {
+            setShowPasswordReset(false)
+            setShowPasswordResetConfirm(true)
+          }}
+        />
+      )
+    }
     return showRegister ? (
       <Register
         onRegister={handleRegister}
@@ -341,6 +389,7 @@ function App() {
       <Login
         onLogin={handleLogin}
         onSwitchToRegister={() => setShowRegister(true)}
+        onForgotPassword={() => setShowPasswordReset(true)}
       />
     )
   }
@@ -444,7 +493,7 @@ function App() {
       </header>
 
       <div className="app-content">
-        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+        <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} isAdmin={isAdmin} />
 
         {activeTab === 'calendar' && (
           <CalendarTab
@@ -475,6 +524,10 @@ function App() {
             currentPlayer={currentPlayer}
             onUpdateProfile={handleUpdateProfile}
           />
+        )}
+
+        {activeTab === 'admin' && isAdmin && (
+          <AdminPanel currentUserId={currentPlayer?.id} />
         )}
       </div>
 
