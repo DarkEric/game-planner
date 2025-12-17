@@ -163,9 +163,11 @@ public class GameService {
         // Проверяем лимит участников (создатель не учитывается в лимите)
         Integer maxParticipants = game.getMaxParticipants();
         if (maxParticipants != null) {
+            // Сохраняем ID создателя в final переменную для использования в лямбде
+            final Long creatorId = game.getCreator().getId();
             // Количество участников без создателя
             long participantCount = game.getParticipants().stream()
-                    .filter(p -> !p.getId().equals(game.getCreator().getId()))
+                    .filter(p -> !p.getId().equals(creatorId))
                     .count();
             
             if (participantCount >= maxParticipants) {
@@ -177,8 +179,9 @@ public class GameService {
         game.getParticipants().add(managedUser);
         
         // Автоматически проставляем доступность на время игры
-        Instant gameStart = game.getStartTime();
-        Instant gameEnd = game.getEndTime();
+        // Сохраняем в final переменные для использования в цикле
+        final Instant gameStart = game.getStartTime();
+        final Instant gameEnd = game.getEndTime();
         
         // Вычисляем количество часов
         long durationHours = (gameEnd.getEpochSecond() - gameStart.getEpochSecond()) / 3600;
