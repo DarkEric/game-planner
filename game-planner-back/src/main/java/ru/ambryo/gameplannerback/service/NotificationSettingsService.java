@@ -69,7 +69,6 @@ public class NotificationSettingsService {
         settings.setGameCreated(dto.getGameCreated());
         settings.setGameCancelled(dto.getGameCancelled());
         settings.setGameHeld(dto.getGameHeld());
-        settings.setGameAddedToGame(dto.getGameAddedToGame());
         settings.setTimeSlotReminderEnabled(dto.getTimeSlotReminderEnabled());
         settings.setTimeSlotReminderDateTime(dto.getTimeSlotReminderDateTime());
         settings.setTimeSlotReminderCron(dto.getTimeSlotReminderCron());
@@ -156,7 +155,6 @@ public class NotificationSettingsService {
         dto.setGameCreated(settings.getGameCreated());
         dto.setGameCancelled(settings.getGameCancelled());
         dto.setGameHeld(settings.getGameHeld());
-        dto.setGameAddedToGame(settings.getGameAddedToGame());
         dto.setTimeSlotReminderEnabled(settings.getTimeSlotReminderEnabled());
         dto.setTimeSlotReminderDateTime(settings.getTimeSlotReminderDateTime());
         dto.setTimeSlotReminderCron(settings.getTimeSlotReminderCron());

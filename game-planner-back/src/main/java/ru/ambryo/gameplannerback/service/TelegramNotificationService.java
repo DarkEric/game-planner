@@ -445,32 +445,6 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
-    public void sendGameAddedToGameNotification(GameDto game, User user) {
-        if (user.getTelegramSubscribed() && user.getTelegramChatId() != null) {
-            StringBuilder message = new StringBuilder();
-            message.append("🎯 <b>Вас добавили на игру!</b>\n\n");
-            
-            if (game.getTitle() != null && !game.getTitle().isEmpty()) {
-                message.append("📌 <b>").append(escapeHtml(game.getTitle())).append("</b>\n");
-            }
-            
-            message.append("🕐 <b>Время:</b> ")
-                .append(formatInstant(game.getStartTime()))
-                .append(" - ")
-                .append(formatInstant(game.getEndTime()))
-                .append(" (")
-                .append(getTimezoneName())
-                .append(")\n");
-            
-            message.append("👤 <b>Организатор:</b> ").append(escapeHtml(game.getCreatorName())).append("\n");
-            
-            String gameUrl = frontendUrl + "?gameId=" + game.getId();
-            message.append("\n🔗 <a href=\"").append(gameUrl).append("\">Посмотреть игру</a>");
-            
-            sendPersonalMessage(user.getTelegramChatId(), message.toString());
-        }
-    }
-    
     public void sendUpcomingGameReminder(GameDto game, User user, int minutesBefore) {
         if (user.getTelegramSubscribed() && user.getTelegramChatId() != null) {
             StringBuilder message = new StringBuilder();

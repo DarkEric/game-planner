@@ -648,18 +648,6 @@ const TelegramNotificationsSettings = ({ userTimezone }) => {
           </div>
         </div>
 
-        {/* Добавили на игру */}
-        <div className="setting-group">
-          <label className="setting-label">
-            <input
-              type="checkbox"
-              checked={settings.gameAddedToGame || false}
-              onChange={(e) => setSettings({ ...settings, gameAddedToGame: e.target.checked })}
-            />
-            Добавили на игру
-          </label>
-        </div>
-
         {/* Напоминания о предстоящих играх */}
         <div className="setting-group reminders-group">
           <label className="setting-label">Напоминания о предстоящих играх:</label>

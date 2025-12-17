@@ -203,18 +203,6 @@ public class GameService {
         game = gameRepository.save(game);
         GameDto gameDto = convertToDto(game);
         
-        // Отправляем уведомление пользователю, если его добавили на игру
-        try {
-            if (managedUser.getTelegramSubscribed() != null && managedUser.getTelegramSubscribed()) {
-                UserNotificationSettings settings = settingsRepository.findByUserId(managedUser.getId()).orElse(null);
-                if (settings != null && settings.getGameAddedToGame()) {
-                    telegramNotificationService.sendGameAddedToGameNotification(gameDto, managedUser);
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Failed to send added to game notification: " + e.getMessage());
-        }
-        
         return gameDto;
     }
     

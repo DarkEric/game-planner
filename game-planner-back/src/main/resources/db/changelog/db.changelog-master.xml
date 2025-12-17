@@ -24,5 +24,6 @@
     <include file="db/changelog/changes/016-create-game-notifications-table.xml"/>
     <include file="db/changelog/changes/017-add-time-slot-reminder-cron.xml"/>
     <include file="db/changelog/changes/018-add-max-participants.xml"/>
+    <include file="db/changelog/changes/019-remove-game-added-to-game.xml"/>
 
 </databaseChangeLog>

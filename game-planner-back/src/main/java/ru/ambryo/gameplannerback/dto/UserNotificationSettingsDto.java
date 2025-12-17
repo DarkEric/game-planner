@@ -15,9 +15,6 @@ public class UserNotificationSettingsDto {
     @NotNull
     private String gameHeld; // "ALL", "MY_GAMES", "NONE"
     
-    @NotNull
-    private Boolean gameAddedToGame;
-    
     private List<UpcomingGameReminderDto> upcomingGameReminders; // до 5 штук
     
     @NotNull
@@ -57,14 +54,6 @@ public class UserNotificationSettingsDto {
     
     public void setGameHeld(String gameHeld) {
         this.gameHeld = gameHeld;
-    }
-    
-    public Boolean getGameAddedToGame() {
-        return gameAddedToGame;
-    }
-    
-    public void setGameAddedToGame(Boolean gameAddedToGame) {
-        this.gameAddedToGame = gameAddedToGame;
     }
     
     public List<UpcomingGameReminderDto> getUpcomingGameReminders() {

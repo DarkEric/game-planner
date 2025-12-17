@@ -24,9 +24,6 @@ public class UserNotificationSettings {
     @Column(name = "game_held", nullable = false)
     private String gameHeld = "ALL"; // "ALL", "MY_GAMES", "NONE"
     
-    @Column(name = "game_added_to_game", nullable = false)
-    private Boolean gameAddedToGame = true;
-    
     @Column(name = "upcoming_game_reminders", columnDefinition = "TEXT")
     private String upcomingGameReminders = "[]"; // JSON массив настроек напоминаний
     
@@ -87,14 +84,6 @@ public class UserNotificationSettings {
     
     public void setGameHeld(String gameHeld) {
         this.gameHeld = gameHeld;
-    }
-    
-    public Boolean getGameAddedToGame() {
-        return gameAddedToGame;
-    }
-    
-    public void setGameAddedToGame(Boolean gameAddedToGame) {
-        this.gameAddedToGame = gameAddedToGame;
     }
     
     public String getUpcomingGameReminders() {
