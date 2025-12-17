@@ -11,6 +11,18 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
 
   const isCreator = game.creatorId === currentUserId
   const isParticipant = game.participants.some(p => p.id === currentUserId)
+  
+  // Подсчет участников без создателя
+  const participantCount = game.participants.filter(p => p.id !== game.creatorId).length
+  const maxParticipants = game.maxParticipants
+  
+  // Проверка заполненности игры
+  const isFull = maxParticipants != null && participantCount >= maxParticipants
+  
+  // Формат отображения: "Участники (X/Y)" или "Участники (X)"
+  const participantsLabel = maxParticipants != null 
+    ? `Участники (${participantCount}/${maxParticipants})`
+    : `Участники (${participantCount})`
 
   const formatDateTime = (date) => {
     return new Date(date).toLocaleString('ru-RU', {
@@ -162,7 +174,17 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
 
             <div className="game-participants">
               <div className="game-info-label">
-                Участники ({game.participants.length})
+                {participantsLabel}
+                {isFull && maxParticipants != null && (
+                  <span style={{ 
+                    marginLeft: '0.5rem', 
+                    color: '#ff6b6b', 
+                    fontSize: '0.9rem',
+                    fontWeight: 'normal'
+                  }}>
+                    (Игра заполнена)
+                  </span>
+                )}
               </div>
               {game.participants.length > 0 ? (
                 <div className="participants-list">
@@ -262,8 +284,10 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
                   <button
                     className="game-action-button join-button"
                     onClick={() => onJoin(game.id)}
+                    disabled={isFull}
+                    style={isFull ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
                   >
-                    Записаться на игру
+                    {isFull ? 'Игра заполнена' : 'Записаться на игру'}
                   </button>
                   <button
                     className="game-action-button close-button-game"

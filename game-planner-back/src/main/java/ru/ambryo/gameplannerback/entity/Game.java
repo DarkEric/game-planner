@@ -25,6 +25,9 @@ public class Game {
     @Column(length = 1000)
     private String description; // Описание игры
     
+    @Column(name = "max_participants")
+    private Integer maxParticipants; // Максимальное количество участников (null = без ограничений)
+    
     @Column(nullable = false)
     private boolean isHeld = false; // Состоялась ли игра
     
@@ -132,6 +135,14 @@ public class Game {
     
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public Integer getMaxParticipants() {
+        return maxParticipants;
+    }
+
+    public void setMaxParticipants(Integer maxParticipants) {
+        this.maxParticipants = maxParticipants;
     }
 
     public boolean isHeld() {

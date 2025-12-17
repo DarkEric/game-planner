@@ -11,6 +11,7 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [autoAddPlayers, setAutoAddPlayers] = useState(true)
+  const [maxParticipants, setMaxParticipants] = useState('')
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [campaigns, setCampaigns] = useState([])
   const [selectedCampaignId, setSelectedCampaignId] = useState('')
@@ -216,7 +217,8 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
       }).map(p => p.id)
     }
 
-    onSchedule(start, end, title, description, participantIds, autoAddPlayers, selectedCampaignId || null)
+    const maxParticipantsValue = maxParticipants.trim() ? parseInt(maxParticipants, 10) : null
+    onSchedule(start, end, title, description, participantIds, autoAddPlayers, selectedCampaignId || null, maxParticipantsValue)
   }
 
   const changeMonth = (offset) => {
@@ -356,6 +358,28 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
                   />
                   <span>Автоматически добавить доступных игроков</span>
                 </label>
+              </div>
+              <div className="time-input-group">
+                <label>Максимальное количество участников (опционально)</label>
+                <input
+                  type="number"
+                  value={maxParticipants}
+                  onChange={(e) => setMaxParticipants(e.target.value)}
+                  placeholder="Без ограничений"
+                  min="1"
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem',
+                    background: '#2a2a2a',
+                    border: '1px solid #444',
+                    borderRadius: '6px',
+                    color: '#fff',
+                    fontSize: '1rem'
+                  }}
+                />
+                <span style={{ fontSize: '0.85rem', color: '#aaa', marginTop: '0.25rem', display: 'block' }}>
+                  Создатель игры не учитывается в этом лимите
+                </span>
               </div>
               {campaigns.length > 0 && (
                 <div className="time-input-group">

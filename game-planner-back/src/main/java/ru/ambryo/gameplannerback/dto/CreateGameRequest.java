@@ -10,6 +10,7 @@ public class CreateGameRequest {
     private String description;
     private List<Long> participantIds;
     private Boolean autoAddPlayers;
+    private Integer maxParticipants;
     
     public CreateGameRequest() {
     }
@@ -68,5 +69,13 @@ public class CreateGameRequest {
     
     public void setAutoAddPlayers(Boolean autoAddPlayers) {
         this.autoAddPlayers = autoAddPlayers;
+    }
+    
+    public Integer getMaxParticipants() {
+        return maxParticipants;
+    }
+    
+    public void setMaxParticipants(Integer maxParticipants) {
+        this.maxParticipants = maxParticipants;
     }
 }

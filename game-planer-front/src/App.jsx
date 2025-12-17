@@ -267,10 +267,10 @@ function App() {
     }
   }
 
-  const handleScheduleGame = async (startTime, endTime, title, description, participantIds, autoAddPlayers, campaignId) => {
+  const handleScheduleGame = async (startTime, endTime, title, description, participantIds, autoAddPlayers, campaignId, maxParticipants) => {
     try {
       setError(null)
-      const game = await gameApi.createGame(startTime, endTime, title, description, participantIds, autoAddPlayers)
+      const game = await gameApi.createGame(startTime, endTime, title, description, participantIds, autoAddPlayers, maxParticipants)
       setGames([...games, game])
       setShowGameScheduler(false)
       
@@ -311,7 +311,13 @@ function App() {
       await loadData()
     } catch (err) {
       console.error('Failed to join game:', err)
-      setError('Не удалось записаться на игру.')
+      // Проверяем, связана ли ошибка с лимитом участников
+      const errorMessage = err.message || ''
+      if (errorMessage.includes('full') || errorMessage.includes('maximum') || errorMessage.includes('participants')) {
+        setError('Игра уже заполнена. Достигнуто максимальное количество участников.')
+      } else {
+        setError('Не удалось записаться на игру.')
+      }
     }
   }
 

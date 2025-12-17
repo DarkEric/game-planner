@@ -14,7 +14,7 @@ const getAuthHeaders = () => {
 }
 
 export const gameApi = {
-  async createGame(startTime, endTime, title, description, participantIds, autoAddPlayers = true) {
+  async createGame(startTime, endTime, title, description, participantIds, autoAddPlayers = true, maxParticipants = null) {
     const userTimezone = getUserTimezoneForAPI()
 
     const response = await fetch(`${API_BASE_URL}/games`, {
@@ -26,7 +26,8 @@ export const gameApi = {
         title: title || null,
         description: description || null,
         participantIds,
-        autoAddPlayers
+        autoAddPlayers,
+        maxParticipants: maxParticipants || null
       })
     })
 
@@ -44,10 +45,10 @@ export const gameApi = {
       creatorId: data.creatorId,
       creatorName: data.creatorName,
       participants: data.participants,
-      participants: data.participants,
       createdAt: parseFromServer(data.createdAt, userTimezone),
       isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
-      keyEvents: data.keyEvents
+      keyEvents: data.keyEvents,
+      maxParticipants: data.maxParticipants
     }
   },
 
@@ -156,7 +157,8 @@ export const gameApi = {
       participants: data.participants,
       createdAt: parseFromServer(data.createdAt, userTimezone),
       isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
-      keyEvents: data.keyEvents
+      keyEvents: data.keyEvents,
+      maxParticipants: data.maxParticipants
     }
   },
 
@@ -184,7 +186,8 @@ export const gameApi = {
       participants: data.participants,
       createdAt: parseFromServer(data.createdAt, userTimezone),
       isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
-      keyEvents: data.keyEvents
+      keyEvents: data.keyEvents,
+      maxParticipants: data.maxParticipants
     }
   },
 
@@ -212,7 +215,8 @@ export const gameApi = {
       participants: data.participants,
       createdAt: parseFromServer(data.createdAt, userTimezone),
       isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
-      keyEvents: data.keyEvents
+      keyEvents: data.keyEvents,
+      maxParticipants: data.maxParticipants
     }
   },
 
@@ -241,7 +245,8 @@ export const gameApi = {
       participants: data.participants,
       createdAt: parseFromServer(data.createdAt, userTimezone),
       isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
-      keyEvents: data.keyEvents
+      keyEvents: data.keyEvents,
+      maxParticipants: data.maxParticipants
     }
   },
 

@@ -17,13 +17,14 @@ public class GameDto {
     private String keyEvents;
     private Long campaignId;
     private String campaignName;
+    private Integer maxParticipants;
     
     public GameDto() {
     }
     
     public GameDto(Long id, Instant startTime, Instant endTime, Long creatorId, String creatorName, 
                    String title, String description, List<ParticipantDto> participants, Instant createdAt,
-                   boolean isHeld, String keyEvents, Long campaignId, String campaignName) {
+                   boolean isHeld, String keyEvents, Long campaignId, String campaignName, Integer maxParticipants) {
         this.id = id;
         this.startTime = startTime;
         this.endTime = endTime;
@@ -37,6 +38,7 @@ public class GameDto {
         this.keyEvents = keyEvents;
         this.campaignId = campaignId;
         this.campaignName = campaignName;
+        this.maxParticipants = maxParticipants;
     }
     
     public Long getId() {
@@ -141,6 +143,14 @@ public class GameDto {
 
     public void setCampaignName(String campaignName) {
         this.campaignName = campaignName;
+    }
+    
+    public Integer getMaxParticipants() {
+        return maxParticipants;
+    }
+    
+    public void setMaxParticipants(Integer maxParticipants) {
+        this.maxParticipants = maxParticipants;
     }
     
     public static class ParticipantDto {

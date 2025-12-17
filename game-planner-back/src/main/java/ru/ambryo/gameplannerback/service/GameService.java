@@ -71,6 +71,7 @@ public class GameService {
         }
         
         game.setParticipants(participants);
+        game.setMaxParticipants(request.getMaxParticipants());
         game = gameRepository.save(game);
         
         GameDto gameDto = convertToDto(game);
@@ -157,6 +158,19 @@ public class GameService {
         // Проверяем, не записан ли уже пользователь
         if (game.getParticipants().stream().anyMatch(p -> p.getId().equals(user.getId()))) {
             throw new RuntimeException("User already joined this game");
+        }
+        
+        // Проверяем лимит участников (создатель не учитывается в лимите)
+        Integer maxParticipants = game.getMaxParticipants();
+        if (maxParticipants != null) {
+            // Количество участников без создателя
+            long participantCount = game.getParticipants().stream()
+                    .filter(p -> !p.getId().equals(game.getCreator().getId()))
+                    .count();
+            
+            if (participantCount >= maxParticipants) {
+                throw new RuntimeException("Game is full. Maximum number of participants reached");
+            }
         }
         
         // Добавляем пользователя в участники
@@ -303,7 +317,8 @@ public class GameService {
                 game.isHeld(),
                 game.getKeyEvents(),
                 game.getCampaign() != null ? game.getCampaign().getId() : null,
-                game.getCampaign() != null ? game.getCampaign().getName() : null
+                game.getCampaign() != null ? game.getCampaign().getName() : null,
+                game.getMaxParticipants()
         );
     }
     
