@@ -303,8 +303,29 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
         )
     }
 
-    const heldGames = games.filter(g => g.isHeld || g.held)
-    const upcomingGames = games.filter(g => !(g.isHeld || g.held))
+    // Filter games - check both isHeld and held fields for compatibility
+    const heldGames = games.filter(g => {
+        const isHeldValue = g.isHeld !== undefined ? g.isHeld : (g.held !== undefined ? g.held : false)
+        return isHeldValue === true
+    })
+    const upcomingGames = games.filter(g => {
+        const isHeldValue = g.isHeld !== undefined ? g.isHeld : (g.held !== undefined ? g.held : false)
+        return isHeldValue === false
+    })
+    
+    // Debug logging
+    console.log('CampaignDetails Games Debug:', {
+        totalGames: games.length,
+        heldGamesCount: heldGames.length,
+        upcomingGamesCount: upcomingGames.length,
+        games: games.map(g => ({
+            id: g.id,
+            title: g.title,
+            isHeld: g.isHeld,
+            held: g.held,
+            resolvedIsHeld: g.isHeld !== undefined ? g.isHeld : (g.held !== undefined ? g.held : false)
+        }))
+    })
 
     return (
         <div className="campaign-details">

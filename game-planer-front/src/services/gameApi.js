@@ -273,8 +273,11 @@ export const gameApi = {
       creatorName: data.creatorName,
       participants: data.participants,
       createdAt: parseFromServer(data.createdAt, userTimezone),
-      isHeld: data.isHeld !== undefined ? data.isHeld : data.held,
-      keyEvents: data.keyEvents
+      isHeld: data.isHeld !== undefined ? data.isHeld : (data.held !== undefined ? data.held : false),
+      keyEvents: data.keyEvents,
+      campaignId: data.campaignId,
+      campaignName: data.campaignName,
+      maxParticipants: data.maxParticipants
     }
   }
 }

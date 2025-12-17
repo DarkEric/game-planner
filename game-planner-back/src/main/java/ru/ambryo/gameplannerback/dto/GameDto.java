@@ -1,5 +1,6 @@
 package ru.ambryo.gameplannerback.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.Instant;
 import java.util.List;
 
@@ -113,10 +114,12 @@ public class GameDto {
         this.description = description;
     }
 
+    @JsonProperty("isHeld")
     public boolean isHeld() {
         return isHeld;
     }
 
+    @JsonProperty("isHeld")
     public void setHeld(boolean held) {
         isHeld = held;
     }
