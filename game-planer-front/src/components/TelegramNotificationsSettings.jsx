@@ -648,6 +648,31 @@ const TelegramNotificationsSettings = ({ userTimezone }) => {
           </div>
         </div>
 
+        {/* Исключили из игры */}
+        <div className="setting-group">
+          <label className="setting-label">Исключили из игры:</label>
+          <div className="radio-group">
+            <label>
+              <input
+                type="radio"
+                value="ALL"
+                checked={settings.gameRemovedFromGame === 'ALL'}
+                onChange={(e) => setSettings({ ...settings, gameRemovedFromGame: e.target.value })}
+              />
+              Получать
+            </label>
+            <label>
+              <input
+                type="radio"
+                value="NONE"
+                checked={settings.gameRemovedFromGame === 'NONE'}
+                onChange={(e) => setSettings({ ...settings, gameRemovedFromGame: e.target.value })}
+              />
+              Не получать
+            </label>
+          </div>
+        </div>
+
         {/* Напоминания о предстоящих играх */}
         <div className="setting-group reminders-group">
           <label className="setting-label">Напоминания о предстоящих играх:</label>

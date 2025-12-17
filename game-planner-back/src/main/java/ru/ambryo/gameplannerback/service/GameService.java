@@ -248,11 +248,29 @@ public class GameService {
             throw new RuntimeException("Player is not a participant of this game");
         }
         
+        // Сохраняем информацию об удаляемом игроке для уведомления
+        User removedPlayer = userRepository.findById(playerId)
+                .orElseThrow(() -> new RuntimeException("Player not found"));
+        
         // Удаляем игрока из участников
         game.getParticipants().removeIf(p -> p.getId().equals(playerId));
         
         game = gameRepository.save(game);
-        return convertToDto(game);
+        GameDto gameDto = convertToDto(game);
+        
+        // Отправляем уведомление удаленному игроку
+        try {
+            if (removedPlayer.getTelegramSubscribed() != null && removedPlayer.getTelegramSubscribed()) {
+                UserNotificationSettings settings = settingsRepository.findByUserId(removedPlayer.getId()).orElse(null);
+                if (settings != null && "ALL".equals(settings.getGameRemovedFromGame())) {
+                    telegramNotificationService.sendPlayerRemovedFromGameNotification(gameDto, removedPlayer);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to send removed from game notification: " + e.getMessage());
+        }
+        
+        return gameDto;
     }
     
     @Transactional

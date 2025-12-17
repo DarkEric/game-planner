@@ -24,6 +24,9 @@ public class UserNotificationSettings {
     @Column(name = "game_held", nullable = false)
     private String gameHeld = "ALL"; // "ALL", "MY_GAMES", "NONE"
     
+    @Column(name = "game_removed_from_game", nullable = false)
+    private String gameRemovedFromGame = "ALL"; // "ALL", "NONE"
+    
     @Column(name = "upcoming_game_reminders", columnDefinition = "TEXT")
     private String upcomingGameReminders = "[]"; // JSON массив настроек напоминаний
     
@@ -84,6 +87,14 @@ public class UserNotificationSettings {
     
     public void setGameHeld(String gameHeld) {
         this.gameHeld = gameHeld;
+    }
+    
+    public String getGameRemovedFromGame() {
+        return gameRemovedFromGame;
+    }
+    
+    public void setGameRemovedFromGame(String gameRemovedFromGame) {
+        this.gameRemovedFromGame = gameRemovedFromGame;
     }
     
     public String getUpcomingGameReminders() {

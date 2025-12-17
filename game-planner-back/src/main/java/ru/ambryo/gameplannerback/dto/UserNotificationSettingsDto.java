@@ -15,6 +15,9 @@ public class UserNotificationSettingsDto {
     @NotNull
     private String gameHeld; // "ALL", "MY_GAMES", "NONE"
     
+    @NotNull
+    private String gameRemovedFromGame; // "ALL", "NONE"
+    
     private List<UpcomingGameReminderDto> upcomingGameReminders; // до 5 штук
     
     @NotNull
@@ -54,6 +57,14 @@ public class UserNotificationSettingsDto {
     
     public void setGameHeld(String gameHeld) {
         this.gameHeld = gameHeld;
+    }
+    
+    public String getGameRemovedFromGame() {
+        return gameRemovedFromGame;
+    }
+    
+    public void setGameRemovedFromGame(String gameRemovedFromGame) {
+        this.gameRemovedFromGame = gameRemovedFromGame;
     }
     
     public List<UpcomingGameReminderDto> getUpcomingGameReminders() {
