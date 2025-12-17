@@ -8,10 +8,13 @@ const ResetPasswordModal = ({ user, onClose, onConfirm, loading: externalLoading
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    // Сбрасываем состояние при открытии модального окна
-    setResult(null)
-    setError(null)
-  }, [user])
+    // Сбрасываем состояние при открытии модального окна для нового пользователя
+    if (user) {
+      // Сбрасываем только если это другой пользователь или модальное окно только что открылось
+      setResult(null)
+      setError(null)
+    }
+  }, [user?.id])
 
   const handleConfirm = async () => {
     if (!user) return
@@ -21,7 +24,14 @@ const ResetPasswordModal = ({ user, onClose, onConfirm, loading: externalLoading
 
     try {
       const response = await adminApi.resetUserPassword(user.id)
-      setResult(response)
+      console.log('Reset password response:', response)
+      // Нормализуем boolean значение для sentViaTelegram
+      const normalizedResponse = {
+        ...response,
+        sentViaTelegram: response.sentViaTelegram === true || response.sentViaTelegram === 'true'
+      }
+      console.log('Normalized response:', normalizedResponse)
+      setResult(normalizedResponse)
       if (onConfirm) {
         onConfirm()
       }
@@ -33,25 +43,41 @@ const ResetPasswordModal = ({ user, onClose, onConfirm, loading: externalLoading
   }
 
   if (result) {
+    const wasSentViaTelegram = result.sentViaTelegram === true || result.sentViaTelegram === 'true'
+    const password = result.temporaryPassword
+    const hasPassword = password != null && password !== '' && String(password).trim() !== ''
+    
+    console.log('Rendering result:', { 
+      wasSentViaTelegram, 
+      hasPassword, 
+      temporaryPassword: password,
+      passwordType: typeof password,
+      passwordLength: password ? String(password).length : 0,
+      fullResult: result
+    })
+    
     return (
       <div className="admin-modal-overlay" onClick={onClose}>
         <div className="admin-modal" onClick={(e) => e.stopPropagation()}>
           <h3>Результат сброса пароля</h3>
-          {result.sentViaTelegram ? (
+          {wasSentViaTelegram && (
             <div className="admin-success-message">
               Новый пароль отправлен пользователю в Telegram
             </div>
-          ) : (
+          )}
+          {hasPassword ? (
             <div>
               <div className="admin-modal-message">
-                Новый пароль для пользователя <strong>{user.username}</strong>:
+                Новый пароль для пользователя <strong>{user?.username || 'пользователя'}</strong>:
               </div>
               <div className="admin-password-display">
-                <span>{result.temporaryPassword}</span>
+                <span style={{ color: '#646cff', fontWeight: 'bold', fontSize: '1.1rem' }}>
+                  {String(password)}
+                </span>
                 <button
                   className="admin-copy-button"
                   onClick={() => {
-                    navigator.clipboard.writeText(result.temporaryPassword)
+                    navigator.clipboard.writeText(String(password))
                     alert('Пароль скопирован в буфер обмена')
                   }}
                 >
@@ -60,6 +86,13 @@ const ResetPasswordModal = ({ user, onClose, onConfirm, loading: externalLoading
               </div>
               <div className="admin-modal-message" style={{ fontSize: '0.85rem', color: '#ff6b6b' }}>
                 ⚠️ Сохраните этот пароль! Он больше не будет показан.
+              </div>
+            </div>
+          ) : (
+            <div className="admin-error">
+              Ошибка: пароль не был получен. 
+              <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
+                Ответ сервера: {JSON.stringify(result, null, 2)}
               </div>
             </div>
           )}
