@@ -32,7 +32,8 @@ public class AuthController {
                     request.getUsername(),
                     request.getPassword(),
                     request.getEmail(),
-                    request.getInviteCode()
+                    request.getInviteCode(),
+                    request.getName()
             );
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {

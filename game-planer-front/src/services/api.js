@@ -50,13 +50,13 @@ const handleAuthError = (response) => {
 
 export const authApi = {
   // Регистрация
-  async register(username, password, email, inviteCode) {
+  async register(username, password, email, inviteCode, name = null) {
     const response = await fetch(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username, password, email, inviteCode })
+      body: JSON.stringify({ username, password, email, inviteCode, name })
     })
     if (!response.ok) {
       const errorText = await response.text()

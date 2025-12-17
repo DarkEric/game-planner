@@ -129,9 +129,9 @@ function App() {
     }
   }
 
-  const handleRegister = async (username, password, email, inviteCode) => {
+  const handleRegister = async (username, password, email, inviteCode, name) => {
     try {
-      const response = await authApi.register(username, password, email, inviteCode)
+      const response = await authApi.register(username, password, email, inviteCode, name)
       setUser(response)
       setIsAuthenticated(true)
       await checkAdminStatus()

@@ -29,7 +29,7 @@ public class AuthService {
     private InviteService inviteService;
     
     @Transactional
-    public AuthResponse register(String username, String password, String email, String inviteCode) {
+    public AuthResponse register(String username, String password, String email, String inviteCode, String name) {
         // Проверяем инвайт-код (обязательно)
         if (inviteCode == null || inviteCode.trim().isEmpty()) {
             throw new RuntimeException("Invite code is required");
@@ -49,7 +49,8 @@ public class AuthService {
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
         user.setEmail(email);
-        user.setName(username); // Имя по умолчанию = username
+        // Используем переданное имя, если оно есть, иначе используем username
+        user.setName(name != null && !name.trim().isEmpty() ? name.trim() : username);
         user.setColor("#646cff"); // Цвет по умолчанию
         
         User savedUser = userRepository.save(user);

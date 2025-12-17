@@ -5,6 +5,7 @@ public class RegisterRequest {
     private String password;
     private String email;
     private String inviteCode;
+    private String name; // Опциональное отображаемое имя
     
     public RegisterRequest() {
     }
@@ -14,6 +15,14 @@ public class RegisterRequest {
         this.password = password;
         this.email = email;
         this.inviteCode = inviteCode;
+    }
+    
+    public RegisterRequest(String username, String password, String email, String inviteCode, String name) {
+        this.username = username;
+        this.password = password;
+        this.email = email;
+        this.inviteCode = inviteCode;
+        this.name = name;
     }
     
     public String getUsername() {
@@ -46,5 +55,13 @@ public class RegisterRequest {
     
     public void setInviteCode(String inviteCode) {
         this.inviteCode = inviteCode;
+    }
+    
+    public String getName() {
+        return name;
+    }
+    
+    public void setName(String name) {
+        this.name = name;
     }
 }

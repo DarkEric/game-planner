@@ -3,6 +3,7 @@ import './Login.css'
 
 const Register = ({ onRegister, onSwitchToLogin }) => {
   const [username, setUsername] = useState('')
+  const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -32,7 +33,7 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
     setLoading(true)
 
     try {
-      await onRegister(username, password, email, inviteCode)
+      await onRegister(username, password, email, inviteCode, name)
     } catch (err) {
       setError(err.message || 'Ошибка при регистрации. Проверьте инвайт-код.')
     } finally {
@@ -46,7 +47,7 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
         <h2>Регистрация</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="reg-username">Имя пользователя</label>
+            <label htmlFor="reg-username">Логин</label>
             <input
               id="reg-username"
               type="text"
@@ -54,7 +55,25 @@ const Register = ({ onRegister, onSwitchToLogin }) => {
               onChange={(e) => setUsername(e.target.value)}
               required
               disabled={loading}
+              placeholder="Используется для входа в систему"
             />
+            <small style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+              Уникальное имя для входа. Можно изменить только через администратора.
+            </small>
+          </div>
+          <div className="form-group">
+            <label htmlFor="reg-name">Отображаемое имя (необязательно)</label>
+            <input
+              id="reg-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={loading}
+              placeholder="Как вас будут видеть другие пользователи"
+            />
+            <small style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '0.25rem', display: 'block' }}>
+              Если не указано, будет использован логин. Можно изменить позже в настройках профиля.
+            </small>
           </div>
           <div className="form-group">
             <label htmlFor="reg-email">Email</label>
