@@ -31,11 +31,6 @@ const CalendarTimeline = ({
     setCurrentStartDate(startDate)
   }, [startDate])
 
-  // Очищаем маппинг колонок при изменении событий или дат
-  useEffect(() => {
-    gameColumnMapRef.current.clear()
-  }, [events, dates])
-
   // Автоматическая прокрутка к 12 часам при монтировании
   useEffect(() => {
     // Небольшая задержка для корректной прокрутки после рендера
@@ -59,6 +54,11 @@ const CalendarTimeline = ({
     }
     return hoursArray
   }, [])
+
+  // Очищаем маппинг колонок при изменении событий или дат
+  useEffect(() => {
+    gameColumnMapRef.current.clear()
+  }, [events, currentStartDate, daysToShow])
 
   const formatDate = (date) => {
     return date.toLocaleDateString('ru-RU', { 
@@ -110,7 +110,7 @@ const CalendarTimeline = ({
 
     for (const event of sortedEvents) {
       // Проверяем, есть ли уже назначенная колонка для этой игры (для многочасовых игр)
-      const gameId = event.game?.id || event.id
+      const gameId = event.game?.id || event.id || `event-${event.start}-${event.title}`
       let assignedColumn = gameColumnMapRef.current.get(gameId)
 
       // Если колонка уже назначена, проверяем, свободна ли она
