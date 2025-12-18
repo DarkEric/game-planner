@@ -16,8 +16,8 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
   const participantCount = game.participants ? game.participants.filter(p => p.id !== game.creatorId).length : 0
   const maxParticipants = game.maxParticipants
   
-  // Проверяем, что maxParticipants не null, не undefined и больше 0
-  const hasMaxParticipants = maxParticipants != null && maxParticipants !== undefined && maxParticipants > 0
+  // Проверяем, что maxParticipants задан (не null и не undefined)
+  const hasMaxParticipants = maxParticipants != null && maxParticipants !== undefined
   
   // Проверка заполненности игры
   const isFull = hasMaxParticipants && participantCount >= maxParticipants

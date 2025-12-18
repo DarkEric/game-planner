@@ -27,8 +27,8 @@ const CalendarTab = ({
                         ? game.participants.filter(p => p.id !== game.creatorId).length 
                         : 0
                     const maxParticipants = game.maxParticipants
-                    // Проверяем, что maxParticipants не null, не undefined и больше 0
-                    const hasMaxParticipants = maxParticipants != null && maxParticipants !== undefined && maxParticipants > 0
+                    // Проверяем, что maxParticipants задан (не null и не undefined)
+                    const hasMaxParticipants = maxParticipants != null && maxParticipants !== undefined
                     const playersInfo = hasMaxParticipants
                         ? `${participantCount}/${maxParticipants} игроков`
                         : `${participantCount} игроков`

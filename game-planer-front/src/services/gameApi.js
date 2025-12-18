@@ -84,10 +84,12 @@ export const gameApi = {
       creatorId: game.creatorId,
       creatorName: game.creatorName,
       participants: game.participants,
-      participants: game.participants,
       createdAt: parseFromServer(game.createdAt, userTimezone),
       isHeld: game.isHeld !== undefined ? game.isHeld : game.held,
-      keyEvents: game.keyEvents
+      keyEvents: game.keyEvents,
+      campaignId: game.campaignId,
+      campaignName: game.campaignName,
+      maxParticipants: game.maxParticipants
     }))
   },
 
@@ -111,7 +113,6 @@ export const gameApi = {
       description: game.description,
       creatorId: game.creatorId,
       creatorName: game.creatorName,
-      participants: game.participants,
       participants: game.participants,
       createdAt: parseFromServer(game.createdAt, userTimezone),
       isHeld: game.isHeld !== undefined ? game.isHeld : game.held,

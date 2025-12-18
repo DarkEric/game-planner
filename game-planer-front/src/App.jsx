@@ -44,10 +44,10 @@ function App() {
   useEffect(() => {
     const calculateDaysToShow = () => {
       // Теперь у нас нет левой панели, только отступы приложения
-      // Отступы приложения (2rem = 32px) + колонка часов (80px) + ширина одной колонки дня (80px)
+      // Отступы приложения (2rem = 32px) + колонка часов (80px) + ширина одной колонки дня (160px)
       const appPadding = 32
       const hoursColumnWidth = 80
-      const dayColumnWidth = 80
+      const dayColumnWidth = 160
       const reservedSpace = 20 // Минимальный запас для прокрутки
 
       const availableWidth = window.innerWidth - appPadding - hoursColumnWidth - reservedSpace
