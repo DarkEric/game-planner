@@ -866,8 +866,20 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     
     public void sendGameCreatedPersonalNotification(GameDto game, User user) {
         if (user.getTelegramSubscribed() && user.getTelegramChatId() != null) {
-            String message = buildGameNotificationMessage(game);
-            sendPersonalMessage(user.getTelegramChatId(), message);
+            try {
+                String message = buildGameDetailsMessage(game, user);
+                InlineKeyboardMarkup keyboard = buildGameKeyboard(game, user);
+                
+                SendMessage sendMessage = new SendMessage();
+                sendMessage.setChatId(user.getTelegramChatId());
+                sendMessage.setText(message);
+                sendMessage.setParseMode("HTML");
+                sendMessage.setReplyMarkup(keyboard);
+                
+                execute(sendMessage);
+            } catch (TelegramApiException e) {
+                logger.error("Failed to send personal game created notification to user {}", user.getId(), e);
+            }
         }
     }
     
