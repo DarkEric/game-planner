@@ -164,8 +164,6 @@ public class GameService {
         // Сохраняем DTO до удаления для отправки уведомления
         GameDto gameDto = convertToDto(game);
         
-        gameRepository.delete(game);
-        
         // Отправляем общее уведомление об отмене в Telegram
         try {
             telegramNotificationService.sendGameCancelledNotification(gameDto, cancellationReason);
@@ -180,6 +178,9 @@ public class GameService {
         } catch (Exception e) {
             System.err.println("Failed to send personal cancellation notifications: " + e.getMessage());
         }
+        
+        // Удаляем игру после отправки всех уведомлений
+        gameRepository.delete(game);
     }
     
     @Transactional
@@ -430,8 +431,9 @@ public class GameService {
                 if (existing == null) {
                     telegramNotificationService.sendGameCancelledPersonalNotification(gameDto, participant);
                     
-                    GameNotification notification = new GameNotification(game, "GAME_CANCELLED", participant);
-                    gameNotificationRepository.save(notification);
+                    // Не сохраняем GameNotification для отмененных игр, так как игра будет удалена
+                    // GameNotification notification = new GameNotification(game, "GAME_CANCELLED", participant);
+                    // gameNotificationRepository.save(notification);
                 }
             }
         }
