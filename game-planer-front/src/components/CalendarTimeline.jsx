@@ -192,9 +192,29 @@ const CalendarTimeline = ({
       const checkDateEnd = new Date(checkDate)
       checkDateEnd.setHours(hour + 1, 0, 0, 0)
       
-      // Проверяем пересечение: событие должно пересекаться с этой ячейкой
-      // Событие пересекается с ячейкой, если: eventStart < checkDateEnd && eventEnd > checkDate
-      return eventStart < checkDateEnd && eventEnd > checkDate
+      // Событие должно отображаться только в ячейке, где оно начинается
+      // Проверяем, начинается ли событие в этой ячейке
+      const startsInThisCell = eventStart >= checkDate && eventStart < checkDateEnd
+      
+      if (startsInThisCell) {
+        return true
+      }
+      
+      // Если событие переходит через полночь и продолжается на следующий день,
+      // показываем его продолжение в 00:00 следующего дня
+      if (hour === 0) {
+        const eventStartDate = new Date(eventStart)
+        eventStartDate.setHours(0, 0, 0, 0)
+        const currentDate = new Date(date)
+        currentDate.setHours(0, 0, 0, 0)
+        
+        // Событие началось раньше и продолжается в этот день
+        if (eventStartDate < currentDate && eventEnd > checkDate) {
+          return true
+        }
+      }
+      
+      return false
     })
   }
   
@@ -208,15 +228,36 @@ const CalendarTimeline = ({
     const checkDateEnd = new Date(checkDate)
     checkDateEnd.setHours(hour + 1, 0, 0, 0)
     
-    // Вычисляем пересечение события с этой ячейкой
-    const intersectionStart = eventStart > checkDate ? eventStart : checkDate
-    const intersectionEnd = eventEnd < checkDateEnd ? eventEnd : checkDateEnd
+    // Если событие начинается в этой ячейке
+    if (eventStart >= checkDate && eventStart < checkDateEnd) {
+      // Конец дня (полночь следующего дня)
+      const endOfDay = new Date(date)
+      endOfDay.setHours(24, 0, 0, 0)
+      
+      // Если событие заканчивается до конца дня - показываем полную высоту
+      if (eventEnd <= endOfDay) {
+        const durationHours = (eventEnd - eventStart) / (1000 * 60 * 60)
+        return durationHours
+      } else {
+        // Событие переходит на следующий день - показываем только до полуночи
+        const hoursUntilMidnight = (endOfDay - eventStart) / (1000 * 60 * 60)
+        return hoursUntilMidnight
+      }
+    }
     
-    // Высота в часах для этой ячейки
-    const heightHours = (intersectionEnd - intersectionStart) / (1000 * 60 * 60)
+    // Если это продолжение события с предыдущего дня (hour === 0)
+    if (hour === 0) {
+      const currentDayStart = new Date(date)
+      currentDayStart.setHours(0, 0, 0, 0)
+      
+      if (eventStart < currentDayStart && eventEnd > currentDayStart) {
+        // Показываем оставшуюся часть события
+        const remainingHours = (eventEnd - currentDayStart) / (1000 * 60 * 60)
+        return remainingHours
+      }
+    }
     
-    // Минимум 1 час для видимости
-    return Math.max(heightHours, 1)
+    return event.duration || 1
   }
 
   const getAvailabilityForDateAndHour = (date, hour) => {
