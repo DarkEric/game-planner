@@ -196,7 +196,7 @@
 
 .timeline-event {
   position: absolute;
-  top: 2px;
+  /* top задается через inline стили */
   background-color: #646cff;
   border-radius: 4px;
   padding: 4px 8px;
