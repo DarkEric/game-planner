@@ -219,9 +219,15 @@ const CalendarTimeline = ({
   }
   
   const getEventDisplayHeight = (event, date, hour) => {
+    // Используем event.end если доступен, иначе вычисляем из duration
     const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
-    const eventEnd = new Date(eventStart)
-    eventEnd.setHours(eventStart.getHours() + (event.duration || 1))
+    let eventEnd
+    if (event.end) {
+      eventEnd = event.end instanceof Date ? event.end : new Date(event.end)
+    } else {
+      eventEnd = new Date(eventStart)
+      eventEnd.setHours(eventStart.getHours() + (event.duration || 1))
+    }
     
     const checkDate = new Date(date)
     checkDate.setHours(hour, 0, 0, 0)
@@ -237,11 +243,11 @@ const CalendarTimeline = ({
       // Если событие заканчивается до конца дня - показываем полную высоту
       if (eventEnd <= endOfDay) {
         const durationHours = (eventEnd - eventStart) / (1000 * 60 * 60)
-        return durationHours
+        return Math.max(durationHours, 0.5) // Минимум 0.5 часа для видимости
       } else {
         // Событие переходит на следующий день - показываем только до полуночи
         const hoursUntilMidnight = (endOfDay - eventStart) / (1000 * 60 * 60)
-        return hoursUntilMidnight
+        return Math.max(hoursUntilMidnight, 0.5)
       }
     }
     
@@ -253,11 +259,12 @@ const CalendarTimeline = ({
       if (eventStart < currentDayStart && eventEnd > currentDayStart) {
         // Показываем оставшуюся часть события
         const remainingHours = (eventEnd - currentDayStart) / (1000 * 60 * 60)
-        return remainingHours
+        return Math.max(remainingHours, 0.5)
       }
     }
     
-    return event.duration || 1
+    // Fallback: используем duration если доступен
+    return Math.max(event.duration || 1, 0.5)
   }
 
   const getAvailabilityForDateAndHour = (date, hour) => {
