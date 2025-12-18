@@ -23,11 +23,18 @@ const CalendarTimeline = ({
   const [tooltip, setTooltip] = useState({ visible: false, players: [], position: { x: 0, y: 0 }, title: '' })
   const gridRef = useRef(null)
   const containerRef = useRef(null)
+  // Хранилище для колонок многочасовых игр: gameId -> column
+  const gameColumnMapRef = useRef(new Map())
   const { t } = useLanguage()
 
   useEffect(() => {
     setCurrentStartDate(startDate)
   }, [startDate])
+
+  // Очищаем маппинг колонок при изменении событий или дат
+  useEffect(() => {
+    gameColumnMapRef.current.clear()
+  }, [events, dates])
 
   // Автоматическая прокрутка к 12 часам при монтировании
   useEffect(() => {
@@ -64,6 +71,104 @@ const CalendarTimeline = ({
   const formatHour = (hour) => {
     return `${hour.toString().padStart(2, '0')}:00`
   }
+
+  // Проверка перекрытия двух событий по времени (частичного или полного)
+  const eventsOverlap = useCallback((event1, event2) => {
+    const start1 = event1.start instanceof Date ? event1.start : new Date(event1.start)
+    const end1 = new Date(start1)
+    end1.setHours(start1.getHours() + (event1.duration || 1))
+    
+    const start2 = event2.start instanceof Date ? event2.start : new Date(event2.start)
+    const end2 = new Date(start2)
+    end2.setHours(start2.getHours() + (event2.duration || 1))
+    
+    // Перекрытие если: start1 < end2 && start2 < end1
+    return start1 < end2 && start2 < end1
+  }, [])
+
+  // Распределение событий по колонкам с учетом перекрытий
+  const calculateEventColumns = useCallback((events, date, hour) => {
+    if (events.length === 0) {
+      return []
+    }
+
+    // Если только одно событие, оно занимает полную ширину
+    if (events.length === 1) {
+      return [{ event: events[0], column: 0, totalColumns: 1 }]
+    }
+
+    // Сортируем события по времени начала
+    const sortedEvents = [...events].sort((a, b) => {
+      const startA = a.start instanceof Date ? a.start : new Date(a.start)
+      const startB = b.start instanceof Date ? b.start : new Date(b.start)
+      return startA - startB
+    })
+
+    // Массив колонок: каждая колонка содержит события, которые в ней размещены
+    const columns = []
+    const result = []
+
+    for (const event of sortedEvents) {
+      // Проверяем, есть ли уже назначенная колонка для этой игры (для многочасовых игр)
+      const gameId = event.game?.id || event.id
+      let assignedColumn = gameColumnMapRef.current.get(gameId)
+
+      // Если колонка уже назначена, проверяем, свободна ли она
+      if (assignedColumn !== undefined && columns[assignedColumn]) {
+        // Проверяем, не перекрывается ли событие с другими в этой колонке
+        const hasOverlap = columns[assignedColumn].some(existingEvent => 
+          eventsOverlap(event, existingEvent)
+        )
+        
+        if (!hasOverlap) {
+          // Колонка свободна, используем её
+          columns[assignedColumn].push(event)
+          result.push({ event, column: assignedColumn, totalColumns: Math.max(columns.length, assignedColumn + 1) })
+          continue
+        } else {
+          // Колонка занята, нужно найти новую
+          assignedColumn = undefined
+        }
+      }
+
+      // Ищем первую свободную колонку
+      let foundColumn = -1
+      for (let colIndex = 0; colIndex < columns.length; colIndex++) {
+        const columnEvents = columns[colIndex]
+        // Проверяем, есть ли перекрытие с событиями в этой колонке
+        const hasOverlap = columnEvents.some(existingEvent => 
+          eventsOverlap(event, existingEvent)
+        )
+        
+        if (!hasOverlap) {
+          foundColumn = colIndex
+          break
+        }
+      }
+
+      // Если не нашли свободную колонку, создаем новую
+      if (foundColumn === -1) {
+        foundColumn = columns.length
+        columns.push([])
+      }
+
+      // Размещаем событие в найденной колонке
+      columns[foundColumn].push(event)
+      
+      // Сохраняем колонку для многочасовых игр
+      if (gameId) {
+        gameColumnMapRef.current.set(gameId, foundColumn)
+      }
+
+      result.push({ 
+        event, 
+        column: foundColumn, 
+        totalColumns: columns.length 
+      })
+    }
+
+    return result
+  }, [eventsOverlap])
 
   const getEventsForDateAndHour = (date, hour) => {
     return events.filter(event => {
@@ -474,23 +579,43 @@ const CalendarTimeline = ({
                         />
                       ))}
                       
-                      {hourEvents.map((event, eventIndex) => {
-                        const displayHeight = getEventDisplayHeight(event, date, hour)
-                        return (
-                          <div
-                            key={eventIndex}
-                            className="timeline-event"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              onEventClick && onEventClick(event)
-                            }}
-                            onMouseEnter={(e) => handleEventMouseEnter(e, event)}
-                            onMouseLeave={handleEventMouseLeave}
-                            style={{
-                              backgroundColor: event.color || '#646cff',
-                              height: `${displayHeight * 40}px`
-                            }}
-                          >
+                      {(() => {
+                        // Вычисляем колонки для событий
+                        const eventColumns = calculateEventColumns(hourEvents, date, hour)
+                        
+                        return eventColumns.map(({ event, column, totalColumns }, eventIndex) => {
+                          const displayHeight = getEventDisplayHeight(event, date, hour)
+                          
+                          // Если только одно событие, оно занимает почти полную ширину
+                          let left, width
+                          if (totalColumns === 1) {
+                            left = '2px'
+                            width = 'calc(100% - 4px)'
+                          } else {
+                            const columnWidth = 100 / totalColumns
+                            const gap = 1 // отступ между колонками в процентах
+                            left = `${column * columnWidth + gap}%`
+                            width = `${columnWidth - gap * 2}%`
+                          }
+                          
+                          return (
+                            <div
+                              key={eventIndex}
+                              className="timeline-event"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                onEventClick && onEventClick(event)
+                              }}
+                              onMouseEnter={(e) => handleEventMouseEnter(e, event)}
+                              onMouseLeave={handleEventMouseLeave}
+                              style={{
+                                backgroundColor: event.color || '#646cff',
+                                height: `${displayHeight * 40}px`,
+                                left: left,
+                                width: width,
+                                minWidth: '50px'
+                              }}
+                            >
                             <div className="event-title">{event.title}</div>
                             {event.game && (() => {
                               // Подсчет участников без создателя
@@ -516,9 +641,10 @@ const CalendarTimeline = ({
                             {event.description && (
                               <div className="event-description">{event.description}</div>
                             )}
-                          </div>
-                        )
-                      })}
+                            </div>
+                          )
+                        })
+                      })()}
                     </div>
                   )
                 })}

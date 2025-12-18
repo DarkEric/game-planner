@@ -149,6 +149,8 @@
   position: relative;
   cursor: pointer;
   transition: background-color 0.1s, border-color 0.1s;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
 .time-cell:hover {
@@ -186,8 +188,6 @@
 
 .timeline-event {
   position: absolute;
-  left: 2px;
-  right: 2px;
   top: 2px;
   background-color: #646cff;
   border-radius: 4px;
@@ -197,6 +197,8 @@
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   transition: transform 0.2s, box-shadow 0.2s;
+  min-width: 50px;
+  margin-right: 2px;
 }
 
 .timeline-event:hover {
