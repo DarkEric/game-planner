@@ -29,15 +29,12 @@ const CalendarTab = ({
                     const maxParticipants = game.maxParticipants
                     // Проверяем, что maxParticipants задан (не null и не undefined)
                     const hasMaxParticipants = maxParticipants != null && maxParticipants !== undefined
-                    const playersInfo = hasMaxParticipants
-                        ? `${participantCount}/${maxParticipants} игроков`
-                        : `${participantCount} игроков`
                     return {
                         id: game.id,
                         start: game.startTime,
                         end: game.endTime,
                         title: game.title || `🎲 Игра`,
-                        description: game.description ? `${game.description} | ${playersInfo}` : null,
+                        description: game.description || null,
                         color: '#646cff',
                         duration: Math.ceil((game.endTime - game.startTime) / (1000 * 60 * 60)),
                         game: game
