@@ -910,9 +910,14 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                                                 <div style={{ fontWeight: 'bold' }}>{game.title || 'Без названия'}</div>
                                                 <div style={{ fontSize: '0.8rem', color: '#888' }}>{formatDate(game.startTime)}</div>
                                                 {(() => {
-                                                    const participantCount = game.participants ? game.participants.length : 0
+                                                    // Подсчет участников без создателя
+                                                    const participantCount = game.participants 
+                                                        ? game.participants.filter(p => p.id !== game.creatorId).length 
+                                                        : 0
                                                     const maxParticipants = game.maxParticipants
-                                                    const playersInfo = maxParticipants != null 
+                                                    // Проверяем, что maxParticipants не null, не undefined и больше 0
+                                                    const hasMaxParticipants = maxParticipants != null && maxParticipants !== undefined && maxParticipants > 0
+                                                    const playersInfo = hasMaxParticipants
                                                         ? `👥 ${participantCount}/${maxParticipants} игроков`
                                                         : `👥 ${participantCount} игроков`
                                                     return (
@@ -957,9 +962,14 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                                 </div>
                                 <h3 className="game-title">{game.title || 'Без названия'}</h3>
                                 {(() => {
-                                    const participantCount = game.participants ? game.participants.length : 0
+                                    // Подсчет участников без создателя
+                                    const participantCount = game.participants 
+                                        ? game.participants.filter(p => p.id !== game.creatorId).length 
+                                        : 0
                                     const maxParticipants = game.maxParticipants
-                                    const playersInfo = maxParticipants != null 
+                                    // Проверяем, что maxParticipants не null, не undefined и больше 0
+                                    const hasMaxParticipants = maxParticipants != null && maxParticipants !== undefined && maxParticipants > 0
+                                    const playersInfo = hasMaxParticipants
                                         ? `👥 ${participantCount}/${maxParticipants} игроков`
                                         : `👥 ${participantCount} игроков`
                                     return (
@@ -989,9 +999,14 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                                 </div>
                                 <h3 className="game-title">{game.title || 'Без названия'}</h3>
                                 {(() => {
-                                    const participantCount = game.participants ? game.participants.length : 0
+                                    // Подсчет участников без создателя
+                                    const participantCount = game.participants 
+                                        ? game.participants.filter(p => p.id !== game.creatorId).length 
+                                        : 0
                                     const maxParticipants = game.maxParticipants
-                                    const playersInfo = maxParticipants != null 
+                                    // Проверяем, что maxParticipants не null, не undefined и больше 0
+                                    const hasMaxParticipants = maxParticipants != null && maxParticipants !== undefined && maxParticipants > 0
+                                    const playersInfo = hasMaxParticipants
                                         ? `👥 ${participantCount}/${maxParticipants} игроков`
                                         : `👥 ${participantCount} игроков`
                                     return (

@@ -493,9 +493,14 @@ const CalendarTimeline = ({
                           >
                             <div className="event-title">{event.title}</div>
                             {event.game && (() => {
-                              const participantCount = event.game.participants ? event.game.participants.length : 0
+                              // Подсчет участников без создателя
+                              const participantCount = event.game.participants 
+                                ? event.game.participants.filter(p => p.id !== event.game.creatorId).length 
+                                : 0
                               const maxParticipants = event.game.maxParticipants
-                              const playersInfo = maxParticipants != null 
+                              // Проверяем, что maxParticipants не null, не undefined и больше 0
+                              const hasMaxParticipants = maxParticipants != null && maxParticipants !== undefined && maxParticipants > 0
+                              const playersInfo = hasMaxParticipants
                                 ? `${participantCount}/${maxParticipants} игроков`
                                 : `${participantCount} игроков`
                               return (

@@ -13,14 +13,17 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
   const isParticipant = game.participants.some(p => p.id === currentUserId)
   
   // Подсчет участников без создателя
-  const participantCount = game.participants.filter(p => p.id !== game.creatorId).length
+  const participantCount = game.participants ? game.participants.filter(p => p.id !== game.creatorId).length : 0
   const maxParticipants = game.maxParticipants
   
+  // Проверяем, что maxParticipants не null, не undefined и больше 0
+  const hasMaxParticipants = maxParticipants != null && maxParticipants !== undefined && maxParticipants > 0
+  
   // Проверка заполненности игры
-  const isFull = maxParticipants != null && participantCount >= maxParticipants
+  const isFull = hasMaxParticipants && participantCount >= maxParticipants
   
   // Формат отображения: "Участники (X/Y)" или "Участники (X)"
-  const participantsLabel = maxParticipants != null 
+  const participantsLabel = hasMaxParticipants
     ? `Участники (${participantCount}/${maxParticipants})`
     : `Участники (${participantCount})`
 
@@ -175,7 +178,7 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
                 <div className="game-info-label">Игроки</div>
                 <div className="game-info-value">
                   {participantsLabel}
-                  {isFull && maxParticipants != null && (
+                  {isFull && hasMaxParticipants && (
                     <span style={{ 
                       marginLeft: '0.5rem', 
                       color: '#ff6b6b', 
@@ -186,6 +189,13 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
                   )}
                 </div>
               </div>
+
+              {hasMaxParticipants && (
+                <div className="game-info-item">
+                  <div className="game-info-label">Максимум участников</div>
+                  <div className="game-info-value">{maxParticipants}</div>
+                </div>
+              )}
             </div>
 
             <div className="game-participants">
