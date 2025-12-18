@@ -697,7 +697,8 @@ const CalendarTimeline = ({
                               width: '3px',
                               height: '100%',
                               position: 'absolute',
-                              top: 0
+                              top: 0,
+                              zIndex: 1
                             }}
                             title={player.name}
                           />
@@ -757,8 +758,9 @@ const CalendarTimeline = ({
                     }
                     
                     // Вычисляем top относительно начала колонки
-                    // startHour * 40 (высота ячейки) + 2px (отступ сверху)
-                    const top = `${startHour * 40 + 2}px`
+                    // startHour * 40 (высота ячейки) - каждая ячейка 40px
+                    // Компенсируем смещение: если события смещены вверх на пол ячейки, добавляем 20px
+                    const top = `${startHour * 40 + 20 + 2}px`
                     
                     const eventKey = event.game?.id || event.id || `${event.start}-${event.title}`
                     return (
