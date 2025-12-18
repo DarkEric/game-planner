@@ -75,12 +75,22 @@ const CalendarTimeline = ({
   // Проверка перекрытия двух событий по времени (частичного или полного)
   const eventsOverlap = useCallback((event1, event2) => {
     const start1 = event1.start instanceof Date ? event1.start : new Date(event1.start)
-    const end1 = new Date(start1)
-    end1.setHours(start1.getHours() + (event1.duration || 1))
+    let end1
+    if (event1.end) {
+      end1 = event1.end instanceof Date ? event1.end : new Date(event1.end)
+    } else {
+      end1 = new Date(start1)
+      end1.setHours(start1.getHours() + (event1.duration || 1))
+    }
     
     const start2 = event2.start instanceof Date ? event2.start : new Date(event2.start)
-    const end2 = new Date(start2)
-    end2.setHours(start2.getHours() + (event2.duration || 1))
+    let end2
+    if (event2.end) {
+      end2 = event2.end instanceof Date ? event2.end : new Date(event2.end)
+    } else {
+      end2 = new Date(start2)
+      end2.setHours(start2.getHours() + (event2.duration || 1))
+    }
     
     // Перекрытие если: start1 < end2 && start2 < end1
     return start1 < end2 && start2 < end1
@@ -550,17 +560,92 @@ const CalendarTimeline = ({
             style={{ userSelect: 'none' }}
           >
             {dates.map((date, dateIndex) => {
-              // Собираем все события для этой даты
-              const dateEvents = []
-              hours.forEach(hour => {
-                const hourEvents = getEventsForDateAndHour(date, hour)
-                hourEvents.forEach(event => {
-                  const eventKey = event.game?.id || event.id || `${event.start}-${event.title}`
-                  if (!dateEvents.find(e => (e.game?.id || e.id || `${e.start}-${e.title}`) === eventKey)) {
-                    dateEvents.push(event)
-                  }
-                })
+              // Собираем все события, которые пересекаются с этой датой
+              const dateEvents = events.filter(event => {
+                const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+                let eventEnd
+                if (event.end) {
+                  eventEnd = event.end instanceof Date ? event.end : new Date(event.end)
+                } else {
+                  eventEnd = new Date(eventStart)
+                  eventEnd.setHours(eventStart.getHours() + (event.duration || 1))
+                }
+                
+                const eventDate = new Date(eventStart)
+                eventDate.setHours(0, 0, 0, 0)
+                const currentDate = new Date(date)
+                currentDate.setHours(0, 0, 0, 0)
+                const nextDate = new Date(currentDate)
+                nextDate.setDate(currentDate.getDate() + 1)
+                
+                // Событие пересекается с этой датой, если оно начинается в этот день или продолжается в этот день
+                return (eventDate.getTime() === currentDate.getTime()) || 
+                       (eventStart < nextDate && eventEnd > currentDate)
               })
+              
+              // Вычисляем колонки для всех событий этой даты (учитывая все перекрытия)
+              let allEventsColumns = []
+              if (dateEvents.length > 0) {
+                // Сортируем события по времени начала
+                const sortedEvents = [...dateEvents].sort((a, b) => {
+                  const startA = a.start instanceof Date ? a.start : new Date(a.start)
+                  const startB = b.start instanceof Date ? b.start : new Date(b.start)
+                  return startA - startB
+                })
+                
+                const columns = []
+                
+                for (const event of sortedEvents) {
+                  const gameId = event.game?.id || event.id || `event-${event.start}-${event.title}`
+                  let assignedColumn = gameColumnMapRef.current.get(gameId)
+                  
+                  // Если колонка уже назначена, проверяем, свободна ли она
+                  if (assignedColumn !== undefined && columns[assignedColumn]) {
+                    const hasOverlap = columns[assignedColumn].some(existingEvent => 
+                      eventsOverlap(event, existingEvent)
+                    )
+                    
+                    if (!hasOverlap) {
+                      columns[assignedColumn].push(event)
+                      allEventsColumns.push({ event, column: assignedColumn, totalColumns: Math.max(columns.length, assignedColumn + 1) })
+                      continue
+                    } else {
+                      assignedColumn = undefined
+                    }
+                  }
+                  
+                  // Ищем первую свободную колонку
+                  let foundColumn = -1
+                  for (let colIndex = 0; colIndex < columns.length; colIndex++) {
+                    const columnEvents = columns[colIndex]
+                    const hasOverlap = columnEvents.some(existingEvent => 
+                      eventsOverlap(event, existingEvent)
+                    )
+                    
+                    if (!hasOverlap) {
+                      foundColumn = colIndex
+                      break
+                    }
+                  }
+                  
+                  if (foundColumn === -1) {
+                    foundColumn = columns.length
+                    columns.push([])
+                  }
+                  
+                  columns[foundColumn].push(event)
+                  
+                  if (gameId) {
+                    gameColumnMapRef.current.set(gameId, foundColumn)
+                  }
+                  
+                  allEventsColumns.push({ 
+                    event, 
+                    column: foundColumn, 
+                    totalColumns: columns.length 
+                  })
+                }
+              }
               
               return (
                 <div key={dateIndex} className="date-column">
@@ -611,32 +696,43 @@ const CalendarTimeline = ({
                     )
                   })}
                   
-                  {/* Рендерим события на уровне колонки, а не ячейки */}
-                  {dateEvents.map(event => {
+                  {/* Рендерим события на уровне колонки */}
+                  {allEventsColumns.map(({ event, column, totalColumns }) => {
                     const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+                    let eventEnd
+                    if (event.end) {
+                      eventEnd = event.end instanceof Date ? event.end : new Date(event.end)
+                    } else {
+                      eventEnd = new Date(eventStart)
+                      eventEnd.setHours(eventStart.getHours() + (event.duration || 1))
+                    }
+                    
                     const eventDate = new Date(eventStart)
                     eventDate.setHours(0, 0, 0, 0)
                     const currentDate = new Date(date)
                     currentDate.setHours(0, 0, 0, 0)
+                    const nextDate = new Date(currentDate)
+                    nextDate.setDate(currentDate.getDate() + 1)
                     
-                    // Показываем событие только если оно начинается в этот день
-                    if (eventDate.getTime() !== currentDate.getTime()) {
+                    // Определяем, в какой час начинается событие для этой даты
+                    let startHour
+                    let displayHeight
+                    
+                    if (eventDate.getTime() === currentDate.getTime()) {
+                      // Событие начинается в этот день
+                      startHour = eventStart.getHours()
+                      displayHeight = getEventDisplayHeight(event, date, startHour)
+                    } else if (eventStart < currentDate && eventEnd > currentDate) {
+                      // Событие продолжается с предыдущего дня - начинаем с 0
+                      startHour = 0
+                      // Вычисляем высоту от начала дня до конца события или конца дня
+                      const dayEnd = new Date(nextDate)
+                      const remainingHours = (Math.min(eventEnd, dayEnd) - currentDate) / (1000 * 60 * 60)
+                      displayHeight = Math.max(remainingHours, 0.5)
+                    } else {
+                      // Событие не должно отображаться в этот день
                       return null
                     }
-                    
-                    const startHour = eventStart.getHours()
-                    const displayHeight = getEventDisplayHeight(event, date, startHour)
-                    
-                    // Вычисляем колонки для всех событий этого часа
-                    const hourEvents = getEventsForDateAndHour(date, startHour)
-                    const eventColumns = calculateEventColumns(hourEvents, date, startHour)
-                    const eventColumn = eventColumns.find(({ event: e }) => 
-                      (e.game?.id || e.id) === (event.game?.id || event.id)
-                    )
-                    
-                    if (!eventColumn) return null
-                    
-                    const { column, totalColumns } = eventColumn
                     
                     // Вычисляем позицию и ширину для колонки
                     let left, width
@@ -656,7 +752,7 @@ const CalendarTimeline = ({
                     const eventKey = event.game?.id || event.id || `${event.start}-${event.title}`
                     return (
                       <div
-                        key={eventKey}
+                        key={`${eventKey}-${date.getTime()}`}
                         className="timeline-event"
                         onClick={(e) => {
                           e.stopPropagation()
