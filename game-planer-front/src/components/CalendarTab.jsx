@@ -37,7 +37,7 @@ const CalendarTab = ({
                         start: game.startTime,
                         end: game.endTime,
                         title: game.title || `🎲 Игра`,
-                        description: game.description ? `${game.description} | ${playersInfo}` : playersInfo,
+                        description: game.description ? `${game.description} | ${playersInfo}` : null,
                         color: '#646cff',
                         duration: Math.ceil((game.endTime - game.startTime) / (1000 * 60 * 60)),
                         game: game
