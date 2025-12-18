@@ -560,14 +560,27 @@ const CalendarTimeline = ({
             style={{ userSelect: 'none' }}
           >
             {dates.map((date, dateIndex) => {
-              // Собираем все события, которые начинаются в этот день
+              // Собираем все события, которые пересекаются с этой датой
               const dateEvents = events.filter(event => {
                 const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+                let eventEnd
+                if (event.end) {
+                  eventEnd = event.end instanceof Date ? event.end : new Date(event.end)
+                } else {
+                  eventEnd = new Date(eventStart)
+                  eventEnd.setHours(eventStart.getHours() + (event.duration || 1))
+                }
+                
                 const eventDate = new Date(eventStart)
                 eventDate.setHours(0, 0, 0, 0)
                 const currentDate = new Date(date)
                 currentDate.setHours(0, 0, 0, 0)
-                return eventDate.getTime() === currentDate.getTime()
+                const nextDate = new Date(currentDate)
+                nextDate.setDate(currentDate.getDate() + 1)
+                
+                // Событие пересекается с этой датой, если оно начинается в этот день или продолжается в этот день
+                return (eventDate.getTime() === currentDate.getTime()) || 
+                       (eventStart < nextDate && eventEnd > currentDate)
               })
               
               // Вычисляем колонки для всех событий этой даты
@@ -690,8 +703,40 @@ const CalendarTimeline = ({
                   {/* Рендерим события на уровне колонки */}
                   {allEventsColumns.map(({ event, column, totalColumns }) => {
                     const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
-                    const startHour = eventStart.getHours()
-                    const displayHeight = getEventDisplayHeight(event, date, startHour)
+                    let eventEnd
+                    if (event.end) {
+                      eventEnd = event.end instanceof Date ? event.end : new Date(event.end)
+                    } else {
+                      eventEnd = new Date(eventStart)
+                      eventEnd.setHours(eventStart.getHours() + (event.duration || 1))
+                    }
+                    
+                    const eventDate = new Date(eventStart)
+                    eventDate.setHours(0, 0, 0, 0)
+                    const currentDate = new Date(date)
+                    currentDate.setHours(0, 0, 0, 0)
+                    const nextDate = new Date(currentDate)
+                    nextDate.setDate(currentDate.getDate() + 1)
+                    
+                    // Определяем, в какой час начинается событие для этой даты
+                    let startHour
+                    let displayHeight
+                    
+                    if (eventDate.getTime() === currentDate.getTime()) {
+                      // Событие начинается в этот день
+                      startHour = eventStart.getHours()
+                      displayHeight = getEventDisplayHeight(event, date, startHour)
+                    } else if (eventStart < currentDate && eventEnd > currentDate) {
+                      // Событие продолжается с предыдущего дня - начинаем с 0
+                      startHour = 0
+                      // Вычисляем высоту от начала дня до конца события или конца дня
+                      const dayEnd = new Date(nextDate)
+                      const remainingHours = (Math.min(eventEnd, dayEnd) - currentDate) / (1000 * 60 * 60)
+                      displayHeight = Math.max(remainingHours, 0.5)
+                    } else {
+                      // Событие не должно отображаться в этот день
+                      return null
+                    }
                     
                     let left, width
                     if (totalColumns === 1) {
@@ -704,6 +749,10 @@ const CalendarTimeline = ({
                       width = `${columnWidth - gap * 2}%`
                     }
                     
+                    // Вычисляем top относительно начала колонки
+                    // Каждая ячейка имеет высоту 40px
+                    // Ячейки имеют border-bottom: 1px, но это не влияет на позиционирование абсолютных элементов
+                    // Используем точный расчет: startHour * 40px + небольшой отступ
                     const top = `${startHour * 40 + 2}px`
                     
                     const eventKey = event.game?.id || event.id || `${event.start}-${event.title}`
