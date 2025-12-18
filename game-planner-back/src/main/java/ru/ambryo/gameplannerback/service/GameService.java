@@ -1,6 +1,7 @@
 package ru.ambryo.gameplannerback.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ambryo.gameplannerback.dto.CreateGameRequest;
@@ -34,6 +35,7 @@ public class GameService {
     private UserService userService;
     
     @Autowired
+    @Lazy
     private TelegramNotificationService telegramNotificationService;
     
     @Autowired
