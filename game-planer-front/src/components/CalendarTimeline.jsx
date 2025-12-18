@@ -559,132 +559,203 @@ const CalendarTimeline = ({
             onMouseDown={handleMouseDown}
             style={{ userSelect: 'none' }}
           >
-            {dates.map((date, dateIndex) => (
-              <div key={dateIndex} className="date-column">
-                {hours.map((hour, hourIndex) => {
-                  const hourEvents = getEventsForDateAndHour(date, hour)
-                  const availablePlayers = getAvailabilityForDateAndHour(date, hour)
-                  const overlapCount = getAvailabilityOverlap(date, hour)
-                  const isSelected = isTimeSlotSelected(date, hour)
-                  const isInDragSelection = isTimeSlotInDragSelection(date, hour)
-                  const maxPlayers = players.length
-                  const overlapPercentage = maxPlayers > 0 ? (overlapCount / maxPlayers) * 100 : 0
+            {dates.map((date, dateIndex) => {
+              // Собираем все события, которые начинаются в этот день
+              const dateEvents = events.filter(event => {
+                const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+                const eventDate = new Date(eventStart)
+                eventDate.setHours(0, 0, 0, 0)
+                const currentDate = new Date(date)
+                currentDate.setHours(0, 0, 0, 0)
+                return eventDate.getTime() === currentDate.getTime()
+              })
+              
+              // Вычисляем колонки для всех событий этой даты
+              let allEventsColumns = []
+              if (dateEvents.length > 0) {
+                const sortedEvents = [...dateEvents].sort((a, b) => {
+                  const startA = a.start instanceof Date ? a.start : new Date(a.start)
+                  const startB = b.start instanceof Date ? b.start : new Date(b.start)
+                  return startA - startB
+                })
+                
+                const columns = []
+                
+                for (const event of sortedEvents) {
+                  const gameId = event.game?.id || event.id || `event-${event.start}-${event.title}`
+                  let assignedColumn = gameColumnMapRef.current.get(gameId)
                   
-                  return (
-                    <div 
-                      key={hourIndex} 
-                      className={`time-cell ${isSelected ? 'time-cell-selected' : ''} ${isInDragSelection ? 'time-cell-dragging' : ''}`}
-                      style={{
-                        backgroundColor: isInDragSelection
-                          ? 'rgba(100, 108, 255, 0.4)'
-                          : showAvailabilityOverlap && overlapCount > 0
-                          ? `rgba(100, 108, 255, ${Math.min(overlapPercentage / 100, 0.3)})`
-                          : undefined
-                      }}
-                      onMouseEnter={(e) => handleCellMouseEnter(e, availablePlayers)}
-                      onMouseLeave={handleCellMouseLeave}
-                    >
-                      {showAvailabilityOverlap && overlapCount > 0 && (
-                        <div className="availability-indicator">
-                          {overlapCount}/{maxPlayers}
-                        </div>
-                      )}
-                      
-                      {availablePlayers.map((player, playerIndex) => (
-                        <div
-                          key={player.id}
-                          className="player-availability-marker"
-                          style={{
-                            backgroundColor: player.color,
-                            left: `${playerIndex * 4}px`,
-                            width: '3px',
-                            height: '100%',
-                            position: 'absolute',
-                            top: 0
-                          }}
-                          title={player.name}
-                        />
-                      ))}
-                      
-                      {(() => {
-                        // Вычисляем колонки для событий
-                        const eventColumns = calculateEventColumns(hourEvents, date, hour)
+                  if (assignedColumn !== undefined && columns[assignedColumn]) {
+                    const hasOverlap = columns[assignedColumn].some(existingEvent => 
+                      eventsOverlap(event, existingEvent)
+                    )
+                    
+                    if (!hasOverlap) {
+                      columns[assignedColumn].push(event)
+                      allEventsColumns.push({ event, column: assignedColumn, totalColumns: columns.length })
+                      continue
+                    } else {
+                      assignedColumn = undefined
+                    }
+                  }
+                  
+                  let foundColumn = -1
+                  for (let colIndex = 0; colIndex < columns.length; colIndex++) {
+                    const columnEvents = columns[colIndex]
+                    const hasOverlap = columnEvents.some(existingEvent => 
+                      eventsOverlap(event, existingEvent)
+                    )
+                    
+                    if (!hasOverlap) {
+                      foundColumn = colIndex
+                      break
+                    }
+                  }
+                  
+                  if (foundColumn === -1) {
+                    foundColumn = columns.length
+                    columns.push([])
+                  }
+                  
+                  columns[foundColumn].push(event)
+                  
+                  if (gameId) {
+                    gameColumnMapRef.current.set(gameId, foundColumn)
+                  }
+                  
+                  allEventsColumns.push({ 
+                    event, 
+                    column: foundColumn, 
+                    totalColumns: columns.length 
+                  })
+                }
+                
+                const maxColumns = columns.length
+                allEventsColumns = allEventsColumns.map(({ event, column }) => ({
+                  event,
+                  column,
+                  totalColumns: maxColumns
+                }))
+              }
+              
+              return (
+                <div key={dateIndex} className="date-column">
+                  {hours.map((hour, hourIndex) => {
+                    const availablePlayers = getAvailabilityForDateAndHour(date, hour)
+                    const overlapCount = getAvailabilityOverlap(date, hour)
+                    const isSelected = isTimeSlotSelected(date, hour)
+                    const isInDragSelection = isTimeSlotInDragSelection(date, hour)
+                    const maxPlayers = players.length
+                    const overlapPercentage = maxPlayers > 0 ? (overlapCount / maxPlayers) * 100 : 0
+                    
+                    return (
+                      <div 
+                        key={hourIndex} 
+                        className={`time-cell ${isSelected ? 'time-cell-selected' : ''} ${isInDragSelection ? 'time-cell-dragging' : ''}`}
+                        style={{
+                          backgroundColor: isInDragSelection
+                            ? 'rgba(100, 108, 255, 0.4)'
+                            : showAvailabilityOverlap && overlapCount > 0
+                            ? `rgba(100, 108, 255, ${Math.min(overlapPercentage / 100, 0.3)})`
+                            : undefined
+                        }}
+                        onMouseEnter={(e) => handleCellMouseEnter(e, availablePlayers)}
+                        onMouseLeave={handleCellMouseLeave}
+                      >
+                        {showAvailabilityOverlap && overlapCount > 0 && (
+                          <div className="availability-indicator">
+                            {overlapCount}/{maxPlayers}
+                          </div>
+                        )}
                         
-                        // Убираем дубликаты событий
-                        const uniqueEvents = new Map()
-                        eventColumns.forEach(({ event, column, totalColumns }) => {
-                          const eventKey = event.game?.id || event.id || `${event.start}-${event.title}`
-                          if (!uniqueEvents.has(eventKey)) {
-                            uniqueEvents.set(eventKey, { event, column, totalColumns })
-                          }
-                        })
-                        
-                        return Array.from(uniqueEvents.values()).map(({ event, column, totalColumns }, eventIndex) => {
-                          const displayHeight = getEventDisplayHeight(event, date, hour)
-                          
-                          // Вычисляем позицию и ширину для колонки
-                          let left, width
-                          if (totalColumns === 1) {
-                            left = '2px'
-                            width = 'calc(100% - 4px)'
-                          } else {
-                            const columnWidth = 100 / totalColumns
-                            const gap = 1
-                            left = `${column * columnWidth + gap}%`
-                            width = `${columnWidth - gap * 2}%`
-                          }
-                          
-                          const eventKey = event.game?.id || event.id || `${event.start}-${event.title}`
+                        {availablePlayers.map((player, playerIndex) => (
+                          <div
+                            key={player.id}
+                            className="player-availability-marker"
+                            style={{
+                              backgroundColor: player.color,
+                              left: `${playerIndex * 4}px`,
+                              width: '3px',
+                              height: '100%',
+                              position: 'absolute',
+                              top: 0
+                            }}
+                            title={player.name}
+                          />
+                        ))}
+                      </div>
+                    )
+                  })}
+                  
+                  {/* Рендерим события на уровне колонки */}
+                  {allEventsColumns.map(({ event, column, totalColumns }) => {
+                    const eventStart = event.start instanceof Date ? event.start : new Date(event.start)
+                    const startHour = eventStart.getHours()
+                    const displayHeight = getEventDisplayHeight(event, date, startHour)
+                    
+                    let left, width
+                    if (totalColumns === 1) {
+                      left = '2px'
+                      width = 'calc(100% - 4px)'
+                    } else {
+                      const columnWidth = 100 / totalColumns
+                      const gap = 1
+                      left = `${column * columnWidth + gap}%`
+                      width = `${columnWidth - gap * 2}%`
+                    }
+                    
+                    const top = `${startHour * 40 + 2}px`
+                    
+                    const eventKey = event.game?.id || event.id || `${event.start}-${event.title}`
+                    return (
+                      <div
+                        key={`${eventKey}-${date.getTime()}`}
+                        className="timeline-event"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onEventClick && onEventClick(event)
+                        }}
+                        onMouseEnter={(e) => handleEventMouseEnter(e, event)}
+                        onMouseLeave={handleEventMouseLeave}
+                        style={{
+                          backgroundColor: event.color || '#646cff',
+                          height: `${displayHeight * 40}px`,
+                          left: left,
+                          width: width,
+                          top: top,
+                          minWidth: '50px',
+                          position: 'absolute'
+                        }}
+                      >
+                        <div className="event-title">{event.title}</div>
+                        {event.game && (() => {
+                          const participantCount = event.game.participants 
+                            ? event.game.participants.filter(p => p.id !== event.game.creatorId).length 
+                            : 0
+                          const maxParticipants = event.game.maxParticipants
+                          const hasMaxParticipants = maxParticipants != null && maxParticipants !== undefined
+                          const playersInfo = hasMaxParticipants
+                            ? `${participantCount}/${maxParticipants} игроков`
+                            : `${participantCount} игроков`
                           return (
-                            <div
-                              key={`${eventKey}-${date.getTime()}-${hour}`}
-                              className="timeline-event"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                onEventClick && onEventClick(event)
-                              }}
-                              onMouseEnter={(e) => handleEventMouseEnter(e, event)}
-                              onMouseLeave={handleEventMouseLeave}
-                              style={{
-                                backgroundColor: event.color || '#646cff',
-                                height: `${displayHeight * 40}px`,
-                                left: left,
-                                width: width,
-                                minWidth: '50px'
-                              }}
-                            >
-                              <div className="event-title">{event.title}</div>
-                              {event.game && (() => {
-                                const participantCount = event.game.participants 
-                                  ? event.game.participants.filter(p => p.id !== event.game.creatorId).length 
-                                  : 0
-                                const maxParticipants = event.game.maxParticipants
-                                const hasMaxParticipants = maxParticipants != null && maxParticipants !== undefined
-                                const playersInfo = hasMaxParticipants
-                                  ? `${participantCount}/${maxParticipants} игроков`
-                                  : `${participantCount} игроков`
-                                return (
-                                  <div className="event-players-info" style={{
-                                    fontSize: '0.85rem',
-                                    opacity: 0.9,
-                                    marginTop: '2px'
-                                  }}>
-                                    👥 {playersInfo}
-                                  </div>
-                                )
-                              })()}
-                              {event.description && (
-                                <div className="event-description">{event.description}</div>
-                              )}
+                            <div className="event-players-info" style={{
+                              fontSize: '0.85rem',
+                              opacity: 0.9,
+                              marginTop: '2px'
+                            }}>
+                              👥 {playersInfo}
                             </div>
                           )
-                        })
-                      })()}
-                    </div>
-                  )
-                })}
-              </div>
-            ))}
+                        })()}
+                        {event.description && (
+                          <div className="event-description">{event.description}</div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
           </div>
         </div>
       </div>

@@ -141,6 +141,7 @@
   display: flex;
   flex-direction: column;
   border-right: 1px solid #333;
+  position: relative;
 }
 
 .time-cell {
@@ -188,7 +189,7 @@
 
 .timeline-event {
   position: absolute;
-  top: 2px;
+  /* top задается через inline стили */
   background-color: #646cff;
   border-radius: 4px;
   padding: 4px 8px;
