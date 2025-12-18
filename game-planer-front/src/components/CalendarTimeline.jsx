@@ -607,7 +607,8 @@ const CalendarTimeline = ({
                     
                     if (!hasOverlap) {
                       columns[assignedColumn].push(event)
-                      allEventsColumns.push({ event, column: assignedColumn, totalColumns: Math.max(columns.length, assignedColumn + 1) })
+                      // totalColumns должен быть одинаковым для всех событий
+                      allEventsColumns.push({ event, column: assignedColumn, totalColumns: columns.length })
                       continue
                     } else {
                       assignedColumn = undefined
@@ -639,12 +640,21 @@ const CalendarTimeline = ({
                     gameColumnMapRef.current.set(gameId, foundColumn)
                   }
                   
+                  // totalColumns должен быть одинаковым для всех событий - используем текущее количество колонок
                   allEventsColumns.push({ 
                     event, 
                     column: foundColumn, 
                     totalColumns: columns.length 
                   })
                 }
+                
+                // Обновляем totalColumns для всех событий, чтобы он был одинаковым
+                const maxColumns = columns.length
+                allEventsColumns = allEventsColumns.map(({ event, column }) => ({
+                  event,
+                  column,
+                  totalColumns: maxColumns
+                }))
               }
               
               return (
