@@ -145,6 +145,7 @@
   border-right: 1px solid #333;
   /* Позволяем событиям выходить за пределы ячеек */
   overflow: visible;
+  position: relative;
 }
 
 .time-cell {
@@ -156,6 +157,8 @@
   /* Позволяем событиям выходить за пределы ячейки по вертикали, но прокрутка по горизонтали */
   overflow-x: auto;
   overflow-y: visible;
+  /* Убираем position: relative, чтобы события позиционировались относительно date-column */
+  z-index: 1;
 }
 
 .time-cell:hover {
