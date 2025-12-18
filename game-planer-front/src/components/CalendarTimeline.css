@@ -133,8 +133,6 @@
   display: flex;
   flex: 1;
   min-width: min-content;
-  /* Позволяем событиям выходить за пределы ячеек */
-  overflow: visible;
 }
 
 .date-column {
@@ -143,21 +141,16 @@
   display: flex;
   flex-direction: column;
   border-right: 1px solid #333;
-  /* Позволяем событиям выходить за пределы ячеек */
-  overflow: visible;
-  position: relative;
 }
 
 .time-cell {
   height: 40px;
   border-bottom: 1px solid #2a2a2a;
+  position: relative;
   cursor: pointer;
   transition: background-color 0.1s, border-color 0.1s;
-  /* Позволяем событиям выходить за пределы ячейки по вертикали, но прокрутка по горизонтали */
   overflow-x: auto;
   overflow-y: visible;
-  /* Убираем position: relative, чтобы события позиционировались относительно date-column */
-  z-index: 1;
 }
 
 .time-cell:hover {
@@ -195,7 +188,7 @@
 
 .timeline-event {
   position: absolute;
-  /* top задается через inline стили */
+  top: 2px;
   background-color: #646cff;
   border-radius: 4px;
   padding: 4px 8px;
