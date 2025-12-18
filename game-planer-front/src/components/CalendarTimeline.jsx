@@ -441,7 +441,7 @@ const CalendarTimeline = ({
 
   const scrollToNoon = () => {
     if (containerRef.current) {
-      containerRef.current.scrollTop = 12 * 40
+      containerRef.current.scrollTop = 12 * 41
     }
   }
 
@@ -733,6 +733,7 @@ const CalendarTimeline = ({
                       const dayEnd = new Date(nextDate)
                       const remainingHours = (Math.min(eventEnd, dayEnd) - currentDate) / (1000 * 60 * 60)
                       displayHeight = Math.max(remainingHours, 0.5)
+                      // Для событий, продолжающихся с предыдущего дня, используем оставшиеся часы
                     } else {
                       // Событие не должно отображаться в этот день
                       return null
@@ -750,10 +751,9 @@ const CalendarTimeline = ({
                     }
                     
                     // Вычисляем top относительно начала колонки
-                    // Каждая ячейка имеет высоту 40px
-                    // Ячейки имеют border-bottom: 1px, но это не влияет на позиционирование абсолютных элементов
-                    // Используем точный расчет: startHour * 40px + небольшой отступ
-                    const top = `${startHour * 40 + 2}px`
+                    // Каждая ячейка имеет высоту 40px + border-bottom: 1px = 41px общая высота
+                    // Используем точный расчет: startHour * 41px + небольшой отступ
+                    const top = `${startHour * 41 + 2}px`
                     
                     const eventKey = event.game?.id || event.id || `${event.start}-${event.title}`
                     return (
@@ -768,7 +768,7 @@ const CalendarTimeline = ({
                         onMouseLeave={handleEventMouseLeave}
                         style={{
                           backgroundColor: event.color || '#646cff',
-                          height: `${displayHeight * 40}px`,
+                          height: `${displayHeight * 41}px`,
                           left: left,
                           width: width,
                           top: top,
