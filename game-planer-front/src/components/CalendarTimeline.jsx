@@ -492,6 +492,22 @@ const CalendarTimeline = ({
                             }}
                           >
                             <div className="event-title">{event.title}</div>
+                            {event.game && (() => {
+                              const participantCount = event.game.participants ? event.game.participants.length : 0
+                              const maxParticipants = event.game.maxParticipants
+                              const playersInfo = maxParticipants != null 
+                                ? `${participantCount}/${maxParticipants} игроков`
+                                : `${participantCount} игроков`
+                              return (
+                                <div className="event-players-info" style={{
+                                  fontSize: '0.85rem',
+                                  opacity: 0.9,
+                                  marginTop: '2px'
+                                }}>
+                                  👥 {playersInfo}
+                                </div>
+                              )
+                            })()}
                             {event.description && (
                               <div className="event-description">{event.description}</div>
                             )}

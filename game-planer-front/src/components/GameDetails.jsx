@@ -170,6 +170,22 @@ const GameDetails = ({ game, currentUserId, onJoin, onLeave, onDelete, onClose, 
                 <div className="game-info-label">Организатор</div>
                 <div className="game-info-value">{game.creatorName}</div>
               </div>
+
+              <div className="game-info-item">
+                <div className="game-info-label">Игроки</div>
+                <div className="game-info-value">
+                  {participantsLabel}
+                  {isFull && maxParticipants != null && (
+                    <span style={{ 
+                      marginLeft: '0.5rem', 
+                      color: '#ff6b6b', 
+                      fontSize: '0.9rem'
+                    }}>
+                      (Заполнена)
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="game-participants">

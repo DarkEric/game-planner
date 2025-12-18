@@ -909,6 +909,18 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                                             <div>
                                                 <div style={{ fontWeight: 'bold' }}>{game.title || 'Без названия'}</div>
                                                 <div style={{ fontSize: '0.8rem', color: '#888' }}>{formatDate(game.startTime)}</div>
+                                                {(() => {
+                                                    const participantCount = game.participants ? game.participants.length : 0
+                                                    const maxParticipants = game.maxParticipants
+                                                    const playersInfo = maxParticipants != null 
+                                                        ? `👥 ${participantCount}/${maxParticipants} игроков`
+                                                        : `👥 ${participantCount} игроков`
+                                                    return (
+                                                        <div style={{ fontSize: '0.8rem', color: '#aaa', marginTop: '0.25rem' }}>
+                                                            {playersInfo}
+                                                        </div>
+                                                    )
+                                                })()}
                                             </div>
                                             <button
                                                 onClick={() => handleLinkGame(game.id)}
@@ -944,6 +956,18 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                                     <span className="game-date">{formatDate(game.startTime)}</span>
                                 </div>
                                 <h3 className="game-title">{game.title || 'Без названия'}</h3>
+                                {(() => {
+                                    const participantCount = game.participants ? game.participants.length : 0
+                                    const maxParticipants = game.maxParticipants
+                                    const playersInfo = maxParticipants != null 
+                                        ? `👥 ${participantCount}/${maxParticipants} игроков`
+                                        : `👥 ${participantCount} игроков`
+                                    return (
+                                        <div style={{ fontSize: '0.9rem', color: '#aaa', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                                            {playersInfo}
+                                        </div>
+                                    )
+                                })()}
                                 {game.keyEvents && (
                                     <div
                                         className="key-events"
@@ -964,6 +988,18 @@ const CampaignDetails = ({ campaignId, currentUserId, onBack }) => {
                                     <span className="game-date">{formatDate(game.startTime)}</span>
                                 </div>
                                 <h3 className="game-title">{game.title || 'Без названия'}</h3>
+                                {(() => {
+                                    const participantCount = game.participants ? game.participants.length : 0
+                                    const maxParticipants = game.maxParticipants
+                                    const playersInfo = maxParticipants != null 
+                                        ? `👥 ${participantCount}/${maxParticipants} игроков`
+                                        : `👥 ${participantCount} игроков`
+                                    return (
+                                        <div style={{ fontSize: '0.9rem', color: '#aaa', marginTop: '0.5rem', marginBottom: '0.5rem' }}>
+                                            {playersInfo}
+                                        </div>
+                                    )
+                                })()}
                                 <p className="upcoming-note">Еще не проведена</p>
                             </div>
                         ))}

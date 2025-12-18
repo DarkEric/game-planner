@@ -21,16 +21,23 @@ const CalendarTab = ({
                 daysToShow={daysToShow}
                 players={allPlayers}
                 selectedPlayerId={currentPlayer?.id}
-                events={games.map(game => ({
-                    id: game.id,
-                    start: game.startTime,
-                    end: game.endTime,
-                    title: game.title || `🎲 Игра`,
-                    description: game.description || `${game.participants.length} игроков`,
-                    color: '#646cff',
-                    duration: Math.ceil((game.endTime - game.startTime) / (1000 * 60 * 60)),
-                    game: game
-                }))}
+                events={games.map(game => {
+                    const participantCount = game.participants ? game.participants.length : 0
+                    const maxParticipants = game.maxParticipants
+                    const playersInfo = maxParticipants != null 
+                        ? `${participantCount}/${maxParticipants} игроков`
+                        : `${participantCount} игроков`
+                    return {
+                        id: game.id,
+                        start: game.startTime,
+                        end: game.endTime,
+                        title: game.title || `🎲 Игра`,
+                        description: game.description ? `${game.description} | ${playersInfo}` : playersInfo,
+                        color: '#646cff',
+                        duration: Math.ceil((game.endTime - game.startTime) / (1000 * 60 * 60)),
+                        game: game
+                    }
+                })}
                 onTimeSlotClick={onTimeSlotClick}
                 onTimeSlotsSelect={onTimeSlotsSelect}
                 onEventClick={onEventClick}
