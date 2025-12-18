@@ -92,13 +92,23 @@ const CalendarTimeline = ({
       return []
     }
 
+    // Убираем дубликаты событий по gameId/id
+    const uniqueEventsMap = new Map()
+    events.forEach(event => {
+      const eventKey = event.game?.id || event.id || `event-${event.start}-${event.title}`
+      if (!uniqueEventsMap.has(eventKey)) {
+        uniqueEventsMap.set(eventKey, event)
+      }
+    })
+    const uniqueEvents = Array.from(uniqueEventsMap.values())
+
     // Если только одно событие, оно занимает полную ширину
-    if (events.length === 1) {
-      return [{ event: events[0], column: 0, totalColumns: 1 }]
+    if (uniqueEvents.length === 1) {
+      return [{ event: uniqueEvents[0], column: 0, totalColumns: 1 }]
     }
 
     // Сортируем события по времени начала
-    const sortedEvents = [...events].sort((a, b) => {
+    const sortedEvents = [...uniqueEvents].sort((a, b) => {
       const startA = a.start instanceof Date ? a.start : new Date(a.start)
       const startB = b.start instanceof Date ? b.start : new Date(b.start)
       return startA - startB
@@ -542,7 +552,16 @@ const CalendarTimeline = ({
                         // Вычисляем колонки для событий
                         const eventColumns = calculateEventColumns(hourEvents, date, hour)
                         
-                        return eventColumns.map(({ event, column, totalColumns }, eventIndex) => {
+                        // Убираем дубликаты событий (на случай, если одно событие попало несколько раз)
+                        const uniqueEvents = new Map()
+                        eventColumns.forEach(({ event, column, totalColumns }) => {
+                          const eventKey = event.game?.id || event.id || `${event.start}-${event.title}`
+                          if (!uniqueEvents.has(eventKey)) {
+                            uniqueEvents.set(eventKey, { event, column, totalColumns })
+                          }
+                        })
+                        
+                        return Array.from(uniqueEvents.values()).map(({ event, column, totalColumns }, eventIndex) => {
                           const displayHeight = getEventDisplayHeight(event, date, hour)
                           
                           // Вычисляем позицию и ширину для колонки
@@ -559,9 +578,10 @@ const CalendarTimeline = ({
                             width = `${columnWidth - gap * 2}%`
                           }
                           
+                          const eventKey = event.game?.id || event.id || `${event.start}-${event.title}`
                           return (
                             <div
-                              key={eventIndex}
+                              key={`${eventKey}-${date.getTime()}-${hour}`}
                               className="timeline-event"
                               onClick={(e) => {
                                 e.stopPropagation()
