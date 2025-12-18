@@ -217,9 +217,13 @@
   font-size: 0.75rem;
   color: rgba(255, 255, 255, 0.8);
   margin-top: 2px;
-  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  line-height: 1.3;
+  max-height: calc(1.3em * 3);
+  word-wrap: break-word;
 }
 
 /* Scrollbar styling */
