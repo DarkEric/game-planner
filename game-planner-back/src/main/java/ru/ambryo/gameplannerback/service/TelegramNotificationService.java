@@ -19,6 +19,8 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import jakarta.annotation.PostConstruct;
 import ru.ambryo.gameplannerback.dto.GameDto;
+import ru.ambryo.gameplannerback.dto.UserNotificationSettingsDto;
+import ru.ambryo.gameplannerback.dto.UpcomingGameReminderDto;
 import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.repository.UserRepository;
 
@@ -177,6 +179,57 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     
     // Константы для разметки времени
     private static final long TIME_SLOT_MARKING_STATE_TIMEOUT_SECONDS = 300; // 5 минут таймаут состояния
+    
+    // Система состояний для смены часового пояса через Telegram
+    private enum TimezoneChangeState {
+        WAITING_TIMEZONE
+    }
+    
+    // Хранение состояний смены часового пояса: chatId -> TimezoneChangeState
+    private final Map<String, TimezoneChangeState> timezoneChangeStates = new ConcurrentHashMap<>();
+    
+    // Хранение времени последнего действия смены часового пояса: chatId -> Instant
+    private final Map<String, Instant> timezoneChangeTimestamps = new ConcurrentHashMap<>();
+    
+    // Константы для смены часового пояса
+    private static final long TIMEZONE_CHANGE_STATE_TIMEOUT_SECONDS = 300; // 5 минут таймаут состояния
+    
+    // Система состояний для настроек уведомлений через Telegram
+    private enum NotificationState {
+        WAITING_REMINDER_VALUE,      // Ожидание значения напоминания
+        WAITING_REMINDER_UNIT,       // Ожидание единицы (минуты/часы/дни)
+        WAITING_CRON_FREQUENCY,      // Ожидание частоты cron (daily/weekly/monthly)
+        WAITING_CRON_DAY,            // Ожидание дня для weekly/monthly
+        WAITING_CRON_TIME            // Ожидание времени для cron
+    }
+    
+    // Класс для хранения данных настроек уведомлений
+    private static class NotificationData {
+        Integer reminderIndex;        // Индекс редактируемого напоминания
+        Integer reminderValue;        // Временное значение
+        String reminderUnit;          // Временная единица (minutes/hours/days)
+        String cronFrequency;        // Частота cron (daily/weekly/monthly)
+        Integer cronDay;              // День для cron
+        String cronTime;              // Время для cron (HH:mm)
+    }
+    
+    // Хранение состояний настроек уведомлений: chatId -> NotificationState
+    private final Map<String, NotificationState> notificationStates = new ConcurrentHashMap<>();
+    
+    // Хранение данных настроек уведомлений: chatId -> NotificationData
+    private final Map<String, NotificationData> notificationData = new ConcurrentHashMap<>();
+    
+    // Хранение времени последнего действия настроек уведомлений: chatId -> Instant
+    private final Map<String, Instant> notificationTimestamps = new ConcurrentHashMap<>();
+    
+    // Константы для настроек уведомлений
+    private static final long NOTIFICATION_STATE_TIMEOUT_SECONDS = 300; // 5 минут таймаут состояния
+    
+    // Хранение текущей страницы списка игр: chatId -> page (0-based)
+    private final Map<String, Integer> gamesListPage = new ConcurrentHashMap<>();
+    
+    // Константы для списка игр
+    private static final int GAMES_PER_PAGE = 5;
     
     private ZoneId getNotificationZone() {
         try {
@@ -412,6 +465,45 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         timeSlotMarkingTimestamps.put(chatId, Instant.now());
     }
     
+    // Вспомогательные методы для работы с состояниями смены часового пояса
+    
+    private void clearTimezoneChangeState(String chatId) {
+        timezoneChangeStates.remove(chatId);
+        timezoneChangeTimestamps.remove(chatId);
+    }
+    
+    private boolean isTimezoneChangeStateExpired(String chatId) {
+        Instant timestamp = timezoneChangeTimestamps.get(chatId);
+        if (timestamp == null) {
+            return true;
+        }
+        return Instant.now().isAfter(timestamp.plusSeconds(TIMEZONE_CHANGE_STATE_TIMEOUT_SECONDS));
+    }
+    
+    private void updateTimezoneChangeTimestamp(String chatId) {
+        timezoneChangeTimestamps.put(chatId, Instant.now());
+    }
+    
+    // Вспомогательные методы для работы с состояниями настроек уведомлений
+    
+    private void clearNotificationState(String chatId) {
+        notificationStates.remove(chatId);
+        notificationData.remove(chatId);
+        notificationTimestamps.remove(chatId);
+    }
+    
+    private boolean isNotificationStateExpired(String chatId) {
+        Instant timestamp = notificationTimestamps.get(chatId);
+        if (timestamp == null) {
+            return true;
+        }
+        return Instant.now().isAfter(timestamp.plusSeconds(NOTIFICATION_STATE_TIMEOUT_SECONDS));
+    }
+    
+    private void updateNotificationTimestamp(String chatId) {
+        notificationTimestamps.put(chatId, Instant.now());
+    }
+    
     // Методы парсинга даты, времени и продолжительности
     
     /**
@@ -606,28 +698,57 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 sendPersonalMessage(chatIdStr, "⏱️ Время ожидания истекло. Процесс разметки времени отменен.\n\nИспользуйте /mark для начала заново.");
             }
             
+            // Проверяем, не истекло ли состояние смены часового пояса
+            if (timezoneChangeStates.containsKey(chatIdStr) && isTimezoneChangeStateExpired(chatIdStr)) {
+                clearTimezoneChangeState(chatIdStr);
+                sendPersonalMessage(chatIdStr, "⏱️ Время ожидания истекло. Процесс смены часового пояса отменен.\n\nИспользуйте меню для начала заново.");
+            }
+            
+            // Проверяем, не истекло ли состояние настроек уведомлений
+            if (notificationStates.containsKey(chatIdStr) && isNotificationStateExpired(chatIdStr)) {
+                clearNotificationState(chatIdStr);
+                sendPersonalMessage(chatIdStr, "⏱️ Время ожидания истекло. Процесс настройки уведомлений отменен.\n\nИспользуйте меню для начала заново.");
+            }
+            
             // Обработка команд (команды имеют приоритет над состояниями)
             if (text.startsWith("/start")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 handleStartCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/stop")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 handleStopCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/register")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 handleRegisterCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/auth")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 handleAuthCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/cancel")) {
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 handleCancelCommand(chatIdStr);
             } else if (text.startsWith("/link")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 String[] parts = text.split("\\s+", 2);
                 if (parts.length == 2) {
                     handleLinkCommand(telegramUserId, chatIdStr, parts[1]);
@@ -637,10 +758,16 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             } else if (text.startsWith("/games") || text.startsWith("/upcoming")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 handleGamesCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/game")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 String[] parts = text.split("\\s+", 2);
                 if (parts.length == 2) {
                     try {
@@ -655,35 +782,48 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             } else if (text.startsWith("/invite")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 handleInviteCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/myinvites")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
                 clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 handleMyInvitesCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/mark")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
                 clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 handleMarkCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/myslots")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
                 clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 handleMySlotsCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/menu")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
                 clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 handleMenuCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/help")) {
                 clearAuthState(chatIdStr);
                 clearRegistrationState(chatIdStr);
                 clearTimeSlotMarkingState(chatIdStr);
+                clearTimezoneChangeState(chatIdStr);
+                clearNotificationState(chatIdStr);
                 handleHelpCommand(chatIdStr);
             } else {
                 // Обработка состояний (если не команда)
-                // Проверяем в порядке приоритета: регистрация -> авторизация -> разметка времени
+                // Проверяем в порядке приоритета: регистрация -> авторизация -> разметка времени -> смена часового пояса -> настройки уведомлений
                 RegistrationState regState = registrationStates.get(chatIdStr);
                 if (regState != null) {
                     handleRegistrationState(telegramUserId, chatIdStr, text, regState);
@@ -695,6 +835,16 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                         TimeSlotMarkingState markingState = timeSlotMarkingStates.get(chatIdStr);
                         if (markingState != null) {
                             handleTimeSlotMarkingState(telegramUserId, chatIdStr, text, markingState);
+                        } else {
+                            TimezoneChangeState timezoneState = timezoneChangeStates.get(chatIdStr);
+                            if (timezoneState != null) {
+                                handleTimezoneChangeState(telegramUserId, chatIdStr, text, timezoneState);
+                            } else {
+                                NotificationState notificationState = notificationStates.get(chatIdStr);
+                                if (notificationState != null) {
+                                    handleNotificationState(telegramUserId, chatIdStr, text, notificationState);
+                                }
+                            }
                         }
                     }
                 }
@@ -837,6 +987,8 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         boolean hasAuth = authStates.containsKey(chatId);
         boolean hasRegistration = registrationStates.containsKey(chatId);
         boolean hasMarking = timeSlotMarkingStates.containsKey(chatId);
+        boolean hasTimezoneChange = timezoneChangeStates.containsKey(chatId);
+        boolean hasNotification = notificationStates.containsKey(chatId);
         
         if (hasRegistration) {
             clearRegistrationState(chatId);
@@ -850,6 +1002,14 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             clearTimeSlotMarkingState(chatId);
             sendPersonalMessage(chatId, "✅ Процесс разметки времени отменен.\n\n" +
                     "Используйте /mark для начала заново.");
+        } else if (hasTimezoneChange) {
+            clearTimezoneChangeState(chatId);
+            sendPersonalMessage(chatId, "✅ Процесс смены часового пояса отменен.\n\n" +
+                    "Используйте меню для начала заново.");
+        } else if (hasNotification) {
+            clearNotificationState(chatId);
+            sendPersonalMessage(chatId, "✅ Процесс настройки уведомлений отменен.\n\n" +
+                    "Используйте меню для начала заново.");
         } else {
             sendPersonalMessage(chatId, "ℹ️ Нет активного процесса для отмены.");
         }
@@ -1249,7 +1409,9 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 return;
             }
             
-            String message = buildUpcomingGamesListMessage(upcomingGames);
+            // Для команды /games показываем все игры без пагинации
+            int totalPages = (int) Math.ceil((double) upcomingGames.size() / GAMES_PER_PAGE);
+            String message = buildUpcomingGamesListMessage(upcomingGames, 0, totalPages);
             sendPersonalMessage(chatId, message);
         } catch (Exception e) {
             logger.error("Error handling /games command", e);
@@ -1325,7 +1487,10 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             // Проверяем наличие часового пояса
             if (user.getTimezone() == null || user.getTimezone().trim().isEmpty()) {
                 sendPersonalMessage(chatId, "❌ <b>Часовой пояс не установлен</b>\n\n" +
-                        "Для разметки времени необходимо установить часовой пояс в настройках профиля на веб-сайте.\n\n" +
+                        "Для разметки времени необходимо установить часовой пояс.\n\n" +
+                        "Вы можете установить часовой пояс:\n" +
+                        "• Через меню: /menu → Настройки → Часовой пояс\n" +
+                        "• В настройках профиля на веб-сайте\n\n" +
                         "После установки часового пояса вы сможете использовать команду /mark для разметки времени.");
                 return;
             }
@@ -1528,8 +1693,8 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 message += "Выберите раздел:";
             } else {
                 message += "❌ Аккаунт не связан\n\n";
-                message += "Для доступа ко всем функциям необходимо зарегистрироваться.\n\n";
-                message += "Нажмите кнопку ниже, чтобы начать регистрацию:";
+                message += "Для доступа ко всем функциям необходимо связать аккаунт.\n\n";
+                message += "Выберите способ связывания:";
             }
             
             InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(isLinked);
@@ -1585,13 +1750,30 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             helpRow.add(helpButton);
             rows.add(helpRow);
         } else {
-            // Для несвязанных пользователей - только регистрация
+            // Для несвязанных пользователей - регистрация, авторизация и связывание
+            // Кнопка "Зарегистрироваться"
             List<InlineKeyboardButton> registerRow = new java.util.ArrayList<>();
             InlineKeyboardButton registerButton = new InlineKeyboardButton();
             registerButton.setText("📝 Зарегистрироваться");
             registerButton.setCallbackData("menu_register");
             registerRow.add(registerButton);
             rows.add(registerRow);
+            
+            // Кнопка "Авторизоваться"
+            List<InlineKeyboardButton> authRow = new java.util.ArrayList<>();
+            InlineKeyboardButton authButton = new InlineKeyboardButton();
+            authButton.setText("🔐 Авторизоваться");
+            authButton.setCallbackData("menu_auth");
+            authRow.add(authButton);
+            rows.add(authRow);
+            
+            // Кнопка "Связать"
+            List<InlineKeyboardButton> linkRow = new java.util.ArrayList<>();
+            InlineKeyboardButton linkButton = new InlineKeyboardButton();
+            linkButton.setText("🔗 Связать");
+            linkButton.setCallbackData("menu_link");
+            linkRow.add(linkButton);
+            rows.add(linkRow);
         }
         
         keyboard.setKeyboard(rows);
@@ -1698,6 +1880,26 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         profileRow.add(profileButton);
         rows.add(profileRow);
         
+        // Кнопка "Часовой пояс" (только если аккаунт связан)
+        if (isLinked) {
+            List<InlineKeyboardButton> timezoneRow = new java.util.ArrayList<>();
+            InlineKeyboardButton timezoneButton = new InlineKeyboardButton();
+            timezoneButton.setText("🌍 Часовой пояс");
+            timezoneButton.setCallbackData("menu_settings_timezone");
+            timezoneRow.add(timezoneButton);
+            rows.add(timezoneRow);
+        }
+        
+        // Кнопка "Уведомления" (только если аккаунт связан)
+        if (isLinked) {
+            List<InlineKeyboardButton> notificationsRow = new java.util.ArrayList<>();
+            InlineKeyboardButton notificationsButton = new InlineKeyboardButton();
+            notificationsButton.setText("🔔 Уведомления");
+            notificationsButton.setCallbackData("menu_settings_notifications");
+            notificationsRow.add(notificationsButton);
+            rows.add(notificationsRow);
+        }
+        
         // Кнопка "Инвайты" (только если аккаунт связан)
         if (isLinked) {
             List<InlineKeyboardButton> invitesRow = new java.util.ArrayList<>();
@@ -1767,6 +1969,15 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             // Обработка меню (префикс menu_)
             if (data.startsWith("menu_")) {
                 handleMenuCallback(telegramUserId, chatId.toString(), messageId, data);
+            } else if (data.startsWith("timezone_select_")) {
+                String timezoneId = data.substring("timezone_select_".length());
+                handleTimezoneSelectCallback(telegramUserId, chatId.toString(), messageId, timezoneId);
+            } else if (data.equals("timezone_manual")) {
+                handleTimezoneManualCallback(telegramUserId, chatId.toString(), messageId);
+            } else if (data.equals("timezone_separator")) {
+                // Игнорируем нажатие на разделитель (не делаем ничего)
+                answerCallbackQuery(callbackQuery.getId());
+                return;
             } else if (data.startsWith("join_game_")) {
                 Long gameId = Long.parseLong(data.substring("join_game_".length()));
                 handleJoinGameCallback(telegramUserId, chatId.toString(), messageId, gameId);
@@ -1776,6 +1987,9 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             } else if (data.startsWith("refresh_game_")) {
                 Long gameId = Long.parseLong(data.substring("refresh_game_".length()));
                 handleRefreshGameCallback(telegramUserId, chatId.toString(), messageId, gameId);
+            } else if (data.startsWith("view_game_")) {
+                Long gameId = Long.parseLong(data.substring("view_game_".length()));
+                handleViewGameFromMenu(telegramUserId, chatId.toString(), messageId, gameId);
             }
         } catch (Exception e) {
             logger.error("Error handling callback query", e);
@@ -1812,6 +2026,38 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 handleRegisterCommand(telegramUserId, chatId);
                 // Возвращаемся в главное меню
                 String menuMessage = "📱 <b>Главное меню</b>\n\n❌ Аккаунт не связан\n\nДля доступа ко всем функциям необходимо зарегистрироваться.\n\nНажмите кнопку ниже, чтобы начать регистрацию:";
+                InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(false);
+                updateMenuMessage(chatId, messageId, menuMessage, keyboard);
+                
+            } else if (data.equals("menu_auth")) {
+                // Авторизация через меню
+                if (isLinked) {
+                    answerCallbackQuery("", "✅ Ваш аккаунт уже связан!");
+                    return;
+                }
+                // Инициализируем авторизацию
+                handleAuthCommand(telegramUserId, chatId);
+                // Возвращаемся в главное меню
+                String menuMessage = "📱 <b>Главное меню</b>\n\n❌ Аккаунт не связан\n\nДля доступа ко всем функциям необходимо связать аккаунт.\n\nВыберите способ связывания:";
+                InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(false);
+                updateMenuMessage(chatId, messageId, menuMessage, keyboard);
+                
+            } else if (data.equals("menu_link")) {
+                // Связывание через токен через меню
+                if (isLinked) {
+                    answerCallbackQuery("", "✅ Ваш аккаунт уже связан!");
+                    return;
+                }
+                // Отправляем инструкцию по использованию токена
+                sendPersonalMessage(chatId, "🔗 <b>Связывание аккаунта через токен</b>\n\n" +
+                        "Для связывания аккаунта через токен:\n\n" +
+                        "1. Откройте настройки профиля на веб-сайте\n" +
+                        "2. Получите токен для связывания Telegram\n" +
+                        "3. Отправьте команду: <code>/link &lt;token&gt;</code>\n\n" +
+                        "Например: <code>/link abc123xyz</code>\n\n" +
+                        "💡 Используйте /cancel для отмены.");
+                // Возвращаемся в главное меню
+                String menuMessage = "📱 <b>Главное меню</b>\n\n❌ Аккаунт не связан\n\nДля доступа ко всем функциям необходимо связать аккаунт.\n\nВыберите способ связывания:";
                 InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(false);
                 updateMenuMessage(chatId, messageId, menuMessage, keyboard);
                 
@@ -1875,6 +2121,28 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 }
                 handleMenuGamesList(telegramUserId, chatId, messageId);
                 
+            } else if (data.startsWith("menu_games_page_")) {
+                // Пагинация списка игр
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                if (data.equals("menu_games_page_separator")) {
+                    // Игнорируем нажатие на индикатор страницы
+                    return;
+                }
+                int page = Integer.parseInt(data.substring("menu_games_page_".length()));
+                handleMenuGamesList(telegramUserId, chatId, messageId, page);
+                
+            } else if (data.startsWith("view_game_")) {
+                // Просмотр деталей игры
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                Long gameId = Long.parseLong(data.substring("view_game_".length()));
+                handleViewGameFromMenu(telegramUserId, chatId, messageId, gameId);
+                
             } else if (data.equals("menu_time_mark")) {
                 // Действие: разметка времени
                 if (!isLinked) {
@@ -1910,6 +2178,124 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             } else if (data.equals("menu_settings_profile")) {
                 // Действие: профиль
                 handleMenuSettingsProfile(telegramUserId, chatId, messageId);
+                
+            } else if (data.equals("menu_settings_timezone")) {
+                // Действие: смена часового пояса
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                handleMenuSettingsTimezone(telegramUserId, chatId, messageId);
+                
+            } else if (data.equals("menu_settings_notifications")) {
+                // Действие: настройки уведомлений
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                handleMenuNotifications(telegramUserId, chatId, messageId);
+                
+            } else if (data.startsWith("notification_set_")) {
+                // Обработка изменения простых настроек уведомлений
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                handleNotificationSettingChange(telegramUserId, chatId, messageId, data);
+                
+            } else if (data.equals("notification_reminders")) {
+                // Показать список напоминаний о предстоящих играх
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                handleMenuReminders(telegramUserId, chatId, messageId);
+                
+            } else if (data.equals("notification_reminder_add")) {
+                // Начать добавление нового напоминания
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                handleReminderAdd(telegramUserId, chatId, messageId);
+                
+            } else if (data.startsWith("notification_reminder_edit_")) {
+                // Редактирование существующего напоминания
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                int index = Integer.parseInt(data.substring("notification_reminder_edit_".length()));
+                handleReminderEdit(telegramUserId, chatId, messageId, index);
+                
+            } else if (data.startsWith("notification_reminder_delete_")) {
+                // Удаление напоминания
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                int index = Integer.parseInt(data.substring("notification_reminder_delete_".length()));
+                handleReminderDelete(telegramUserId, chatId, messageId, index);
+                
+            } else if (data.startsWith("notification_reminder_toggle_")) {
+                // Включить/выключить напоминание
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                int index = Integer.parseInt(data.substring("notification_reminder_toggle_".length()));
+                handleReminderToggle(telegramUserId, chatId, messageId, index);
+                
+            } else if (data.equals("notification_timeslot_reminder")) {
+                // Показать настройки напоминания о разметке времени
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                handleMenuTimeSlotReminder(telegramUserId, chatId, messageId);
+                
+            } else if (data.equals("notification_timeslot_reminder_toggle")) {
+                // Включить/выключить напоминание о разметке времени
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                handleTimeSlotReminderToggle(telegramUserId, chatId, messageId);
+                
+            } else if (data.equals("notification_timeslot_reminder_cron")) {
+                // Настройка cron для напоминания о разметке времени
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                handleTimeSlotReminderCron(telegramUserId, chatId, messageId);
+                
+            } else if (data.startsWith("notification_cron_frequency_")) {
+                // Выбор частоты cron
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                String frequency = data.substring("notification_cron_frequency_".length());
+                handleCronFrequencySelect(telegramUserId, chatId, messageId, frequency);
+                
+            } else if (data.startsWith("notification_cron_day_")) {
+                // Выбор дня для cron
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                int day = Integer.parseInt(data.substring("notification_cron_day_".length()));
+                handleCronDaySelect(telegramUserId, chatId, messageId, day);
+                
+            } else if (data.startsWith("notification_reminder_unit_")) {
+                // Выбор единицы для напоминания
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                String unit = data.substring("notification_reminder_unit_".length());
+                handleReminderUnitSelect(telegramUserId, chatId, messageId, unit);
             }
         } catch (Exception e) {
             logger.error("Error handling menu callback", e);
@@ -1932,6 +2318,10 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     }
     
     private void handleMenuGamesList(Long telegramUserId, String chatId, Integer messageId) {
+        handleMenuGamesList(telegramUserId, chatId, messageId, 0);
+    }
+    
+    private void handleMenuGamesList(Long telegramUserId, String chatId, Integer messageId, int page) {
         try {
             User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
             
@@ -1942,13 +2332,27 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             
             List<GameDto> upcomingGames = gameService.getUpcomingGamesForUser(user.getId());
             
+            // Сохраняем текущую страницу
+            gamesListPage.put(chatId, page);
+            
             String message;
-            InlineKeyboardMarkup keyboard = buildGamesMenuKeyboard();
+            InlineKeyboardMarkup keyboard;
             
             if (upcomingGames.isEmpty()) {
                 message = "📅 <b>Предстоящие игры</b>\n\nУ вас пока нет запланированных игр.";
+                keyboard = buildGamesMenuKeyboard();
             } else {
-                message = buildUpcomingGamesListMessage(upcomingGames);
+                // Сортируем игры по времени начала
+                List<GameDto> sortedGames = upcomingGames.stream()
+                    .sorted(Comparator.comparing(GameDto::getStartTime))
+                    .collect(Collectors.toList());
+                
+                int totalPages = (int) Math.ceil((double) sortedGames.size() / GAMES_PER_PAGE);
+                if (page < 0) page = 0;
+                if (page >= totalPages) page = totalPages - 1;
+                
+                message = buildUpcomingGamesListMessage(sortedGames, page, totalPages);
+                keyboard = buildGamesListKeyboard(sortedGames, page, totalPages);
             }
             
             updateMenuMessage(chatId, messageId, message, keyboard);
@@ -1956,6 +2360,83 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             logger.error("Error handling menu games list", e);
             answerCallbackQuery("", "❌ Ошибка при получении списка игр.");
         }
+    }
+    
+    private InlineKeyboardMarkup buildGamesListKeyboard(List<GameDto> games, int page, int totalPages) {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        int startIndex = page * GAMES_PER_PAGE;
+        int endIndex = Math.min(startIndex + GAMES_PER_PAGE, games.size());
+        List<GameDto> pageGames = games.subList(startIndex, endIndex);
+        
+        // Создаем кнопки для каждой игры на текущей странице
+        for (int i = 0; i < pageGames.size(); i++) {
+            GameDto game = pageGames.get(i);
+            int globalIndex = startIndex + i;
+            
+            List<InlineKeyboardButton> gameRow = new java.util.ArrayList<>();
+            InlineKeyboardButton gameButton = new InlineKeyboardButton();
+            
+            // Формируем текст кнопки: номер, название (или "Игра"), время
+            String buttonText = (globalIndex + 1) + ". ";
+            if (game.getTitle() != null && !game.getTitle().isEmpty()) {
+                String title = game.getTitle();
+                // Ограничиваем длину названия для кнопки (максимум ~30 символов)
+                if (title.length() > 30) {
+                    title = title.substring(0, 27) + "...";
+                }
+                buttonText += title;
+            } else {
+                buttonText += "Игра";
+            }
+            buttonText += " - " + formatInstant(game.getStartTime());
+            
+            gameButton.setText(buttonText);
+            gameButton.setCallbackData("view_game_" + game.getId());
+            gameRow.add(gameButton);
+            rows.add(gameRow);
+        }
+        
+        // Пагинация (если больше одной страницы)
+        if (totalPages > 1) {
+            List<InlineKeyboardButton> paginationRow = new java.util.ArrayList<>();
+            
+            // Кнопка "Предыдущая"
+            if (page > 0) {
+                InlineKeyboardButton prevButton = new InlineKeyboardButton();
+                prevButton.setText("◀️ Предыдущая");
+                prevButton.setCallbackData("menu_games_page_" + (page - 1));
+                paginationRow.add(prevButton);
+            }
+            
+            // Индикатор страницы
+            InlineKeyboardButton pageButton = new InlineKeyboardButton();
+            pageButton.setText((page + 1) + "/" + totalPages);
+            pageButton.setCallbackData("menu_games_page_separator");
+            paginationRow.add(pageButton);
+            
+            // Кнопка "Следующая"
+            if (page < totalPages - 1) {
+                InlineKeyboardButton nextButton = new InlineKeyboardButton();
+                nextButton.setText("Следующая ▶️");
+                nextButton.setCallbackData("menu_games_page_" + (page + 1));
+                paginationRow.add(nextButton);
+            }
+            
+            rows.add(paginationRow);
+        }
+        
+        // Кнопка "Назад"
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад");
+        backButton.setCallbackData("menu_games");
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
     }
     
     private void handleMenuTimeMark(Long telegramUserId, String chatId, Integer messageId) {
@@ -1970,7 +2451,10 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             // Проверяем наличие часового пояса
             if (user.getTimezone() == null || user.getTimezone().trim().isEmpty()) {
                 String errorMessage = "❌ <b>Часовой пояс не установлен</b>\n\n" +
-                        "Для разметки времени необходимо установить часовой пояс в настройках профиля на веб-сайте.\n\n" +
+                        "Для разметки времени необходимо установить часовой пояс.\n\n" +
+                        "Вы можете установить часовой пояс:\n" +
+                        "• Через меню: Настройки → Часовой пояс\n" +
+                        "• В настройках профиля на веб-сайте\n\n" +
                         "После установки часового пояса вы сможете использовать разметку времени.";
                 InlineKeyboardMarkup keyboard = buildTimeMenuKeyboard();
                 updateMenuMessage(chatId, messageId, errorMessage, keyboard);
@@ -2124,6 +2608,277 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
+    private void handleMenuSettingsTimezone(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            String currentTimezone = user.getTimezone() != null && !user.getTimezone().trim().isEmpty() 
+                    ? user.getTimezone() 
+                    : "Не установлен";
+            
+            String message = "🌍 <b>Смена часового пояса</b>\n\n" +
+                    "Текущий часовой пояс: <b>" + escapeHtml(currentTimezone) + "</b>\n\n" +
+                    "Выберите новый часовой пояс из списка:";
+            
+            InlineKeyboardMarkup keyboard = buildTimezoneSelectorKeyboard(user.getTimezone());
+            updateMenuMessage(chatId, messageId, message, keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling menu settings timezone", e);
+            answerCallbackQuery("", "❌ Ошибка при инициализации смены часового пояса.");
+        }
+    }
+    
+    private InlineKeyboardMarkup buildTimezoneSelectorKeyboard(String currentTimezone) {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        // Популярные часовые пояса России (по 2 в ряд)
+        String[][] russianTimezones = {
+            {"Europe/Moscow", "Москва"},
+            {"Europe/Kaliningrad", "Калининград"},
+            {"Europe/Samara", "Самара"},
+            {"Asia/Yekaterinburg", "Екатеринбург"},
+            {"Asia/Omsk", "Омск"},
+            {"Asia/Krasnoyarsk", "Красноярск"},
+            {"Asia/Irkutsk", "Иркутск"},
+            {"Asia/Yakutsk", "Якутск"},
+            {"Asia/Vladivostok", "Владивосток"},
+            {"Asia/Magadan", "Магадан"},
+            {"Asia/Kamchatka", "Камчатка"}
+        };
+        
+        for (int i = 0; i < russianTimezones.length; i += 2) {
+            List<InlineKeyboardButton> row = new java.util.ArrayList<>();
+            
+            // Первая кнопка в ряду
+            InlineKeyboardButton button1 = new InlineKeyboardButton();
+            String timezone1 = russianTimezones[i][0];
+            String label1 = russianTimezones[i][1];
+            String display1 = label1;
+            if (timezone1.equals(currentTimezone)) {
+                display1 = "✓ " + label1;
+            }
+            button1.setText(display1);
+            button1.setCallbackData("timezone_select_" + timezone1);
+            row.add(button1);
+            
+            // Вторая кнопка в ряду (если есть)
+            if (i + 1 < russianTimezones.length) {
+                InlineKeyboardButton button2 = new InlineKeyboardButton();
+                String timezone2 = russianTimezones[i + 1][0];
+                String label2 = russianTimezones[i + 1][1];
+                String display2 = label2;
+                if (timezone2.equals(currentTimezone)) {
+                    display2 = "✓ " + label2;
+                }
+                button2.setText(display2);
+                button2.setCallbackData("timezone_select_" + timezone2);
+                row.add(button2);
+            }
+            
+            rows.add(row);
+        }
+        
+        // Разделитель
+        List<InlineKeyboardButton> separatorRow = new java.util.ArrayList<>();
+        InlineKeyboardButton separatorButton = new InlineKeyboardButton();
+        separatorButton.setText("━━━━━━━━━━━━━━━━");
+        separatorButton.setCallbackData("timezone_separator");
+        separatorRow.add(separatorButton);
+        rows.add(separatorRow);
+        
+        // Популярные часовые пояса других стран (по 2 в ряд)
+        String[][] otherTimezones = {
+            {"Europe/London", "Лондон"},
+            {"Europe/Berlin", "Берлин"},
+            {"Europe/Paris", "Париж"},
+            {"America/New_York", "Нью-Йорк"},
+            {"America/Chicago", "Чикаго"},
+            {"America/Los_Angeles", "Лос-Анджелес"},
+            {"Asia/Tokyo", "Токио"},
+            {"Asia/Shanghai", "Шанхай"},
+            {"Asia/Dubai", "Дубай"},
+            {"Australia/Sydney", "Сидней"}
+        };
+        
+        for (int i = 0; i < otherTimezones.length; i += 2) {
+            List<InlineKeyboardButton> row = new java.util.ArrayList<>();
+            
+            // Первая кнопка в ряду
+            InlineKeyboardButton button1 = new InlineKeyboardButton();
+            String timezone1 = otherTimezones[i][0];
+            String label1 = otherTimezones[i][1];
+            String display1 = label1;
+            if (timezone1.equals(currentTimezone)) {
+                display1 = "✓ " + label1;
+            }
+            button1.setText(display1);
+            button1.setCallbackData("timezone_select_" + timezone1);
+            row.add(button1);
+            
+            // Вторая кнопка в ряду (если есть)
+            if (i + 1 < otherTimezones.length) {
+                InlineKeyboardButton button2 = new InlineKeyboardButton();
+                String timezone2 = otherTimezones[i + 1][0];
+                String label2 = otherTimezones[i + 1][1];
+                String display2 = label2;
+                if (timezone2.equals(currentTimezone)) {
+                    display2 = "✓ " + label2;
+                }
+                button2.setText(display2);
+                button2.setCallbackData("timezone_select_" + timezone2);
+                row.add(button2);
+            }
+            
+            rows.add(row);
+        }
+        
+        // Кнопка "Ввести вручную"
+        List<InlineKeyboardButton> manualRow = new java.util.ArrayList<>();
+        InlineKeyboardButton manualButton = new InlineKeyboardButton();
+        manualButton.setText("✏️ Ввести вручную");
+        manualButton.setCallbackData("timezone_manual");
+        manualRow.add(manualButton);
+        rows.add(manualRow);
+        
+        // Кнопка "Назад"
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад");
+        backButton.setCallbackData("menu_settings");
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
+    private void handleTimezoneSelectCallback(Long telegramUserId, String chatId, Integer messageId, String timezoneId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            // Проверяем валидность часового пояса
+            ZoneId zoneId;
+            try {
+                zoneId = ZoneId.of(timezoneId);
+            } catch (Exception e) {
+                answerCallbackQuery("", "❌ Неверный часовой пояс");
+                logger.error("Invalid timezone selected: {}", timezoneId, e);
+                return;
+            }
+            
+            // Обновляем часовой пояс пользователя
+            userService.updateUserProfile(user, user.getName(), user.getColor(), zoneId.getId());
+            
+            // Обновляем сообщение с подтверждением
+            String message = "✅ <b>Часовой пояс успешно изменен!</b>\n\n" +
+                    "Новый часовой пояс: <b>" + escapeHtml(zoneId.getId()) + "</b>\n\n" +
+                    "Теперь вы можете использовать разметку времени через /mark";
+            
+            InlineKeyboardMarkup keyboard = buildSettingsMenuKeyboard(true);
+            updateMenuMessage(chatId, messageId, message, keyboard);
+            
+            answerCallbackQuery("", "✅ Часовой пояс изменен!");
+            
+            logger.info("Timezone changed via Telegram for user: {}, new timezone: {}", user.getUsername(), zoneId.getId());
+        } catch (Exception e) {
+            logger.error("Error handling timezone select callback", e);
+            answerCallbackQuery("", "❌ Ошибка при смене часового пояса");
+        }
+    }
+    
+    private void handleTimezoneManualCallback(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            // Инициализируем состояние смены часового пояса для ручного ввода
+            timezoneChangeStates.put(chatId, TimezoneChangeState.WAITING_TIMEZONE);
+            updateTimezoneChangeTimestamp(chatId);
+            
+            String currentTimezone = user.getTimezone() != null && !user.getTimezone().trim().isEmpty() 
+                    ? user.getTimezone() 
+                    : "Не установлен";
+            
+            String message = "🌍 <b>Смена часового пояса</b>\n\n" +
+                    "Текущий часовой пояс: <b>" + escapeHtml(currentTimezone) + "</b>\n\n" +
+                    "Введите новый часовой пояс в формате IANA (например: Europe/Moscow, America/New_York, Asia/Tokyo)\n\n" +
+                    "💡 Используйте /cancel для отмены.\n" +
+                    "💡 Полный список: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones";
+            
+            // Отправляем новое сообщение для диалога
+            sendPersonalMessage(chatId, message);
+            
+            // Возвращаемся в подменю настроек
+            String menuMessage = "⚙️ <b>Настройки</b>\n\nВыберите действие:";
+            InlineKeyboardMarkup keyboard = buildSettingsMenuKeyboard(true);
+            updateMenuMessage(chatId, messageId, menuMessage, keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling timezone manual callback", e);
+            answerCallbackQuery("", "❌ Ошибка при инициализации ручного ввода");
+        }
+    }
+    
+    private void handleTimezoneChangeState(Long telegramUserId, String chatId, String text, TimezoneChangeState state) {
+        try {
+            if (state == TimezoneChangeState.WAITING_TIMEZONE) {
+                updateTimezoneChangeTimestamp(chatId);
+                
+                User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+                if (user == null) {
+                    clearTimezoneChangeState(chatId);
+                    sendPersonalMessage(chatId, "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                    return;
+                }
+                
+                String timezoneInput = text.trim();
+                
+                // Проверяем валидность часового пояса
+                ZoneId zoneId;
+                try {
+                    zoneId = ZoneId.of(timezoneInput);
+                } catch (Exception e) {
+                    sendPersonalMessage(chatId, "❌ <b>Неверный часовой пояс</b>\n\n" +
+                            "Часовой пояс '" + escapeHtml(timezoneInput) + "' не найден.\n\n" +
+                            "Пожалуйста, введите корректный IANA часовой пояс (например: Europe/Moscow)\n\n" +
+                            "💡 Используйте /cancel для отмены.");
+                    return;
+                }
+                
+                // Обновляем часовой пояс пользователя
+                userService.updateUserProfile(user, user.getName(), user.getColor(), zoneId.getId());
+                
+                // Очищаем состояние
+                clearTimezoneChangeState(chatId);
+                
+                // Отправляем подтверждение
+                sendPersonalMessage(chatId, "✅ <b>Часовой пояс успешно изменен!</b>\n\n" +
+                        "Новый часовой пояс: <b>" + escapeHtml(zoneId.getId()) + "</b>\n\n" +
+                        "Теперь вы можете использовать разметку времени через /mark");
+                
+                logger.info("Timezone changed via Telegram (manual) for user: {}, new timezone: {}", user.getUsername(), zoneId.getId());
+            }
+        } catch (Exception e) {
+            logger.error("Error handling timezone change state", e);
+            clearTimezoneChangeState(chatId);
+            sendPersonalMessage(chatId, "❌ Произошла ошибка при смене часового пояса. Попробуйте позже.");
+        }
+    }
+    
     private void answerCallbackQuery(String callbackQueryId) {
         try {
             AnswerCallbackQuery answer = new AnswerCallbackQuery();
@@ -2156,7 +2911,10 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             
             GameDto game = gameService.joinGame(gameId, user);
             String message = buildGameDetailsMessage(game, user);
-            InlineKeyboardMarkup keyboard = buildGameKeyboard(game, user);
+            // Используем клавиатуру с кнопкой "Назад", если игра открыта из меню
+            InlineKeyboardMarkup keyboard = gamesListPage.containsKey(chatId) 
+                ? buildGameKeyboardWithBack(game, user, chatId) 
+                : buildGameKeyboard(game, user);
             
             EditMessageText editMessage = new EditMessageText();
             editMessage.setChatId(chatId);
@@ -2194,7 +2952,10 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             
             GameDto game = gameService.leaveGame(gameId, user);
             String message = buildGameDetailsMessage(game, user);
-            InlineKeyboardMarkup keyboard = buildGameKeyboard(game, user);
+            // Используем клавиатуру с кнопкой "Назад", если игра открыта из меню
+            InlineKeyboardMarkup keyboard = gamesListPage.containsKey(chatId) 
+                ? buildGameKeyboardWithBack(game, user, chatId) 
+                : buildGameKeyboard(game, user);
             
             EditMessageText editMessage = new EditMessageText();
             editMessage.setChatId(chatId);
@@ -2230,7 +2991,10 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             
             GameDto game = gameService.getGameById(gameId);
             String message = buildGameDetailsMessage(game, user);
-            InlineKeyboardMarkup keyboard = buildGameKeyboard(game, user);
+            // Используем клавиатуру с кнопкой "Назад", если игра открыта из меню
+            InlineKeyboardMarkup keyboard = gamesListPage.containsKey(chatId) 
+                ? buildGameKeyboardWithBack(game, user, chatId) 
+                : buildGameKeyboard(game, user);
             
             EditMessageText editMessage = new EditMessageText();
             editMessage.setChatId(chatId);
@@ -2279,19 +3043,131 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
-    private String buildUpcomingGamesListMessage(List<GameDto> games) {
+    private void handleViewGameFromMenu(Long telegramUserId, String chatId, Integer messageId, Long gameId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            GameDto game = gameService.getGameById(gameId);
+            String message = buildGameDetailsMessage(game, user);
+            InlineKeyboardMarkup keyboard = buildGameKeyboardWithBack(game, user, chatId);
+            
+            updateMenuMessage(chatId, messageId, message, keyboard);
+        } catch (RuntimeException e) {
+            if (e.getMessage().contains("not found")) {
+                answerCallbackQuery("", "❌ Игра не найдена.");
+            } else {
+                answerCallbackQuery("", "❌ Ошибка: " + e.getMessage());
+            }
+            logger.error("Error handling view game from menu", e);
+        } catch (Exception e) {
+            answerCallbackQuery("", "❌ Произошла ошибка при получении информации об игре.");
+            logger.error("Error handling view game from menu", e);
+        }
+    }
+    
+    private InlineKeyboardMarkup buildGameKeyboardWithBack(GameDto game, User user, String chatId) {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        boolean isParticipant = game.getParticipants() != null 
+            && game.getParticipants().stream().anyMatch(p -> p.getId().equals(user.getId()));
+        boolean isCreator = game.getCreatorId().equals(user.getId());
+        
+        // Подсчет участников без создателя
+        long participantCount = game.getParticipants() != null 
+            ? game.getParticipants().stream()
+                .filter(p -> !p.getId().equals(game.getCreatorId()))
+                .count()
+            : 0;
+        
+        Integer maxParticipants = game.getMaxParticipants();
+        boolean isFull = maxParticipants != null && participantCount >= maxParticipants;
+        
+        List<InlineKeyboardButton> buttonRow = new java.util.ArrayList<>();
+        
+        if (isCreator) {
+            // Создатель не может записаться/отписаться
+            InlineKeyboardButton viewButton = new InlineKeyboardButton();
+            viewButton.setText("👁️ Просмотр (вы организатор)");
+            viewButton.setCallbackData("refresh_game_" + game.getId());
+            buttonRow.add(viewButton);
+        } else if (isParticipant) {
+            // Пользователь уже записан - кнопка отписки
+            InlineKeyboardButton leaveButton = new InlineKeyboardButton();
+            leaveButton.setText("❌ Покинуть игру");
+            leaveButton.setCallbackData("leave_game_" + game.getId());
+            buttonRow.add(leaveButton);
+        } else {
+            // Пользователь не записан - кнопка записи
+            InlineKeyboardButton joinButton = new InlineKeyboardButton();
+            if (isFull) {
+                joinButton.setText("🔒 Игра заполнена");
+                joinButton.setCallbackData("refresh_game_" + game.getId());
+            } else {
+                joinButton.setText("✅ Записаться на игру");
+                joinButton.setCallbackData("join_game_" + game.getId());
+            }
+            buttonRow.add(joinButton);
+        }
+        
+        rows.add(buttonRow);
+        
+        // Кнопка обновления
+        List<InlineKeyboardButton> refreshRow = new java.util.ArrayList<>();
+        InlineKeyboardButton refreshButton = new InlineKeyboardButton();
+        refreshButton.setText("🔄 Обновить");
+        refreshButton.setCallbackData("refresh_game_" + game.getId());
+        refreshRow.add(refreshButton);
+        rows.add(refreshRow);
+        
+        // Кнопка "Назад к списку"
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад к списку");
+        // Получаем текущую страницу или используем 0
+        int currentPage = gamesListPage.getOrDefault(chatId, 0);
+        backButton.setCallbackData("menu_games_page_" + currentPage);
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
+    private String buildUpcomingGamesListMessage(List<GameDto> games, int page, int totalPages) {
         StringBuilder message = new StringBuilder();
         message.append("📅 <b>Предстоящие игры</b>\n\n");
+        
+        if (games.isEmpty()) {
+            message.append("У вас пока нет запланированных игр.");
+            return message.toString();
+        }
         
         // Сортируем игры по времени начала
         List<GameDto> sortedGames = games.stream()
             .sorted(Comparator.comparing(GameDto::getStartTime))
             .collect(Collectors.toList());
         
-        for (int i = 0; i < sortedGames.size(); i++) {
-            GameDto game = sortedGames.get(i);
+        int startIndex = page * GAMES_PER_PAGE;
+        int endIndex = Math.min(startIndex + GAMES_PER_PAGE, sortedGames.size());
+        List<GameDto> pageGames = sortedGames.subList(startIndex, endIndex);
+        
+        message.append("Всего игр: ").append(sortedGames.size());
+        if (totalPages > 1) {
+            message.append(" (страница ").append(page + 1).append(" из ").append(totalPages).append(")");
+        }
+        message.append("\n\n");
+        
+        for (int i = 0; i < pageGames.size(); i++) {
+            GameDto game = pageGames.get(i);
+            int globalIndex = startIndex + i;
             
-            message.append("🎮 <b>").append(i + 1).append(".</b> ");
+            message.append("🎮 <b>").append(globalIndex + 1).append(".</b> ");
             
             if (game.getTitle() != null && !game.getTitle().isEmpty()) {
                 message.append("<b>").append(escapeHtml(game.getTitle())).append("</b>\n");
@@ -2325,14 +3201,11 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 message.append("👥 Участники: ").append(participantCount);
             }
             message.append("\n");
-            message.append("🆔 ID: <code>").append(game.getId()).append("</code>\n");
             
-            if (i < sortedGames.size() - 1) {
+            if (i < pageGames.size() - 1) {
                 message.append("\n");
             }
         }
-        
-        message.append("\n💡 Используйте /game &lt;id&gt; для просмотра деталей и записи на игру.");
         
         return message.toString();
     }
@@ -3060,5 +3933,1295 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         } catch (TelegramApiException e) {
             logger.error("Failed to send group time slot reminder", e);
         }
+    }
+    
+    // Методы для работы с настройками уведомлений
+    
+    private void handleMenuNotifications(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            // Получаем текущие настройки
+            UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
+            
+            String message = buildNotificationSettingsMessage(settings);
+            InlineKeyboardMarkup keyboard = buildNotificationsMenuKeyboard(settings);
+            
+            updateMenuMessage(chatId, messageId, message, keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling menu notifications", e);
+            answerCallbackQuery("", "❌ Ошибка при получении настроек уведомлений.");
+        }
+    }
+    
+    private String buildNotificationSettingsMessage(UserNotificationSettingsDto settings) {
+        StringBuilder message = new StringBuilder();
+        message.append("🔔 <b>Настройки уведомлений</b>\n\n");
+        message.append("<b>Текущие настройки:</b>\n");
+        
+        // Игра создана
+        String gameCreatedText = switch (settings.getGameCreated()) {
+            case "ALL" -> "Все игры";
+            case "MY_GAMES" -> "Только мои игры";
+            case "NONE" -> "Не получать";
+            default -> settings.getGameCreated();
+        };
+        message.append("• Игра создана: ").append(gameCreatedText).append("\n");
+        
+        // Игра отменена
+        String gameCancelledText = switch (settings.getGameCancelled()) {
+            case "ALL" -> "Все игры";
+            case "MY_GAMES" -> "Только мои игры";
+            case "NONE" -> "Не получать";
+            default -> settings.getGameCancelled();
+        };
+        message.append("• Игра отменена: ").append(gameCancelledText).append("\n");
+        
+        // Игра проведена
+        String gameHeldText = switch (settings.getGameHeld()) {
+            case "ALL" -> "Все игры";
+            case "MY_GAMES" -> "Только мои игры";
+            case "NONE" -> "Не получать";
+            default -> settings.getGameHeld();
+        };
+        message.append("• Игра проведена: ").append(gameHeldText).append("\n");
+        
+        // Исключили из игры
+        String removedText = "ALL".equals(settings.getGameRemovedFromGame()) ? "Получать" : "Не получать";
+        message.append("• Исключили из игры: ").append(removedText).append("\n");
+        
+        // Напоминания о предстоящих играх
+        List<UpcomingGameReminderDto> reminders = settings.getUpcomingGameReminders();
+        if (reminders == null) {
+            reminders = new java.util.ArrayList<>();
+        }
+        long activeReminders = reminders.stream()
+                .filter(r -> r.getEnabled() != null && r.getEnabled())
+                .count();
+        message.append("• Напоминания о предстоящих играх: ").append(activeReminders).append(" активных\n");
+        
+        // Напоминание разметить время
+        if (settings.getTimeSlotReminderEnabled() != null && settings.getTimeSlotReminderEnabled()) {
+            String cronText = formatCronToReadable(settings.getTimeSlotReminderCron());
+            message.append("• Напоминание разметить время: Включено");
+            if (cronText != null && !cronText.isEmpty()) {
+                message.append(" (").append(cronText).append(")");
+            }
+            message.append("\n");
+        } else {
+            message.append("• Напоминание разметить время: Выключено\n");
+        }
+        
+        // Напоминание завершить игру
+        String completionText = (settings.getGameCompletionReminderEnabled() != null && settings.getGameCompletionReminderEnabled()) 
+                ? "Включено" : "Выключено";
+        message.append("• Напоминание завершить игру: ").append(completionText).append("\n");
+        
+        message.append("\nВыберите настройку для изменения:");
+        
+        return message.toString();
+    }
+    
+    private InlineKeyboardMarkup buildNotificationsMenuKeyboard(UserNotificationSettingsDto settings) {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        // Игра создана
+        List<InlineKeyboardButton> gameCreatedRow = new java.util.ArrayList<>();
+        InlineKeyboardButton gameCreatedButton = new InlineKeyboardButton();
+        String gameCreatedText = switch (settings.getGameCreated()) {
+            case "ALL" -> "✓ Все игры";
+            case "MY_GAMES" -> "✓ Только мои";
+            case "NONE" -> "✓ Не получать";
+            default -> "Игра создана";
+        };
+        gameCreatedButton.setText("🎮 " + gameCreatedText);
+        gameCreatedButton.setCallbackData("notification_set_gameCreated");
+        gameCreatedRow.add(gameCreatedButton);
+        rows.add(gameCreatedRow);
+        
+        // Игра отменена
+        List<InlineKeyboardButton> gameCancelledRow = new java.util.ArrayList<>();
+        InlineKeyboardButton gameCancelledButton = new InlineKeyboardButton();
+        String gameCancelledText = switch (settings.getGameCancelled()) {
+            case "ALL" -> "✓ Все игры";
+            case "MY_GAMES" -> "✓ Только мои";
+            case "NONE" -> "✓ Не получать";
+            default -> "Игра отменена";
+        };
+        gameCancelledButton.setText("❌ " + gameCancelledText);
+        gameCancelledButton.setCallbackData("notification_set_gameCancelled");
+        gameCancelledRow.add(gameCancelledButton);
+        rows.add(gameCancelledRow);
+        
+        // Игра проведена
+        List<InlineKeyboardButton> gameHeldRow = new java.util.ArrayList<>();
+        InlineKeyboardButton gameHeldButton = new InlineKeyboardButton();
+        String gameHeldText = switch (settings.getGameHeld()) {
+            case "ALL" -> "✓ Все игры";
+            case "MY_GAMES" -> "✓ Только мои";
+            case "NONE" -> "✓ Не получать";
+            default -> "Игра проведена";
+        };
+        gameHeldButton.setText("✅ " + gameHeldText);
+        gameHeldButton.setCallbackData("notification_set_gameHeld");
+        gameHeldRow.add(gameHeldButton);
+        rows.add(gameHeldRow);
+        
+        // Исключили из игры
+        List<InlineKeyboardButton> removedRow = new java.util.ArrayList<>();
+        InlineKeyboardButton removedButton = new InlineKeyboardButton();
+        String removedText = "ALL".equals(settings.getGameRemovedFromGame()) ? "✓ Получать" : "✓ Не получать";
+        removedButton.setText("🚫 " + removedText);
+        removedButton.setCallbackData("notification_set_gameRemovedFromGame");
+        removedRow.add(removedButton);
+        rows.add(removedRow);
+        
+        // Напоминания о предстоящих играх
+        List<InlineKeyboardButton> remindersRow = new java.util.ArrayList<>();
+        InlineKeyboardButton remindersButton = new InlineKeyboardButton();
+        List<UpcomingGameReminderDto> reminders = settings.getUpcomingGameReminders();
+        if (reminders == null) {
+            reminders = new java.util.ArrayList<>();
+        }
+        long activeCount = reminders.stream()
+                .filter(r -> r.getEnabled() != null && r.getEnabled())
+                .count();
+        remindersButton.setText("⏰ Напоминания (" + activeCount + "/" + reminders.size() + ")");
+        remindersButton.setCallbackData("notification_reminders");
+        remindersRow.add(remindersButton);
+        rows.add(remindersRow);
+        
+        // Напоминание разметить время
+        List<InlineKeyboardButton> timeSlotRow = new java.util.ArrayList<>();
+        InlineKeyboardButton timeSlotButton = new InlineKeyboardButton();
+        String timeSlotText = (settings.getTimeSlotReminderEnabled() != null && settings.getTimeSlotReminderEnabled()) 
+                ? "✓ Включено" : "Выключено";
+        timeSlotButton.setText("📅 " + timeSlotText);
+        timeSlotButton.setCallbackData("notification_timeslot_reminder");
+        timeSlotRow.add(timeSlotButton);
+        rows.add(timeSlotRow);
+        
+        // Напоминание завершить игру
+        List<InlineKeyboardButton> completionRow = new java.util.ArrayList<>();
+        InlineKeyboardButton completionButton = new InlineKeyboardButton();
+        String completionText = (settings.getGameCompletionReminderEnabled() != null && settings.getGameCompletionReminderEnabled()) 
+                ? "✓ Включено" : "Выключено";
+        completionButton.setText("📝 " + completionText);
+        completionButton.setCallbackData("notification_set_gameCompletionReminder");
+        completionRow.add(completionButton);
+        rows.add(completionRow);
+        
+        // Кнопка "Назад"
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад");
+        backButton.setCallbackData("menu_settings");
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
+    private void handleNotificationSettingChange(Long telegramUserId, String chatId, Integer messageId, String callbackData) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            // Получаем текущие настройки
+            UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
+            
+            // Определяем, какая настройка изменяется
+            if (callbackData.equals("notification_set_gameCreated")) {
+                // Показываем меню выбора для "Игра создана"
+                showGameCreatedMenu(chatId, messageId, settings);
+            } else if (callbackData.equals("notification_set_gameCancelled")) {
+                // Показываем меню выбора для "Игра отменена"
+                showGameCancelledMenu(chatId, messageId, settings);
+            } else if (callbackData.equals("notification_set_gameHeld")) {
+                // Показываем меню выбора для "Игра проведена"
+                showGameHeldMenu(chatId, messageId, settings);
+            } else if (callbackData.equals("notification_set_gameRemovedFromGame")) {
+                // Переключаем "Исключили из игры"
+                String newValue = "ALL".equals(settings.getGameRemovedFromGame()) ? "NONE" : "ALL";
+                settings.setGameRemovedFromGame(newValue);
+                notificationSettingsService.updateSettings(user.getId(), settings);
+                answerCallbackQuery("", "✅ Настройка изменена!");
+                handleMenuNotifications(telegramUserId, chatId, messageId);
+            } else if (callbackData.equals("notification_set_gameCompletionReminder")) {
+                // Переключаем "Напоминание завершить игру"
+                boolean newValue = !(settings.getGameCompletionReminderEnabled() != null && settings.getGameCompletionReminderEnabled());
+                settings.setGameCompletionReminderEnabled(newValue);
+                notificationSettingsService.updateSettings(user.getId(), settings);
+                answerCallbackQuery("", "✅ Настройка изменена!");
+                handleMenuNotifications(telegramUserId, chatId, messageId);
+            } else if (callbackData.startsWith("notification_set_gameCreated_")) {
+                // Установка значения для "Игра создана"
+                String value = callbackData.substring("notification_set_gameCreated_".length());
+                settings.setGameCreated(value);
+                notificationSettingsService.updateSettings(user.getId(), settings);
+                answerCallbackQuery("", "✅ Настройка изменена!");
+                handleMenuNotifications(telegramUserId, chatId, messageId);
+            } else if (callbackData.startsWith("notification_set_gameCancelled_")) {
+                // Установка значения для "Игра отменена"
+                String value = callbackData.substring("notification_set_gameCancelled_".length());
+                settings.setGameCancelled(value);
+                notificationSettingsService.updateSettings(user.getId(), settings);
+                answerCallbackQuery("", "✅ Настройка изменена!");
+                handleMenuNotifications(telegramUserId, chatId, messageId);
+            } else if (callbackData.startsWith("notification_set_gameHeld_")) {
+                // Установка значения для "Игра проведена"
+                String value = callbackData.substring("notification_set_gameHeld_".length());
+                settings.setGameHeld(value);
+                notificationSettingsService.updateSettings(user.getId(), settings);
+                answerCallbackQuery("", "✅ Настройка изменена!");
+                handleMenuNotifications(telegramUserId, chatId, messageId);
+            }
+        } catch (Exception e) {
+            logger.error("Error handling notification setting change", e);
+            answerCallbackQuery("", "❌ Ошибка при изменении настройки");
+        }
+    }
+    
+    private void showGameCreatedMenu(String chatId, Integer messageId, UserNotificationSettingsDto settings) {
+        String message = "🎮 <b>Игра создана</b>\n\n" +
+                "Выберите, когда получать уведомления:";
+        
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        // Все игры
+        List<InlineKeyboardButton> allRow = new java.util.ArrayList<>();
+        InlineKeyboardButton allButton = new InlineKeyboardButton();
+        allButton.setText("ALL".equals(settings.getGameCreated()) ? "✓ Все игры" : "Все игры");
+        allButton.setCallbackData("notification_set_gameCreated_ALL");
+        allRow.add(allButton);
+        rows.add(allRow);
+        
+        // Только мои игры
+        List<InlineKeyboardButton> myRow = new java.util.ArrayList<>();
+        InlineKeyboardButton myButton = new InlineKeyboardButton();
+        myButton.setText("MY_GAMES".equals(settings.getGameCreated()) ? "✓ Только мои игры" : "Только мои игры");
+        myButton.setCallbackData("notification_set_gameCreated_MY_GAMES");
+        myRow.add(myButton);
+        rows.add(myRow);
+        
+        // Не получать
+        List<InlineKeyboardButton> noneRow = new java.util.ArrayList<>();
+        InlineKeyboardButton noneButton = new InlineKeyboardButton();
+        noneButton.setText("NONE".equals(settings.getGameCreated()) ? "✓ Не получать" : "Не получать");
+        noneButton.setCallbackData("notification_set_gameCreated_NONE");
+        noneRow.add(noneButton);
+        rows.add(noneRow);
+        
+        // Назад
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад");
+        backButton.setCallbackData("menu_settings_notifications");
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        updateMenuMessage(chatId, messageId, message, keyboard);
+    }
+    
+    private void showGameCancelledMenu(String chatId, Integer messageId, UserNotificationSettingsDto settings) {
+        String message = "❌ <b>Игра отменена</b>\n\n" +
+                "Выберите, когда получать уведомления:";
+        
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        // Все игры
+        List<InlineKeyboardButton> allRow = new java.util.ArrayList<>();
+        InlineKeyboardButton allButton = new InlineKeyboardButton();
+        allButton.setText("ALL".equals(settings.getGameCancelled()) ? "✓ Все игры" : "Все игры");
+        allButton.setCallbackData("notification_set_gameCancelled_ALL");
+        allRow.add(allButton);
+        rows.add(allRow);
+        
+        // Только мои игры
+        List<InlineKeyboardButton> myRow = new java.util.ArrayList<>();
+        InlineKeyboardButton myButton = new InlineKeyboardButton();
+        myButton.setText("MY_GAMES".equals(settings.getGameCancelled()) ? "✓ Только мои игры" : "Только мои игры");
+        myButton.setCallbackData("notification_set_gameCancelled_MY_GAMES");
+        myRow.add(myButton);
+        rows.add(myRow);
+        
+        // Не получать
+        List<InlineKeyboardButton> noneRow = new java.util.ArrayList<>();
+        InlineKeyboardButton noneButton = new InlineKeyboardButton();
+        noneButton.setText("NONE".equals(settings.getGameCancelled()) ? "✓ Не получать" : "Не получать");
+        noneButton.setCallbackData("notification_set_gameCancelled_NONE");
+        noneRow.add(noneButton);
+        rows.add(noneRow);
+        
+        // Назад
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад");
+        backButton.setCallbackData("menu_settings_notifications");
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        updateMenuMessage(chatId, messageId, message, keyboard);
+    }
+    
+    private void showGameHeldMenu(String chatId, Integer messageId, UserNotificationSettingsDto settings) {
+        String message = "✅ <b>Игра проведена</b>\n\n" +
+                "Выберите, когда получать уведомления:";
+        
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        // Все игры
+        List<InlineKeyboardButton> allRow = new java.util.ArrayList<>();
+        InlineKeyboardButton allButton = new InlineKeyboardButton();
+        allButton.setText("ALL".equals(settings.getGameHeld()) ? "✓ Все игры" : "Все игры");
+        allButton.setCallbackData("notification_set_gameHeld_ALL");
+        allRow.add(allButton);
+        rows.add(allRow);
+        
+        // Только мои игры
+        List<InlineKeyboardButton> myRow = new java.util.ArrayList<>();
+        InlineKeyboardButton myButton = new InlineKeyboardButton();
+        myButton.setText("MY_GAMES".equals(settings.getGameHeld()) ? "✓ Только мои игры" : "Только мои игры");
+        myButton.setCallbackData("notification_set_gameHeld_MY_GAMES");
+        myRow.add(myButton);
+        rows.add(myRow);
+        
+        // Не получать
+        List<InlineKeyboardButton> noneRow = new java.util.ArrayList<>();
+        InlineKeyboardButton noneButton = new InlineKeyboardButton();
+        noneButton.setText("NONE".equals(settings.getGameHeld()) ? "✓ Не получать" : "Не получать");
+        noneButton.setCallbackData("notification_set_gameHeld_NONE");
+        noneRow.add(noneButton);
+        rows.add(noneRow);
+        
+        // Назад
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад");
+        backButton.setCallbackData("menu_settings_notifications");
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        updateMenuMessage(chatId, messageId, message, keyboard);
+    }
+    
+    private void handleMenuReminders(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
+            List<UpcomingGameReminderDto> reminders = settings.getUpcomingGameReminders();
+            if (reminders == null) {
+                reminders = new java.util.ArrayList<>();
+            }
+            
+            String message = buildRemindersListMessage(reminders);
+            InlineKeyboardMarkup keyboard = buildRemindersMenuKeyboard(reminders);
+            
+            updateMenuMessage(chatId, messageId, message, keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling menu reminders", e);
+            answerCallbackQuery("", "❌ Ошибка при получении списка напоминаний.");
+        }
+    }
+    
+    private String buildRemindersListMessage(List<UpcomingGameReminderDto> reminders) {
+        StringBuilder message = new StringBuilder();
+        message.append("⏰ <b>Напоминания о предстоящих играх</b>\n\n");
+        
+        if (reminders.isEmpty()) {
+            message.append("У вас пока нет настроенных напоминаний.\n\n");
+            message.append("Нажмите кнопку ниже, чтобы добавить напоминание.");
+        } else {
+            message.append("Всего: ").append(reminders.size()).append(" (максимум 5)\n\n");
+            
+            for (int i = 0; i < reminders.size(); i++) {
+                UpcomingGameReminderDto reminder = reminders.get(i);
+                String displayValue = formatReminderValue(reminder.getMinutesBefore());
+                String status = (reminder.getEnabled() != null && reminder.getEnabled()) ? "✅" : "❌";
+                
+                message.append("<b>").append(i + 1).append(".</b> ").append(status).append(" ");
+                message.append(displayValue).append("\n");
+            }
+        }
+        
+        return message.toString();
+    }
+    
+    private InlineKeyboardMarkup buildRemindersMenuKeyboard(List<UpcomingGameReminderDto> reminders) {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        // Кнопки для каждого напоминания
+        for (int i = 0; i < reminders.size(); i++) {
+            UpcomingGameReminderDto reminder = reminders.get(i);
+            String displayValue = formatReminderValue(reminder.getMinutesBefore());
+            String status = (reminder.getEnabled() != null && reminder.getEnabled()) ? "✅" : "❌";
+            
+            List<InlineKeyboardButton> reminderRow = new java.util.ArrayList<>();
+            
+            // Кнопка редактирования
+            InlineKeyboardButton editButton = new InlineKeyboardButton();
+            editButton.setText("✏️ " + (i + 1) + ". " + status + " " + displayValue);
+            editButton.setCallbackData("notification_reminder_edit_" + i);
+            reminderRow.add(editButton);
+            rows.add(reminderRow);
+            
+            // Кнопки управления
+            List<InlineKeyboardButton> controlRow = new java.util.ArrayList<>();
+            
+            // Включить/выключить
+            InlineKeyboardButton toggleButton = new InlineKeyboardButton();
+            toggleButton.setText((reminder.getEnabled() != null && reminder.getEnabled()) ? "❌ Выкл" : "✅ Вкл");
+            toggleButton.setCallbackData("notification_reminder_toggle_" + i);
+            controlRow.add(toggleButton);
+            
+            // Удалить
+            InlineKeyboardButton deleteButton = new InlineKeyboardButton();
+            deleteButton.setText("🗑️ Удалить");
+            deleteButton.setCallbackData("notification_reminder_delete_" + i);
+            controlRow.add(deleteButton);
+            
+            rows.add(controlRow);
+        }
+        
+        // Кнопка добавления (если меньше 5)
+        if (reminders.size() < 5) {
+            List<InlineKeyboardButton> addRow = new java.util.ArrayList<>();
+            InlineKeyboardButton addButton = new InlineKeyboardButton();
+            addButton.setText("➕ Добавить напоминание");
+            addButton.setCallbackData("notification_reminder_add");
+            addRow.add(addButton);
+            rows.add(addRow);
+        }
+        
+        // Назад
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад");
+        backButton.setCallbackData("menu_settings_notifications");
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
+    private String formatReminderValue(Integer minutesBefore) {
+        if (minutesBefore == null) {
+            return "0 минут";
+        }
+        
+        if (minutesBefore % (24 * 60) == 0 && minutesBefore >= 24 * 60) {
+            int days = minutesBefore / (24 * 60);
+            return days + " " + (days == 1 ? "день" : (days < 5 ? "дня" : "дней"));
+        } else if (minutesBefore % 60 == 0 && minutesBefore >= 60) {
+            int hours = minutesBefore / 60;
+            return hours + " " + (hours == 1 ? "час" : (hours < 5 ? "часа" : "часов"));
+        } else {
+            return minutesBefore + " " + (minutesBefore == 1 ? "минута" : (minutesBefore < 5 ? "минуты" : "минут"));
+        }
+    }
+    
+    private void handleReminderAdd(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
+            List<UpcomingGameReminderDto> reminders = settings.getUpcomingGameReminders();
+            if (reminders == null) {
+                reminders = new java.util.ArrayList<>();
+            }
+            
+            if (reminders.size() >= 5) {
+                answerCallbackQuery("", "❌ Максимум 5 напоминаний");
+                return;
+            }
+            
+            // Инициализируем состояние добавления напоминания
+            notificationStates.put(chatId, NotificationState.WAITING_REMINDER_VALUE);
+            NotificationData data = new NotificationData();
+            data.reminderIndex = -1; // -1 означает новое напоминание
+            notificationData.put(chatId, data);
+            updateNotificationTimestamp(chatId);
+            
+            String message = "⏰ <b>Добавление напоминания</b>\n\n" +
+                    "Введите значение (например: 60 для 60 минут, 2 для 2 часов, 1 для 1 дня):\n\n" +
+                    "💡 Используйте /cancel для отмены.";
+            
+            sendPersonalMessage(chatId, message);
+            
+            // Обновляем меню
+            String menuMessage = buildRemindersListMessage(reminders);
+            InlineKeyboardMarkup keyboard = buildRemindersMenuKeyboard(reminders);
+            updateMenuMessage(chatId, messageId, menuMessage, keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling reminder add", e);
+            answerCallbackQuery("", "❌ Ошибка при добавлении напоминания");
+        }
+    }
+    
+    private void handleReminderEdit(Long telegramUserId, String chatId, Integer messageId, int index) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
+            List<UpcomingGameReminderDto> reminders = settings.getUpcomingGameReminders();
+            if (reminders == null || index < 0 || index >= reminders.size()) {
+                answerCallbackQuery("", "❌ Напоминание не найдено");
+                return;
+            }
+            
+            // Инициализируем состояние редактирования напоминания
+            notificationStates.put(chatId, NotificationState.WAITING_REMINDER_VALUE);
+            NotificationData data = new NotificationData();
+            data.reminderIndex = index;
+            UpcomingGameReminderDto reminder = reminders.get(index);
+            data.reminderValue = reminder.getMinutesBefore();
+            notificationData.put(chatId, data);
+            updateNotificationTimestamp(chatId);
+            
+            String currentValue = formatReminderValue(reminder.getMinutesBefore());
+            String message = "✏️ <b>Редактирование напоминания</b>\n\n" +
+                    "Текущее значение: <b>" + escapeHtml(currentValue) + "</b>\n\n" +
+                    "Введите новое значение (например: 60 для 60 минут, 2 для 2 часов, 1 для 1 дня):\n\n" +
+                    "💡 Используйте /cancel для отмены.";
+            
+            sendPersonalMessage(chatId, message);
+            
+            // Обновляем меню
+            String menuMessage = buildRemindersListMessage(reminders);
+            InlineKeyboardMarkup keyboard = buildRemindersMenuKeyboard(reminders);
+            updateMenuMessage(chatId, messageId, menuMessage, keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling reminder edit", e);
+            answerCallbackQuery("", "❌ Ошибка при редактировании напоминания");
+        }
+    }
+    
+    private void handleReminderDelete(Long telegramUserId, String chatId, Integer messageId, int index) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
+            List<UpcomingGameReminderDto> reminders = settings.getUpcomingGameReminders();
+            if (reminders == null || index < 0 || index >= reminders.size()) {
+                answerCallbackQuery("", "❌ Напоминание не найдено");
+                return;
+            }
+            
+            reminders.remove(index);
+            settings.setUpcomingGameReminders(reminders);
+            notificationSettingsService.updateSettings(user.getId(), settings);
+            
+            answerCallbackQuery("", "✅ Напоминание удалено!");
+            handleMenuReminders(telegramUserId, chatId, messageId);
+        } catch (Exception e) {
+            logger.error("Error handling reminder delete", e);
+            answerCallbackQuery("", "❌ Ошибка при удалении напоминания");
+        }
+    }
+    
+    private void handleReminderToggle(Long telegramUserId, String chatId, Integer messageId, int index) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
+            List<UpcomingGameReminderDto> reminders = settings.getUpcomingGameReminders();
+            if (reminders == null || index < 0 || index >= reminders.size()) {
+                answerCallbackQuery("", "❌ Напоминание не найдено");
+                return;
+            }
+            
+            UpcomingGameReminderDto reminder = reminders.get(index);
+            boolean newValue = !(reminder.getEnabled() != null && reminder.getEnabled());
+            reminder.setEnabled(newValue);
+            settings.setUpcomingGameReminders(reminders);
+            notificationSettingsService.updateSettings(user.getId(), settings);
+            
+            answerCallbackQuery("", "✅ Напоминание " + (newValue ? "включено" : "выключено") + "!");
+            handleMenuReminders(telegramUserId, chatId, messageId);
+        } catch (Exception e) {
+            logger.error("Error handling reminder toggle", e);
+            answerCallbackQuery("", "❌ Ошибка при изменении напоминания");
+        }
+    }
+    
+    private void handleReminderUnitSelect(Long telegramUserId, String chatId, Integer messageId, String unit) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            NotificationData data = notificationData.get(chatId);
+            if (data == null) {
+                clearNotificationState(chatId);
+                sendPersonalMessage(chatId, "❌ Ошибка: данные не найдены. Начните заново.");
+                return;
+            }
+            
+            data.reminderUnit = unit;
+            notificationData.put(chatId, data);
+            
+            // Переходим к вопросу о включении/выключении
+            notificationStates.put(chatId, NotificationState.WAITING_REMINDER_UNIT); // Используем это состояние для финального подтверждения
+            updateNotificationTimestamp(chatId);
+            
+            String valueText = data.reminderValue != null ? String.valueOf(data.reminderValue) : "0";
+            String unitText = switch (unit) {
+                case "minutes" -> "минут";
+                case "hours" -> "часов";
+                case "days" -> "дней";
+                default -> unit;
+            };
+            
+            String message = "✅ Значение принято!\n\n" +
+                    "Напоминание: <b>" + valueText + " " + unitText + "</b>\n\n" +
+                    "Включить это напоминание? (да/нет):\n\n" +
+                    "💡 Используйте /cancel для отмены.";
+            
+            sendPersonalMessage(chatId, message);
+        } catch (Exception e) {
+            logger.error("Error handling reminder unit select", e);
+            answerCallbackQuery("", "❌ Ошибка при выборе единицы");
+        }
+    }
+    
+    private void handleMenuTimeSlotReminder(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
+            
+            String message = "📅 <b>Напоминание разметить время</b>\n\n";
+            
+            if (settings.getTimeSlotReminderEnabled() != null && settings.getTimeSlotReminderEnabled()) {
+                String cronText = formatCronToReadable(settings.getTimeSlotReminderCron());
+                message += "Статус: <b>Включено</b>\n";
+                if (cronText != null && !cronText.isEmpty()) {
+                    message += "Расписание: <b>" + escapeHtml(cronText) + "</b>\n";
+                }
+            } else {
+                message += "Статус: <b>Выключено</b>\n";
+            }
+            
+            message += "\nВыберите действие:";
+            
+            InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+            
+            // Включить/выключить
+            List<InlineKeyboardButton> toggleRow = new java.util.ArrayList<>();
+            InlineKeyboardButton toggleButton = new InlineKeyboardButton();
+            toggleButton.setText((settings.getTimeSlotReminderEnabled() != null && settings.getTimeSlotReminderEnabled()) 
+                    ? "❌ Выключить" : "✅ Включить");
+            toggleButton.setCallbackData("notification_timeslot_reminder_toggle");
+            toggleRow.add(toggleButton);
+            rows.add(toggleRow);
+            
+            // Настроить расписание (только если включено)
+            if (settings.getTimeSlotReminderEnabled() != null && settings.getTimeSlotReminderEnabled()) {
+                List<InlineKeyboardButton> cronRow = new java.util.ArrayList<>();
+                InlineKeyboardButton cronButton = new InlineKeyboardButton();
+                cronButton.setText("⚙️ Настроить расписание");
+                cronButton.setCallbackData("notification_timeslot_reminder_cron");
+                cronRow.add(cronButton);
+                rows.add(cronRow);
+            }
+            
+            // Назад
+            List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+            InlineKeyboardButton backButton = new InlineKeyboardButton();
+            backButton.setText("◀️ Назад");
+            backButton.setCallbackData("menu_settings_notifications");
+            backRow.add(backButton);
+            rows.add(backRow);
+            
+            keyboard.setKeyboard(rows);
+            updateMenuMessage(chatId, messageId, message, keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling menu time slot reminder", e);
+            answerCallbackQuery("", "❌ Ошибка при получении настроек");
+        }
+    }
+    
+    private void handleTimeSlotReminderToggle(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
+            boolean newValue = !(settings.getTimeSlotReminderEnabled() != null && settings.getTimeSlotReminderEnabled());
+            settings.setTimeSlotReminderEnabled(newValue);
+            
+            // Если выключаем, очищаем cron
+            if (!newValue) {
+                settings.setTimeSlotReminderCron(null);
+            } else if (settings.getTimeSlotReminderCron() == null || settings.getTimeSlotReminderCron().trim().isEmpty()) {
+                // Если включаем и cron не установлен, устанавливаем по умолчанию
+                settings.setTimeSlotReminderCron("0 0 9 * * *"); // Ежедневно в 9:00
+            }
+            
+            notificationSettingsService.updateSettings(user.getId(), settings);
+            
+            answerCallbackQuery("", "✅ Настройка изменена!");
+            handleMenuTimeSlotReminder(telegramUserId, chatId, messageId);
+        } catch (Exception e) {
+            logger.error("Error handling time slot reminder toggle", e);
+            answerCallbackQuery("", "❌ Ошибка при изменении настройки");
+        }
+    }
+    
+    private void handleTimeSlotReminderCron(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
+            
+            // Инициализируем состояние настройки cron
+            notificationStates.put(chatId, NotificationState.WAITING_CRON_FREQUENCY);
+            NotificationData data = new NotificationData();
+            if (settings.getTimeSlotReminderCron() != null && !settings.getTimeSlotReminderCron().trim().isEmpty()) {
+                // Парсим существующий cron
+                parseCronToData(settings.getTimeSlotReminderCron(), data);
+            }
+            notificationData.put(chatId, data);
+            updateNotificationTimestamp(chatId);
+            
+            String message = "⚙️ <b>Настройка расписания</b>\n\n" +
+                    "Выберите частоту напоминания:";
+            
+            InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+            List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+            
+            // Ежедневно
+            List<InlineKeyboardButton> dailyRow = new java.util.ArrayList<>();
+            InlineKeyboardButton dailyButton = new InlineKeyboardButton();
+            dailyButton.setText("📅 Ежедневно");
+            dailyButton.setCallbackData("notification_cron_frequency_daily");
+            dailyRow.add(dailyButton);
+            rows.add(dailyRow);
+            
+            // Еженедельно
+            List<InlineKeyboardButton> weeklyRow = new java.util.ArrayList<>();
+            InlineKeyboardButton weeklyButton = new InlineKeyboardButton();
+            weeklyButton.setText("📆 Еженедельно");
+            weeklyButton.setCallbackData("notification_cron_frequency_weekly");
+            weeklyRow.add(weeklyButton);
+            rows.add(weeklyRow);
+            
+            // Ежемесячно
+            List<InlineKeyboardButton> monthlyRow = new java.util.ArrayList<>();
+            InlineKeyboardButton monthlyButton = new InlineKeyboardButton();
+            monthlyButton.setText("🗓️ Ежемесячно");
+            monthlyButton.setCallbackData("notification_cron_frequency_monthly");
+            monthlyRow.add(monthlyButton);
+            rows.add(monthlyRow);
+            
+            // Назад
+            List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+            InlineKeyboardButton backButton = new InlineKeyboardButton();
+            backButton.setText("◀️ Назад");
+            backButton.setCallbackData("notification_timeslot_reminder");
+            backRow.add(backButton);
+            rows.add(backRow);
+            
+            keyboard.setKeyboard(rows);
+            updateMenuMessage(chatId, messageId, message, keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling time slot reminder cron", e);
+            answerCallbackQuery("", "❌ Ошибка при настройке расписания");
+        }
+    }
+    
+    private void handleCronFrequencySelect(Long telegramUserId, String chatId, Integer messageId, String frequency) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            NotificationData data = notificationData.get(chatId);
+            if (data == null) {
+                clearNotificationState(chatId);
+                sendPersonalMessage(chatId, "❌ Ошибка: данные не найдены. Начните заново.");
+                return;
+            }
+            
+            data.cronFrequency = frequency;
+            notificationData.put(chatId, data);
+            
+            if ("daily".equals(frequency)) {
+                // Для ежедневного - сразу переходим к времени
+                notificationStates.put(chatId, NotificationState.WAITING_CRON_TIME);
+                updateNotificationTimestamp(chatId);
+                
+                String message = "✅ Частота выбрана: <b>Ежедневно</b>\n\n" +
+                        "Введите время в формате ЧЧ:ММ (например: 09:00):\n\n" +
+                        "💡 Используйте /cancel для отмены.";
+                
+                sendPersonalMessage(chatId, message);
+            } else if ("weekly".equals(frequency)) {
+                // Для еженедельного - выбираем день недели
+                notificationStates.put(chatId, NotificationState.WAITING_CRON_DAY);
+                updateNotificationTimestamp(chatId);
+                
+                String message = "✅ Частота выбрана: <b>Еженедельно</b>\n\n" +
+                        "Выберите день недели:";
+                
+                InlineKeyboardMarkup keyboard = buildDayOfWeekKeyboard();
+                updateMenuMessage(chatId, messageId, message, keyboard);
+            } else if ("monthly".equals(frequency)) {
+                // Для ежемесячного - вводим день месяца
+                notificationStates.put(chatId, NotificationState.WAITING_CRON_DAY);
+                updateNotificationTimestamp(chatId);
+                
+                String message = "✅ Частота выбрана: <b>Ежемесячно</b>\n\n" +
+                        "Введите день месяца (1-31):\n\n" +
+                        "💡 Используйте /cancel для отмены.";
+                
+                sendPersonalMessage(chatId, message);
+            }
+        } catch (Exception e) {
+            logger.error("Error handling cron frequency select", e);
+            answerCallbackQuery("", "❌ Ошибка при выборе частоты");
+        }
+    }
+    
+    private InlineKeyboardMarkup buildDayOfWeekKeyboard() {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        String[] days = {"Воскресенье", "Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"};
+        
+        // Первая строка: Пн, Вт, Ср
+        List<InlineKeyboardButton> row1 = new java.util.ArrayList<>();
+        for (int i = 1; i <= 3; i++) {
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText(days[i]);
+            button.setCallbackData("notification_cron_day_" + i);
+            row1.add(button);
+        }
+        rows.add(row1);
+        
+        // Вторая строка: Чт, Пт, Сб
+        List<InlineKeyboardButton> row2 = new java.util.ArrayList<>();
+        for (int i = 4; i <= 6; i++) {
+            InlineKeyboardButton button = new InlineKeyboardButton();
+            button.setText(days[i]);
+            button.setCallbackData("notification_cron_day_" + i);
+            row2.add(button);
+        }
+        rows.add(row2);
+        
+        // Третья строка: Вс
+        List<InlineKeyboardButton> row3 = new java.util.ArrayList<>();
+        InlineKeyboardButton button = new InlineKeyboardButton();
+        button.setText(days[0]);
+        button.setCallbackData("notification_cron_day_0");
+        row3.add(button);
+        rows.add(row3);
+        
+        // Назад
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад");
+        backButton.setCallbackData("notification_timeslot_reminder_cron");
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
+    private void handleCronDaySelect(Long telegramUserId, String chatId, Integer messageId, int day) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            NotificationData data = notificationData.get(chatId);
+            if (data == null) {
+                clearNotificationState(chatId);
+                sendPersonalMessage(chatId, "❌ Ошибка: данные не найдены. Начните заново.");
+                return;
+            }
+            
+            data.cronDay = day;
+            notificationData.put(chatId, data);
+            notificationStates.put(chatId, NotificationState.WAITING_CRON_TIME);
+            updateNotificationTimestamp(chatId);
+            
+            String dayText = switch (day) {
+                case 0 -> "воскресенье";
+                case 1 -> "понедельник";
+                case 2 -> "вторник";
+                case 3 -> "среду";
+                case 4 -> "четверг";
+                case 5 -> "пятницу";
+                case 6 -> "субботу";
+                default -> "день " + day;
+            };
+            
+            String message = "✅ День выбран: <b>" + dayText + "</b>\n\n" +
+                    "Введите время в формате ЧЧ:ММ (например: 09:00):\n\n" +
+                    "💡 Используйте /cancel для отмены.";
+            
+            sendPersonalMessage(chatId, message);
+        } catch (Exception e) {
+            logger.error("Error handling cron day select", e);
+            answerCallbackQuery("", "❌ Ошибка при выборе дня");
+        }
+    }
+    
+    private void handleNotificationState(Long telegramUserId, String chatId, String text, NotificationState state) {
+        try {
+            updateNotificationTimestamp(chatId);
+            
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            if (user == null) {
+                clearNotificationState(chatId);
+                sendPersonalMessage(chatId, "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            NotificationData data = notificationData.get(chatId);
+            if (data == null) {
+                clearNotificationState(chatId);
+                sendPersonalMessage(chatId, "❌ Ошибка: данные не найдены. Начните заново.");
+                return;
+            }
+            
+            if (state == NotificationState.WAITING_REMINDER_VALUE) {
+                // Ожидание значения напоминания
+                try {
+                    int value = Integer.parseInt(text.trim());
+                    if (value <= 0) {
+                        sendPersonalMessage(chatId, "❌ Значение должно быть положительным числом. Введите значение:");
+                        return;
+                    }
+                    
+                    data.reminderValue = value;
+                    notificationData.put(chatId, data);
+                    
+                    // Переходим к выбору единицы
+                    notificationStates.put(chatId, NotificationState.WAITING_REMINDER_UNIT);
+                    updateNotificationTimestamp(chatId);
+                    
+                    String message = "✅ Значение принято: <b>" + value + "</b>\n\n" +
+                            "Выберите единицу измерения:";
+                    
+                    InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+                    List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+                    
+                    // Минуты
+                    List<InlineKeyboardButton> minutesRow = new java.util.ArrayList<>();
+                    InlineKeyboardButton minutesButton = new InlineKeyboardButton();
+                    minutesButton.setText("⏱️ Минуты");
+                    minutesButton.setCallbackData("notification_reminder_unit_minutes");
+                    minutesRow.add(minutesButton);
+                    rows.add(minutesRow);
+                    
+                    // Часы
+                    List<InlineKeyboardButton> hoursRow = new java.util.ArrayList<>();
+                    InlineKeyboardButton hoursButton = new InlineKeyboardButton();
+                    hoursButton.setText("🕐 Часы");
+                    hoursButton.setCallbackData("notification_reminder_unit_hours");
+                    hoursRow.add(hoursButton);
+                    rows.add(hoursRow);
+                    
+                    // Дни
+                    List<InlineKeyboardButton> daysRow = new java.util.ArrayList<>();
+                    InlineKeyboardButton daysButton = new InlineKeyboardButton();
+                    daysButton.setText("📅 Дни");
+                    daysButton.setCallbackData("notification_reminder_unit_days");
+                    daysRow.add(daysButton);
+                    rows.add(daysRow);
+                    
+                    keyboard.setKeyboard(rows);
+                    sendPersonalMessage(chatId, message);
+                    // Отправляем клавиатуру отдельным сообщением
+                    SendMessage sendMessage = new SendMessage();
+                    sendMessage.setChatId(chatId);
+                    sendMessage.setText("Выберите единицу:");
+                    sendMessage.setReplyMarkup(keyboard);
+                    execute(sendMessage);
+                } catch (NumberFormatException e) {
+                    sendPersonalMessage(chatId, "❌ Неверный формат. Введите положительное число:");
+                    return;
+                }
+                
+            } else if (state == NotificationState.WAITING_REMINDER_UNIT) {
+                // Это состояние используется для финального подтверждения (включить/выключить)
+                // после выбора единицы через callback
+                String lowerText = text.trim().toLowerCase();
+                boolean enabled = lowerText.equals("да") || lowerText.equals("yes") || lowerText.equals("включить") || lowerText.equals("on");
+                
+                // Сохраняем напоминание
+                UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
+                List<UpcomingGameReminderDto> reminders = settings.getUpcomingGameReminders();
+                if (reminders == null) {
+                    reminders = new java.util.ArrayList<>();
+                }
+                
+                // Вычисляем minutesBefore на основе значения и единицы
+                int minutesBefore = convertToMinutes(data.reminderValue, data.reminderUnit);
+                
+                if (data.reminderIndex == -1) {
+                    // Новое напоминание
+                    if (reminders.size() >= 5) {
+                        clearNotificationState(chatId);
+                        sendPersonalMessage(chatId, "❌ Максимум 5 напоминаний. Удалите одно из существующих.");
+                        return;
+                    }
+                    reminders.add(new UpcomingGameReminderDto(minutesBefore, enabled));
+                } else {
+                    // Редактирование существующего
+                    if (data.reminderIndex >= 0 && data.reminderIndex < reminders.size()) {
+                        UpcomingGameReminderDto reminder = reminders.get(data.reminderIndex);
+                        reminder.setMinutesBefore(minutesBefore);
+                        reminder.setEnabled(enabled);
+                    } else {
+                        clearNotificationState(chatId);
+                        sendPersonalMessage(chatId, "❌ Напоминание не найдено.");
+                        return;
+                    }
+                }
+                
+                settings.setUpcomingGameReminders(reminders);
+                notificationSettingsService.updateSettings(user.getId(), settings);
+                
+                clearNotificationState(chatId);
+                
+                String displayValue = formatReminderValue(minutesBefore);
+                sendPersonalMessage(chatId, "✅ <b>Напоминание " + (data.reminderIndex == -1 ? "добавлено" : "изменено") + "!</b>\n\n" +
+                        "Значение: <b>" + escapeHtml(displayValue) + "</b>\n" +
+                        "Статус: <b>" + (enabled ? "Включено" : "Выключено") + "</b>");
+                
+                logger.info("Reminder {} via Telegram for user: {}, value: {} minutes, enabled: {}", 
+                        data.reminderIndex == -1 ? "added" : "updated", user.getUsername(), minutesBefore, enabled);
+                
+            } else if (state == NotificationState.WAITING_CRON_TIME) {
+                // Ожидание времени для cron
+                LocalTime time = parseTime(text.trim());
+                if (time == null) {
+                    sendPersonalMessage(chatId, "❌ <b>Неверный формат времени</b>\n\n" +
+                            "Введите время в формате ЧЧ:ММ (например: 09:00):\n\n" +
+                            "💡 Используйте /cancel для отмены.");
+                    return;
+                }
+                
+                data.cronTime = String.format("%02d:%02d", time.getHour(), time.getMinute());
+                notificationData.put(chatId, data);
+                
+                // Сохраняем cron
+                String cron = buildCronFromData(data);
+                UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
+                settings.setTimeSlotReminderCron(cron);
+                notificationSettingsService.updateSettings(user.getId(), settings);
+                
+                clearNotificationState(chatId);
+                
+                String cronText = formatCronToReadable(cron);
+                sendPersonalMessage(chatId, "✅ <b>Расписание настроено!</b>\n\n" +
+                        "Расписание: <b>" + escapeHtml(cronText) + "</b>");
+                
+                logger.info("Time slot reminder cron updated via Telegram for user: {}, cron: {}", user.getUsername(), cron);
+                
+            } else if (state == NotificationState.WAITING_CRON_DAY && data.cronFrequency != null && "monthly".equals(data.cronFrequency)) {
+                // Ожидание дня месяца для ежемесячного расписания
+                try {
+                    int dayOfMonth = Integer.parseInt(text.trim());
+                    if (dayOfMonth < 1 || dayOfMonth > 31) {
+                        sendPersonalMessage(chatId, "❌ <b>Неверный день месяца</b>\n\n" +
+                                "Введите число от 1 до 31:\n\n" +
+                                "💡 Используйте /cancel для отмены.");
+                        return;
+                    }
+                    
+                    data.cronDay = dayOfMonth;
+                    notificationData.put(chatId, data);
+                    notificationStates.put(chatId, NotificationState.WAITING_CRON_TIME);
+                    updateNotificationTimestamp(chatId);
+                    
+                    sendPersonalMessage(chatId, "✅ День месяца принят: <b>" + dayOfMonth + "</b>\n\n" +
+                            "Введите время в формате ЧЧ:ММ (например: 09:00):\n\n" +
+                            "💡 Используйте /cancel для отмены.");
+                } catch (NumberFormatException e) {
+                    sendPersonalMessage(chatId, "❌ <b>Неверный формат</b>\n\n" +
+                            "Введите число от 1 до 31:\n\n" +
+                            "💡 Используйте /cancel для отмены.");
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error handling notification state", e);
+            clearNotificationState(chatId);
+            sendPersonalMessage(chatId, "❌ Произошла ошибка. Попробуйте позже.");
+        }
+    }
+    
+    private int convertToMinutes(Integer value, String unit) {
+        if (value == null) {
+            return 0;
+        }
+        return switch (unit) {
+            case "days" -> value * 24 * 60;
+            case "hours" -> value * 60;
+            case "minutes" -> value;
+            default -> value;
+        };
+    }
+    
+    private void parseCronToData(String cron, NotificationData data) {
+        if (cron == null || cron.trim().isEmpty()) {
+            return;
+        }
+        
+        try {
+            String[] parts = cron.trim().split("\\s+");
+            if (parts.length >= 6) {
+                int minute = Integer.parseInt(parts[1]);
+                int hour = Integer.parseInt(parts[2]);
+                String dayOfMonth = parts[3];
+                String dayOfWeek = parts[5];
+                
+                data.cronTime = String.format("%02d:%02d", hour, minute);
+                
+                if (!"*".equals(dayOfWeek)) {
+                    data.cronFrequency = "weekly";
+                    data.cronDay = Integer.parseInt(dayOfWeek);
+                } else if (!"*".equals(dayOfMonth)) {
+                    data.cronFrequency = "monthly";
+                    data.cronDay = Integer.parseInt(dayOfMonth);
+                } else {
+                    data.cronFrequency = "daily";
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to parse cron: {}", cron, e);
+        }
+    }
+    
+    private String buildCronFromData(NotificationData data) {
+        if (data.cronFrequency == null || data.cronTime == null) {
+            return "0 0 9 * * *"; // По умолчанию ежедневно в 9:00
+        }
+        
+        String[] timeParts = data.cronTime.split(":");
+        int hour = Integer.parseInt(timeParts[0]);
+        int minute = Integer.parseInt(timeParts[1]);
+        
+        // Spring cron формат: секунды минуты часы день_месяца месяц день_недели
+        if ("weekly".equals(data.cronFrequency)) {
+            int dayOfWeek = data.cronDay != null ? data.cronDay : 1;
+            return String.format("0 %d %d * * %d", minute, hour, dayOfWeek);
+        } else if ("monthly".equals(data.cronFrequency)) {
+            int dayOfMonth = data.cronDay != null ? data.cronDay : 1;
+            return String.format("0 %d %d %d * *", minute, hour, dayOfMonth);
+        } else {
+            // daily
+            return String.format("0 %d %d * * *", minute, hour);
+        }
+    }
+    
+    private String formatCronToReadable(String cron) {
+        if (cron == null || cron.trim().isEmpty()) {
+            return "не настроено";
+        }
+        
+        try {
+            String[] parts = cron.trim().split("\\s+");
+            if (parts.length < 6) {
+                return cron;
+            }
+            
+            int minute = Integer.parseInt(parts[1]);
+            int hour = Integer.parseInt(parts[2]);
+            String dayOfMonth = parts[3];
+            String dayOfWeek = parts[5];
+            
+            String timeStr = String.format("%02d:%02d", hour, minute);
+            
+            if (!"*".equals(dayOfWeek)) {
+                int day = Integer.parseInt(dayOfWeek);
+                String[] days = {"воскресенье", "понедельник", "вторник", "среду", "четверг", "пятницу", "субботу"};
+                if (day >= 0 && day < days.length) {
+                    return "каждый " + days[day] + " в " + timeStr;
+                }
+            } else if (!"*".equals(dayOfMonth)) {
+                int day = Integer.parseInt(dayOfMonth);
+                return "каждое " + day + " число в " + timeStr;
+            } else {
+                return "ежедневно в " + timeStr;
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to format cron: {}", cron, e);
+        }
+        
+        return cron;
     }
 }
