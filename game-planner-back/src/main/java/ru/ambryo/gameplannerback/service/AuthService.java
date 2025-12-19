@@ -28,20 +28,42 @@ public class AuthService {
     @Autowired
     private InviteService inviteService;
     
+    @Autowired
+    private RateLimitingService rateLimitingService;
+    
     @Transactional
     public AuthResponse register(String username, String password, String email, String inviteCode, String name) {
+        // Проверка rate limiting (используем email как идентификатор для регистрации)
+        String identifier = email != null ? email : username;
+        if (rateLimitingService.isRegisterRateLimited(identifier)) {
+            logger.warn("Registration rate limit exceeded for: {}", identifier);
+            throw new RuntimeException("Превышен лимит попыток регистрации. Попробуйте позже.");
+        }
+        
         // Проверяем инвайт-код (обязательно)
         if (inviteCode == null || inviteCode.trim().isEmpty()) {
+            // Регистрируем неудачную попытку
+            rateLimitingService.recordRequest(identifier);
             throw new RuntimeException("Invite code is required");
         }
         
         // Валидируем инвайт-код перед созданием пользователя
-        inviteService.getInviteByCode(inviteCode); // Проверяем существование
+        try {
+            inviteService.getInviteByCode(inviteCode); // Проверяем существование
+        } catch (RuntimeException e) {
+            // Регистрируем неудачную попытку
+            rateLimitingService.recordRequest(identifier);
+            throw e;
+        }
         
         if (userRepository.existsByUsername(username)) {
+            // Регистрируем неудачную попытку
+            rateLimitingService.recordRequest(identifier);
             throw new RuntimeException("Username already exists");
         }
         if (userRepository.existsByEmail(email)) {
+            // Регистрируем неудачную попытку
+            rateLimitingService.recordRequest(identifier);
             throw new RuntimeException("Email already exists");
         }
         
@@ -95,13 +117,25 @@ public class AuthService {
         // Отмечаем инвайт как использованный
         inviteService.validateAndUseInvite(inviteCode, savedUser);
         
+        // Регистрируем успешную регистрацию (не учитываем в rate limiting)
+        // rateLimitingService.recordRequest(identifier); // Не записываем успешные регистрации
+        
         String token = jwtUtil.generateToken(savedUser.getUsername(), savedUser.getId());
         return new AuthResponse(token, savedUser.getUsername(), savedUser.getId());
     }
     
     public AuthResponse login(String username, String password) {
+        // Проверка rate limiting для логина
+        if (rateLimitingService.isLoginRateLimited(username)) {
+            logger.warn("Login rate limit exceeded for username: {}", username);
+            throw new RuntimeException("Превышен лимит попыток входа. Попробуйте позже.");
+        }
+        
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Invalid username or password"));
+        
+        // Регистрируем попытку входа (даже неудачную)
+        rateLimitingService.recordRequest(username);
         
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new RuntimeException("Invalid username or password");
@@ -109,6 +143,35 @@ public class AuthService {
         
         String token = jwtUtil.generateToken(user.getUsername(), user.getId());
         return new AuthResponse(token, user.getUsername(), user.getId());
+    }
+    
+    /**
+     * Проверяет учетные данные пользователя без генерации JWT токена.
+     * Используется для привязки Telegram бота через авторизацию.
+     * 
+     * @param username имя пользователя
+     * @param password пароль
+     * @return User объект пользователя при успешной проверке
+     * @throws RuntimeException если учетные данные неверны
+     */
+    public User validateCredentials(String username, String password) {
+        // Проверка rate limiting для валидации (используется в Telegram боте)
+        if (rateLimitingService.isLoginRateLimited(username)) {
+            logger.warn("Credentials validation rate limit exceeded for username: {}", username);
+            throw new RuntimeException("Превышен лимит попыток. Попробуйте позже.");
+        }
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("Invalid username or password"));
+        
+        // Регистрируем попытку
+        rateLimitingService.recordRequest(username);
+        
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new RuntimeException("Invalid username or password");
+        }
+        
+        return user;
     }
 }
 

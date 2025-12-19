@@ -28,6 +28,9 @@ public class NotificationSettingsService {
     @Autowired
     private ObjectMapper objectMapper;
     
+    @Autowired
+    private AuthService authService;
+    
     // In-memory storage for link tokens: token -> userId, expires at
     private final Map<String, TokenInfo> linkTokens = new ConcurrentHashMap<>();
     
@@ -128,6 +131,30 @@ public class NotificationSettingsService {
         
         // Удаляем использованный токен
         linkTokens.remove(token);
+    }
+    
+    @Transactional
+    public void linkTelegramAccountByCredentials(String username, String password, Long telegramUserId, String chatId) {
+        // Проверяем, не связан ли уже этот Telegram аккаунт с другим пользователем
+        Optional<User> existingUser = userRepository.findByTelegramUserId(telegramUserId);
+        if (existingUser.isPresent()) {
+            throw new RuntimeException("Этот Telegram аккаунт уже связан с другим пользователем");
+        }
+        
+        // Проверяем учетные данные
+        User user = authService.validateCredentials(username, password);
+        
+        // Проверяем, не связан ли уже этот пользователь с другим Telegram аккаунтом
+        if (user.getTelegramUserId() != null && !user.getTelegramUserId().equals(telegramUserId)) {
+            throw new RuntimeException("Ваш аккаунт уже связан с другим Telegram аккаунтом");
+        }
+        
+        // Связываем аккаунт
+        user.setTelegramUserId(telegramUserId);
+        user.setTelegramChatId(chatId);
+        user.setTelegramSubscribed(true);
+        
+        userRepository.save(user);
     }
     
     @Transactional

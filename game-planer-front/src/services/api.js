@@ -195,11 +195,12 @@ export const adminApi = {
     return await response.json()
   },
 
-  // Удалить пользователя
-  async deleteUser(userId) {
+  // Удалить пользователя (требует подтверждения паролем)
+  async deleteUser(userId, password) {
     const response = await fetch(`${API_BASE_URL}/admin/users/${userId}`, {
       method: 'DELETE',
-      headers: getAuthHeaders()
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ password })
     })
     if (!response.ok) {
       handleAuthError(response)

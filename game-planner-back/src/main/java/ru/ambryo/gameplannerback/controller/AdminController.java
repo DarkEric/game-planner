@@ -5,6 +5,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import ru.ambryo.gameplannerback.dto.AdminUserDto;
+import ru.ambryo.gameplannerback.dto.DeleteUserRequest;
 import ru.ambryo.gameplannerback.dto.ResetPasswordResponse;
 import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.service.AdminService;
@@ -142,5 +143,28 @@ public class AdminController {
     public ResponseEntity<Map<String, Object>> getCleanupInfo() {
         Map<String, Object> info = cleanupService.getCleanupInfo();
         return ResponseEntity.ok(info);
+    }
+    
+    /**
+     * Удалить пользователя
+     * Требует прав администратора и подтверждения паролем
+     */
+    @DeleteMapping("/users/{userId}")
+    public ResponseEntity<Map<String, String>> deleteUser(
+            @PathVariable Long userId,
+            @RequestBody DeleteUserRequest request,
+            Authentication authentication) {
+        try {
+            User currentUser = (User) authentication.getPrincipal();
+            adminService.deleteUser(userId, currentUser.getId(), request.getPassword());
+            Map<String, String> response = new HashMap<>();
+            response.put("success", "true");
+            response.put("message", "Пользователь успешно удален");
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.status(org.springframework.http.HttpStatus.BAD_REQUEST).body(errorResponse);
+        }
     }
 }

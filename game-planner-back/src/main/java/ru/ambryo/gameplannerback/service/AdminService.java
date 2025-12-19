@@ -188,11 +188,22 @@ public class AdminService {
     }
     
     /**
-     * Удаляет пользователя
+     * Удаляет пользователя с подтверждением паролем администратора
      * Требует прав администратора
      */
     @Transactional
-    public void deleteUser(Long userId, Long currentAdminId) {
+    public void deleteUser(Long userId, Long currentAdminId, String adminPassword) {
+        // Проверяем пароль администратора
+        User admin = userRepository.findById(currentAdminId)
+                .orElseThrow(() -> new RuntimeException("Администратор не найден"));
+        
+        if (adminPassword == null || adminPassword.trim().isEmpty()) {
+            throw new RuntimeException("Пароль не может быть пустым");
+        }
+        
+        if (!passwordEncoder.matches(adminPassword, admin.getPassword())) {
+            throw new RuntimeException("Неверный пароль");
+        }
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("Пользователь не найден"));
         

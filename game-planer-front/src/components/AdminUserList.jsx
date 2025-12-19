@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import ResetPasswordModal from './ResetPasswordModal'
 import GrantAdminModal from './GrantAdminModal'
+import DeleteUserModal from './DeleteUserModal'
 import { adminApi } from '../services/api'
 import './AdminPanel.css'
 
 const AdminUserList = ({ users, currentUserId, onPasswordReset, onAdminRightsChange }) => {
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedUser, setSelectedUser] = useState(null)
-  const [modalType, setModalType] = useState(null) // 'reset-password', 'grant-admin', 'revoke-admin'
+  const [modalType, setModalType] = useState(null) // 'reset-password', 'grant-admin', 'revoke-admin', 'delete-user'
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -32,6 +33,12 @@ const AdminUserList = ({ users, currentUserId, onPasswordReset, onAdminRightsCha
   const handleRevokeAdmin = (user) => {
     setSelectedUser(user)
     setModalType('revoke-admin')
+    setError(null)
+  }
+
+  const handleDeleteUser = (user) => {
+    setSelectedUser(user)
+    setModalType('delete-user')
     setError(null)
   }
 
@@ -66,6 +73,14 @@ const AdminUserList = ({ users, currentUserId, onPasswordReset, onAdminRightsCha
 
   const handlePasswordResetComplete = () => {
     onPasswordReset()
+  }
+
+  const handleUserDeleted = async () => {
+    // Перезагружаем список после удаления
+    if (onPasswordReset) {
+      await onPasswordReset()
+    }
+    handleCloseModal()
   }
 
   const isCurrentUser = (user) => user.id === currentUserId
@@ -150,6 +165,21 @@ const AdminUserList = ({ users, currentUserId, onPasswordReset, onAdminRightsCha
                       Назначить админом
                     </button>
                   )}
+                  <button
+                    className="admin-button admin-button-danger"
+                    onClick={() => handleDeleteUser(user)}
+                    disabled={loading || isCurrentUser(user) || (user.isAdmin && isLastAdmin)}
+                    title={
+                      isCurrentUser(user)
+                        ? 'Вы не можете удалить самого себя'
+                        : user.isAdmin && isLastAdmin
+                        ? 'Нельзя удалить последнего администратора'
+                        : 'Удалить пользователя'
+                    }
+                    style={{ marginLeft: '0.5rem' }}
+                  >
+                    Удалить
+                  </button>
                 </div>
               </td>
             </tr>
@@ -181,6 +211,15 @@ const AdminUserList = ({ users, currentUserId, onPasswordReset, onAdminRightsCha
           loading={loading}
           isLastAdmin={isLastAdmin && selectedUser.isAdmin}
           isCurrentUser={isCurrentUser(selectedUser)}
+        />
+      )}
+
+      {modalType === 'delete-user' && selectedUser && (
+        <DeleteUserModal
+          user={selectedUser}
+          onClose={handleCloseModal}
+          onConfirm={handleUserDeleted}
+          loading={loading}
         />
       )}
     </div>

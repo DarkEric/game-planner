@@ -11,15 +11,11 @@ import ru.ambryo.gameplannerback.repository.UserRepository;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 @Service
 public class PasswordResetService {
     
     private static final Logger logger = LoggerFactory.getLogger(PasswordResetService.class);
-    private static final int RATE_LIMIT_REQUESTS = 3;
-    private static final long RATE_LIMIT_WINDOW_HOURS = 1;
     private static final long TOKEN_EXPIRY_HOURS = 1;
     private static final long EMERGENCY_TOKEN_EXPIRY_HOURS = 24;
     
@@ -32,8 +28,8 @@ public class PasswordResetService {
     @Autowired
     private TelegramNotificationService telegramNotificationService;
     
-    // Хранилище запросов для rate limiting: username -> список временных меток
-    private final Map<String, List<Instant>> resetRequestHistory = new ConcurrentHashMap<>();
+    @Autowired
+    private RateLimitingService rateLimitingService;
     
     /**
      * Запрашивает сброс пароля для указанного пользователя
@@ -42,7 +38,7 @@ public class PasswordResetService {
     @Transactional
     public void requestPasswordReset(String username) {
         // Проверка rate limiting
-        if (isRateLimited(username)) {
+        if (rateLimitingService.isPasswordResetRateLimited(username)) {
             logger.warn("Password reset rate limit exceeded for user: {}", username);
             throw new RuntimeException("Превышен лимит запросов. Попробуйте позже.");
         }
@@ -54,6 +50,8 @@ public class PasswordResetService {
         // Молча возвращаем успех, если пользователь не найден (безопасность)
         if (user == null) {
             logger.debug("Password reset requested for non-existent user: {}", username);
+            // Регистрируем попытку даже для несуществующего пользователя (для защиты от перебора)
+            rateLimitingService.recordRequest(username);
             return;
         }
         
@@ -72,7 +70,7 @@ public class PasswordResetService {
         userRepository.save(user);
         
         // Регистрация запроса для rate limiting
-        recordResetRequest(username);
+        rateLimitingService.recordRequest(username);
         
         // Отправка в Telegram, если пользователь подписан
         if (user.getTelegramSubscribed() != null && user.getTelegramSubscribed() 
@@ -159,41 +157,6 @@ public class PasswordResetService {
      */
     private String generateResetToken() {
         return UUID.randomUUID().toString();
-    }
-    
-    /**
-     * Проверяет, превышен ли лимит запросов для пользователя
-     * @param username имя пользователя
-     * @return true, если лимит превышен
-     */
-    private boolean isRateLimited(String username) {
-        List<Instant> requests = resetRequestHistory.get(username);
-        if (requests == null || requests.isEmpty()) {
-            return false;
-        }
-        
-        Instant oneHourAgo = Instant.now().minusSeconds(RATE_LIMIT_WINDOW_HOURS * 3600);
-        
-        // Фильтруем запросы за последний час
-        List<Instant> recentRequests = requests.stream()
-                .filter(instant -> instant.isAfter(oneHourAgo))
-                .collect(Collectors.toList());
-        
-        // Обновляем историю
-        if (recentRequests.size() != requests.size()) {
-            resetRequestHistory.put(username, recentRequests);
-        }
-        
-        return recentRequests.size() >= RATE_LIMIT_REQUESTS;
-    }
-    
-    /**
-     * Регистрирует запрос сброса пароля для rate limiting
-     * @param username имя пользователя
-     */
-    private void recordResetRequest(String username) {
-        resetRequestHistory.computeIfAbsent(username, k -> new ArrayList<>())
-                .add(Instant.now());
     }
     
     /**

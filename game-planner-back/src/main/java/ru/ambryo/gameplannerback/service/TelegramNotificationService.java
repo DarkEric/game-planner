@@ -7,23 +7,33 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import jakarta.annotation.PostConstruct;
 import ru.ambryo.gameplannerback.dto.GameDto;
 import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.repository.UserRepository;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -58,6 +68,116 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     @Autowired
     private GameService gameService;
     
+    @Autowired
+    private AuthService authService;
+    
+    @Autowired
+    private InviteService inviteService;
+    
+    @Autowired
+    private UserService userService;
+    
+    // Система состояний для авторизации через логин/пароль
+    private enum AuthState {
+        WAITING_USERNAME,
+        WAITING_PASSWORD
+    }
+    
+    // Хранение состояний авторизации: chatId -> AuthState
+    private final Map<String, AuthState> authStates = new ConcurrentHashMap<>();
+    
+    // Хранение временных данных: chatId -> username
+    private final Map<String, String> authUsernames = new ConcurrentHashMap<>();
+    
+    // Хранение времени последнего действия: chatId -> Instant
+    private final Map<String, Instant> authTimestamps = new ConcurrentHashMap<>();
+    
+    // Защита от брутфорса: chatId -> AttemptInfo
+    private static class AttemptInfo {
+        int attempts;
+        Instant firstAttempt;
+        Instant blockedUntil;
+        
+        AttemptInfo() {
+            this.attempts = 0;
+            this.firstAttempt = Instant.now();
+            this.blockedUntil = null;
+        }
+    }
+    
+    private final Map<String, AttemptInfo> authAttempts = new ConcurrentHashMap<>();
+    
+    // Константы для защиты от брутфорса
+    private static final int MAX_AUTH_ATTEMPTS = 3;
+    private static final long AUTH_ATTEMPT_WINDOW_SECONDS = 900; // 15 минут
+    private static final long AUTH_BLOCK_DURATION_SECONDS = 900; // 15 минут блокировки
+    private static final long AUTH_STATE_TIMEOUT_SECONDS = 300; // 5 минут таймаут состояния
+    
+    // Система состояний для регистрации через Telegram
+    private enum RegistrationState {
+        WAITING_INVITE,
+        WAITING_USERNAME,
+        WAITING_NAME,
+        WAITING_EMAIL,
+        WAITING_PASSWORD,
+        WAITING_PASSWORD_CONFIRM
+    }
+    
+    // Класс для хранения данных регистрации
+    private static class RegistrationData {
+        String inviteCode;
+        String username;
+        String name;
+        String email;
+        String password;
+    }
+    
+    // Хранение состояний регистрации: chatId -> RegistrationState
+    private final Map<String, RegistrationState> registrationStates = new ConcurrentHashMap<>();
+    
+    // Хранение данных регистрации: chatId -> RegistrationData
+    private final Map<String, RegistrationData> registrationData = new ConcurrentHashMap<>();
+    
+    // Хранение времени последнего действия регистрации: chatId -> Instant
+    private final Map<String, Instant> registrationTimestamps = new ConcurrentHashMap<>();
+    
+    // Защита от спама регистрации: chatId -> AttemptInfo
+    private final Map<String, AttemptInfo> registrationAttempts = new ConcurrentHashMap<>();
+    
+    // Константы для регистрации
+    private static final int MAX_REGISTRATION_ATTEMPTS = 3;
+    private static final long REGISTRATION_ATTEMPT_WINDOW_SECONDS = 3600; // 1 час
+    private static final long REGISTRATION_STATE_TIMEOUT_SECONDS = 600; // 10 минут таймаут состояния
+    private static final int MIN_PASSWORD_LENGTH = 6;
+    
+    // Система состояний для разметки времени через Telegram
+    private enum TimeSlotMarkingState {
+        WAITING_DATE,
+        WAITING_TIME,
+        WAITING_DURATION
+    }
+    
+    // Класс для хранения данных разметки времени
+    private static class TimeSlotMarkingData {
+        String dateStr;  // Введенная дата как строка
+        String timeStr;  // Введенное время как строка
+        Instant dateInstant;  // Парсированная дата (начало дня в UTC)
+        Instant startInstant;  // Финальный Instant для слота (в UTC)
+        Integer duration;  // Продолжительность в часах
+    }
+    
+    // Хранение состояний разметки времени: chatId -> TimeSlotMarkingState
+    private final Map<String, TimeSlotMarkingState> timeSlotMarkingStates = new ConcurrentHashMap<>();
+    
+    // Хранение данных разметки времени: chatId -> TimeSlotMarkingData
+    private final Map<String, TimeSlotMarkingData> timeSlotMarkingData = new ConcurrentHashMap<>();
+    
+    // Хранение времени последнего действия разметки: chatId -> Instant
+    private final Map<String, Instant> timeSlotMarkingTimestamps = new ConcurrentHashMap<>();
+    
+    // Константы для разметки времени
+    private static final long TIME_SLOT_MARKING_STATE_TIMEOUT_SECONDS = 300; // 5 минут таймаут состояния
+    
     private ZoneId getNotificationZone() {
         try {
             return ZoneId.of(timezoneId);
@@ -86,6 +206,335 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         };
     }
     
+    // Вспомогательные методы для работы с состояниями авторизации
+    
+    private void clearAuthState(String chatId) {
+        authStates.remove(chatId);
+        authUsernames.remove(chatId);
+        authTimestamps.remove(chatId);
+    }
+    
+    private boolean isAuthStateExpired(String chatId) {
+        Instant timestamp = authTimestamps.get(chatId);
+        if (timestamp == null) {
+            return true;
+        }
+        return Instant.now().isAfter(timestamp.plusSeconds(AUTH_STATE_TIMEOUT_SECONDS));
+    }
+    
+    private void updateAuthTimestamp(String chatId) {
+        authTimestamps.put(chatId, Instant.now());
+    }
+    
+    private boolean isBlocked(String chatId) {
+        AttemptInfo info = authAttempts.get(chatId);
+        if (info == null) {
+            return false;
+        }
+        
+        if (info.blockedUntil != null && Instant.now().isBefore(info.blockedUntil)) {
+            return true;
+        }
+        
+        // Если блокировка истекла, сбрасываем попытки
+        if (info.blockedUntil != null && Instant.now().isAfter(info.blockedUntil)) {
+            authAttempts.remove(chatId);
+            return false;
+        }
+        
+        // Проверяем, не истекло ли окно попыток
+        if (Instant.now().isAfter(info.firstAttempt.plusSeconds(AUTH_ATTEMPT_WINDOW_SECONDS))) {
+            // Окно истекло, сбрасываем попытки
+            authAttempts.remove(chatId);
+            return false;
+        }
+        
+        return false;
+    }
+    
+    private void recordAuthAttempt(String chatId, boolean success) {
+        if (success) {
+            // Успешная авторизация - сбрасываем попытки
+            authAttempts.remove(chatId);
+            return;
+        }
+        
+        AttemptInfo info = authAttempts.computeIfAbsent(chatId, k -> new AttemptInfo());
+        info.attempts++;
+        
+        if (info.attempts >= MAX_AUTH_ATTEMPTS) {
+            // Блокируем на 15 минут
+            info.blockedUntil = Instant.now().plusSeconds(AUTH_BLOCK_DURATION_SECONDS);
+            logger.warn("Telegram auth blocked for chatId {} after {} failed attempts", chatId, info.attempts);
+        }
+    }
+    
+    private int getRemainingAttempts(String chatId) {
+        AttemptInfo info = authAttempts.get(chatId);
+        if (info == null) {
+            return MAX_AUTH_ATTEMPTS;
+        }
+        
+        if (Instant.now().isAfter(info.firstAttempt.plusSeconds(AUTH_ATTEMPT_WINDOW_SECONDS))) {
+            return MAX_AUTH_ATTEMPTS;
+        }
+        
+        return Math.max(0, MAX_AUTH_ATTEMPTS - info.attempts);
+    }
+    
+    private long getBlockTimeRemaining(String chatId) {
+        AttemptInfo info = authAttempts.get(chatId);
+        if (info == null || info.blockedUntil == null) {
+            return 0;
+        }
+        
+        if (Instant.now().isAfter(info.blockedUntil)) {
+            return 0;
+        }
+        
+        return java.time.Duration.between(Instant.now(), info.blockedUntil).getSeconds();
+    }
+    
+    // Вспомогательные методы для работы с состояниями регистрации
+    
+    private void clearRegistrationState(String chatId) {
+        registrationStates.remove(chatId);
+        registrationData.remove(chatId);
+        registrationTimestamps.remove(chatId);
+    }
+    
+    private boolean isRegistrationStateExpired(String chatId) {
+        Instant timestamp = registrationTimestamps.get(chatId);
+        if (timestamp == null) {
+            return true;
+        }
+        return Instant.now().isAfter(timestamp.plusSeconds(REGISTRATION_STATE_TIMEOUT_SECONDS));
+    }
+    
+    private void updateRegistrationTimestamp(String chatId) {
+        registrationTimestamps.put(chatId, Instant.now());
+    }
+    
+    private boolean isRegistrationBlocked(String chatId) {
+        AttemptInfo info = registrationAttempts.get(chatId);
+        if (info == null) {
+            return false;
+        }
+        
+        if (info.blockedUntil != null && Instant.now().isBefore(info.blockedUntil)) {
+            return true;
+        }
+        
+        // Если блокировка истекла, сбрасываем попытки
+        if (info.blockedUntil != null && Instant.now().isAfter(info.blockedUntil)) {
+            registrationAttempts.remove(chatId);
+            return false;
+        }
+        
+        // Проверяем, не истекло ли окно попыток
+        if (Instant.now().isAfter(info.firstAttempt.plusSeconds(REGISTRATION_ATTEMPT_WINDOW_SECONDS))) {
+            // Окно истекло, сбрасываем попытки
+            registrationAttempts.remove(chatId);
+            return false;
+        }
+        
+        return false;
+    }
+    
+    private void recordRegistrationAttempt(String chatId, boolean success) {
+        if (success) {
+            // Успешная регистрация - сбрасываем попытки
+            registrationAttempts.remove(chatId);
+            return;
+        }
+        
+        AttemptInfo info = registrationAttempts.computeIfAbsent(chatId, k -> new AttemptInfo());
+        info.attempts++;
+        
+        if (info.attempts >= MAX_REGISTRATION_ATTEMPTS) {
+            // Блокируем на время окна попыток
+            info.blockedUntil = Instant.now().plusSeconds(REGISTRATION_ATTEMPT_WINDOW_SECONDS);
+            logger.warn("Telegram registration blocked for chatId {} after {} failed attempts", chatId, info.attempts);
+        }
+    }
+    
+    private int getRemainingRegistrationAttempts(String chatId) {
+        AttemptInfo info = registrationAttempts.get(chatId);
+        if (info == null) {
+            return MAX_REGISTRATION_ATTEMPTS;
+        }
+        
+        if (Instant.now().isAfter(info.firstAttempt.plusSeconds(REGISTRATION_ATTEMPT_WINDOW_SECONDS))) {
+            return MAX_REGISTRATION_ATTEMPTS;
+        }
+        
+        return Math.max(0, MAX_REGISTRATION_ATTEMPTS - info.attempts);
+    }
+    
+    private long getRegistrationBlockTimeRemaining(String chatId) {
+        AttemptInfo info = registrationAttempts.get(chatId);
+        if (info == null || info.blockedUntil == null) {
+            return 0;
+        }
+        
+        if (Instant.now().isAfter(info.blockedUntil)) {
+            return 0;
+        }
+        
+        return java.time.Duration.between(Instant.now(), info.blockedUntil).getSeconds();
+    }
+    
+    private boolean isValidEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return false;
+        }
+        // Простая проверка формата email
+        return email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
+    }
+    
+    // Вспомогательные методы для работы с состояниями разметки времени
+    
+    private void clearTimeSlotMarkingState(String chatId) {
+        timeSlotMarkingStates.remove(chatId);
+        timeSlotMarkingData.remove(chatId);
+        timeSlotMarkingTimestamps.remove(chatId);
+    }
+    
+    private boolean isTimeSlotMarkingStateExpired(String chatId) {
+        Instant timestamp = timeSlotMarkingTimestamps.get(chatId);
+        if (timestamp == null) {
+            return true;
+        }
+        return Instant.now().isAfter(timestamp.plusSeconds(TIME_SLOT_MARKING_STATE_TIMEOUT_SECONDS));
+    }
+    
+    private void updateTimeSlotMarkingTimestamp(String chatId) {
+        timeSlotMarkingTimestamps.put(chatId, Instant.now());
+    }
+    
+    // Методы парсинга даты, времени и продолжительности
+    
+    /**
+     * Парсит дату в русском формате (15.01.2025, 15/01/2025) или относительную дату (сегодня, завтра, послезавтра)
+     * @param dateStr строка с датой
+     * @param userTimezone часовой пояс пользователя
+     * @return LocalDate или null если не удалось распарсить
+     */
+    private LocalDate parseDate(String dateStr, ZoneId userTimezone) {
+        if (dateStr == null || dateStr.trim().isEmpty()) {
+            return null;
+        }
+        
+        String trimmed = dateStr.trim().toLowerCase();
+        
+        // Относительные даты
+        LocalDate now = LocalDate.now(userTimezone);
+        if (trimmed.equals("сегодня") || trimmed.equals("today")) {
+            return now;
+        } else if (trimmed.equals("завтра") || trimmed.equals("tomorrow")) {
+            return now.plusDays(1);
+        } else if (trimmed.equals("послезавтра") || trimmed.equals("day after tomorrow")) {
+            return now.plusDays(2);
+        }
+        
+        // Русский формат: DD.MM.YYYY или DD/MM/YYYY
+        DateTimeFormatter[] formatters = {
+            DateTimeFormatter.ofPattern("d.M.yyyy"),
+            DateTimeFormatter.ofPattern("dd.MM.yyyy"),
+            DateTimeFormatter.ofPattern("d/M/yyyy"),
+            DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+            DateTimeFormatter.ofPattern("d.M.yyyy"),
+            DateTimeFormatter.ofPattern("dd.MM.yyyy")
+        };
+        
+        for (DateTimeFormatter formatter : formatters) {
+            try {
+                return LocalDate.parse(trimmed, formatter);
+            } catch (DateTimeParseException e) {
+                // Пробуем следующий формат
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Парсит время в формате HH:mm или HH
+     * @param timeStr строка со временем
+     * @return LocalTime или null если не удалось распарсить
+     */
+    private LocalTime parseTime(String timeStr) {
+        if (timeStr == null || timeStr.trim().isEmpty()) {
+            return null;
+        }
+        
+        String trimmed = timeStr.trim();
+        
+        // Формат HH:mm
+        if (trimmed.contains(":")) {
+            try {
+                return LocalTime.parse(trimmed, DateTimeFormatter.ofPattern("H:mm"));
+            } catch (DateTimeParseException e) {
+                try {
+                    return LocalTime.parse(trimmed, DateTimeFormatter.ofPattern("HH:mm"));
+                } catch (DateTimeParseException e2) {
+                    return null;
+                }
+            }
+        }
+        
+        // Формат HH (только часы)
+        try {
+            int hours = Integer.parseInt(trimmed);
+            if (hours >= 0 && hours <= 23) {
+                return LocalTime.of(hours, 0);
+            }
+        } catch (NumberFormatException e) {
+            // Не число
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Парсит продолжительность в часах
+     * @param durationStr строка с продолжительностью
+     * @return Integer (количество часов) или null если не удалось распарсить
+     */
+    private Integer parseDuration(String durationStr) {
+        if (durationStr == null || durationStr.trim().isEmpty()) {
+            return null;
+        }
+        
+        try {
+            // Убираем слово "час" или "часов" если есть
+            String trimmed = durationStr.trim().toLowerCase()
+                    .replaceAll("\\s*час(ов|а)?\\s*", "");
+            
+            int duration = Integer.parseInt(trimmed);
+            if (duration > 0 && duration <= 24) {
+                return duration;
+            }
+        } catch (NumberFormatException e) {
+            // Не число
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Конвертирует локальное время пользователя в UTC
+     * @param localDate дата в локальном времени
+     * @param localTime время в локальном времени
+     * @param userTimezone часовой пояс пользователя
+     * @return Instant в UTC
+     */
+    private Instant convertToUTC(LocalDate localDate, LocalTime localTime, ZoneId userTimezone) {
+        LocalDateTime localDateTime = LocalDateTime.of(localDate, localTime);
+        ZonedDateTime zonedDateTime = localDateTime.atZone(userTimezone);
+        return zonedDateTime.toInstant();
+    }
+    
     @Override
     public String getBotUsername() {
         return "GamePlannerBot";
@@ -94,6 +543,31 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     @Override
     public String getBotToken() {
         return botToken;
+    }
+    
+    @PostConstruct
+    public void registerBotCommands() {
+        if (!enabled || botToken == null || botToken.isEmpty()) {
+            logger.debug("Telegram bot disabled or token not set, skipping command registration");
+            return;
+        }
+        
+        try {
+            SetMyCommands setMyCommands = new SetMyCommands();
+            List<BotCommand> commands = new java.util.ArrayList<>();
+            
+            BotCommand menuCommand = new BotCommand();
+            menuCommand.setCommand("menu");
+            menuCommand.setDescription("Главное меню");
+            commands.add(menuCommand);
+            
+            setMyCommands.setCommands(commands);
+            execute(setMyCommands);
+            
+            logger.info("Bot commands registered successfully");
+        } catch (TelegramApiException e) {
+            logger.error("Failed to register bot commands", e);
+        }
     }
     
     @Override
@@ -111,36 +585,119 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         if (update.hasMessage() && update.getMessage().hasText()) {
             Message message = update.getMessage();
             String text = message.getText();
-            Long chatId = message.getChatId();
+            String chatIdStr = message.getChatId().toString();
             Long telegramUserId = message.getFrom().getId();
             
+            // Проверяем, не истекло ли состояние авторизации
+            if (authStates.containsKey(chatIdStr) && isAuthStateExpired(chatIdStr)) {
+                clearAuthState(chatIdStr);
+                sendPersonalMessage(chatIdStr, "⏱️ Время ожидания истекло. Процесс авторизации отменен.\n\nИспользуйте /auth для начала заново.");
+            }
+            
+            // Проверяем, не истекло ли состояние регистрации
+            if (registrationStates.containsKey(chatIdStr) && isRegistrationStateExpired(chatIdStr)) {
+                clearRegistrationState(chatIdStr);
+                sendPersonalMessage(chatIdStr, "⏱️ Время ожидания истекло. Процесс регистрации отменен.\n\nИспользуйте /register для начала заново.");
+            }
+            
+            // Проверяем, не истекло ли состояние разметки времени
+            if (timeSlotMarkingStates.containsKey(chatIdStr) && isTimeSlotMarkingStateExpired(chatIdStr)) {
+                clearTimeSlotMarkingState(chatIdStr);
+                sendPersonalMessage(chatIdStr, "⏱️ Время ожидания истекло. Процесс разметки времени отменен.\n\nИспользуйте /mark для начала заново.");
+            }
+            
+            // Обработка команд (команды имеют приоритет над состояниями)
             if (text.startsWith("/start")) {
-                handleStartCommand(telegramUserId, chatId.toString());
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
+                handleStartCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/stop")) {
-                handleStopCommand(telegramUserId, chatId.toString());
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
+                handleStopCommand(telegramUserId, chatIdStr);
+            } else if (text.startsWith("/register")) {
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
+                handleRegisterCommand(telegramUserId, chatIdStr);
+            } else if (text.startsWith("/auth")) {
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
+                handleAuthCommand(telegramUserId, chatIdStr);
+            } else if (text.startsWith("/cancel")) {
+                handleCancelCommand(chatIdStr);
             } else if (text.startsWith("/link")) {
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
                 String[] parts = text.split("\\s+", 2);
                 if (parts.length == 2) {
-                    handleLinkCommand(telegramUserId, chatId.toString(), parts[1]);
+                    handleLinkCommand(telegramUserId, chatIdStr, parts[1]);
                 } else {
-                    sendPersonalMessage(chatId.toString(), "Использование: /link <token>\n\nПолучите токен в настройках профиля на веб-сайте.");
+                    sendPersonalMessage(chatIdStr, "Использование: /link <token>\n\nПолучите токен в настройках профиля на веб-сайте.");
                 }
             } else if (text.startsWith("/games") || text.startsWith("/upcoming")) {
-                handleGamesCommand(telegramUserId, chatId.toString());
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
+                handleGamesCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/game")) {
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
                 String[] parts = text.split("\\s+", 2);
                 if (parts.length == 2) {
                     try {
                         Long gameId = Long.parseLong(parts[1]);
-                        handleGameDetailsCommand(telegramUserId, chatId.toString(), gameId);
+                        handleGameDetailsCommand(telegramUserId, chatIdStr, gameId);
                     } catch (NumberFormatException e) {
-                        sendPersonalMessage(chatId.toString(), "❌ Неверный формат ID игры.\n\nИспользование: /game <id>\n\nПолучите ID из списка игр командой /games");
+                        sendPersonalMessage(chatIdStr, "❌ Неверный формат ID игры.\n\nИспользование: /game <id>\n\nПолучите ID из списка игр командой /games");
                     }
                 } else {
-                    sendPersonalMessage(chatId.toString(), "Использование: /game <id>\n\nПолучите ID из списка игр командой /games");
+                    sendPersonalMessage(chatIdStr, "Использование: /game <id>\n\nПолучите ID из списка игр командой /games");
                 }
+            } else if (text.startsWith("/invite")) {
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
+                handleInviteCommand(telegramUserId, chatIdStr);
+            } else if (text.startsWith("/myinvites")) {
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                handleMyInvitesCommand(telegramUserId, chatIdStr);
+            } else if (text.startsWith("/mark")) {
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                handleMarkCommand(telegramUserId, chatIdStr);
+            } else if (text.startsWith("/myslots")) {
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                handleMySlotsCommand(telegramUserId, chatIdStr);
+            } else if (text.startsWith("/menu")) {
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                handleMenuCommand(telegramUserId, chatIdStr);
             } else if (text.startsWith("/help")) {
-                handleHelpCommand(chatId.toString());
+                clearAuthState(chatIdStr);
+                clearRegistrationState(chatIdStr);
+                clearTimeSlotMarkingState(chatIdStr);
+                handleHelpCommand(chatIdStr);
+            } else {
+                // Обработка состояний (если не команда)
+                // Проверяем в порядке приоритета: регистрация -> авторизация -> разметка времени
+                RegistrationState regState = registrationStates.get(chatIdStr);
+                if (regState != null) {
+                    handleRegistrationState(telegramUserId, chatIdStr, text, regState);
+                } else {
+                    AuthState authState = authStates.get(chatIdStr);
+                    if (authState != null) {
+                        handleAuthState(telegramUserId, chatIdStr, text, authState);
+                    } else {
+                        TimeSlotMarkingState markingState = timeSlotMarkingStates.get(chatIdStr);
+                        if (markingState != null) {
+                            handleTimeSlotMarkingState(telegramUserId, chatIdStr, text, markingState);
+                        }
+                    }
+                }
             }
         }
     }
@@ -163,6 +720,11 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 // Пользователь не связан
                 sendPersonalMessage(chatId, "👋 Добро пожаловать!\n\n" +
                         "Для получения персональных уведомлений необходимо связать ваш Telegram аккаунт с аккаунтом на веб-сайте.\n\n" +
+                        "<b>Способ 1: Регистрация нового аккаунта</b>\n" +
+                        "Используйте команду: /register\n\n" +
+                        "<b>Способ 2: Авторизация через логин/пароль</b>\n" +
+                        "Используйте команду: /auth\n\n" +
+                        "<b>Способ 3: Привязка через токен</b>\n" +
                         "1. Откройте настройки профиля на веб-сайте\n" +
                         "2. Получите токен для связывания\n" +
                         "3. Отправьте команду: /link <token>\n\n" +
@@ -204,6 +766,472 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
+    private void handleAuthCommand(Long telegramUserId, String chatId) {
+        try {
+            // Проверяем, не связан ли уже аккаунт
+            User existingUser = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            if (existingUser != null) {
+                sendPersonalMessage(chatId, "✅ Ваш аккаунт уже связан!\n\n" +
+                        "Используйте /games для получения списка предстоящих игр.");
+                return;
+            }
+            
+            // Проверяем блокировку
+            if (isBlocked(chatId)) {
+                long remainingSeconds = getBlockTimeRemaining(chatId);
+                long remainingMinutes = remainingSeconds / 60;
+                sendPersonalMessage(chatId, "⛔ Слишком много неудачных попыток авторизации.\n\n" +
+                        "Попробуйте снова через " + remainingMinutes + " минут.");
+                return;
+            }
+            
+            // Инициализируем состояние авторизации
+            authStates.put(chatId, AuthState.WAITING_USERNAME);
+            updateAuthTimestamp(chatId);
+            
+            sendPersonalMessage(chatId, "🔐 <b>Авторизация для привязки аккаунта</b>\n\n" +
+                    "Введите ваш логин (имя пользователя):\n\n" +
+                    "💡 Используйте /cancel для отмены.");
+        } catch (Exception e) {
+            logger.error("Error handling /auth command", e);
+            clearAuthState(chatId);
+            sendPersonalMessage(chatId, "❌ Произошла ошибка при инициализации авторизации. Попробуйте позже.");
+        }
+    }
+    
+    private void handleRegisterCommand(Long telegramUserId, String chatId) {
+        try {
+            // Проверяем, не зарегистрирован ли уже пользователь
+            User existingUser = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            if (existingUser != null) {
+                sendPersonalMessage(chatId, "✅ Вы уже зарегистрированы!\n\n" +
+                        "Используйте /games для получения списка предстоящих игр.");
+                return;
+            }
+            
+            // Проверяем блокировку регистрации
+            if (isRegistrationBlocked(chatId)) {
+                long remainingSeconds = getRegistrationBlockTimeRemaining(chatId);
+                long remainingMinutes = remainingSeconds / 60;
+                sendPersonalMessage(chatId, "⛔ Слишком много неудачных попыток регистрации.\n\n" +
+                        "Попробуйте снова через " + remainingMinutes + " минут.");
+                return;
+            }
+            
+            // Инициализируем состояние регистрации
+            registrationStates.put(chatId, RegistrationState.WAITING_INVITE);
+            registrationData.put(chatId, new RegistrationData());
+            updateRegistrationTimestamp(chatId);
+            
+            sendPersonalMessage(chatId, "📝 <b>Регистрация нового аккаунта</b>\n\n" +
+                    "Введите инвайт-код для регистрации:\n\n" +
+                    "💡 Используйте /cancel для отмены.");
+        } catch (Exception e) {
+            logger.error("Error handling /register command", e);
+            clearRegistrationState(chatId);
+            sendPersonalMessage(chatId, "❌ Произошла ошибка при инициализации регистрации. Попробуйте позже.");
+        }
+    }
+    
+    private void handleCancelCommand(String chatId) {
+        boolean hasAuth = authStates.containsKey(chatId);
+        boolean hasRegistration = registrationStates.containsKey(chatId);
+        boolean hasMarking = timeSlotMarkingStates.containsKey(chatId);
+        
+        if (hasRegistration) {
+            clearRegistrationState(chatId);
+            sendPersonalMessage(chatId, "✅ Процесс регистрации отменен.\n\n" +
+                    "Используйте /register для начала заново.");
+        } else if (hasAuth) {
+            clearAuthState(chatId);
+            sendPersonalMessage(chatId, "✅ Процесс авторизации отменен.\n\n" +
+                    "Используйте /auth для начала заново или /link <token> для привязки через токен.");
+        } else if (hasMarking) {
+            clearTimeSlotMarkingState(chatId);
+            sendPersonalMessage(chatId, "✅ Процесс разметки времени отменен.\n\n" +
+                    "Используйте /mark для начала заново.");
+        } else {
+            sendPersonalMessage(chatId, "ℹ️ Нет активного процесса для отмены.");
+        }
+    }
+    
+    private void handleAuthState(Long telegramUserId, String chatId, String text, AuthState state) {
+        try {
+            updateAuthTimestamp(chatId);
+            
+            if (state == AuthState.WAITING_USERNAME) {
+                // Сохраняем username и переходим к паролю
+                String username = text.trim();
+                if (username.isEmpty()) {
+                    sendPersonalMessage(chatId, "❌ Логин не может быть пустым. Введите ваш логин:");
+                    return;
+                }
+                
+                authUsernames.put(chatId, username);
+                authStates.put(chatId, AuthState.WAITING_PASSWORD);
+                updateAuthTimestamp(chatId);
+                
+                sendPersonalMessage(chatId, "🔑 Теперь введите ваш пароль:\n\n" +
+                        "💡 Используйте /cancel для отмены.");
+                
+            } else if (state == AuthState.WAITING_PASSWORD) {
+                // Проверяем учетные данные и связываем аккаунт
+                String password = text.trim();
+                String username = authUsernames.get(chatId);
+                
+                if (password.isEmpty()) {
+                    sendPersonalMessage(chatId, "❌ Пароль не может быть пустым. Введите ваш пароль:");
+                    return;
+                }
+                
+                if (username == null || username.isEmpty()) {
+                    // Не должно произойти, но на всякий случай
+                    clearAuthState(chatId);
+                    sendPersonalMessage(chatId, "❌ Ошибка: логин не найден. Начните заново с /auth.");
+                    return;
+                }
+                
+                // Проверяем блокировку перед попыткой
+                if (isBlocked(chatId)) {
+                    long remainingSeconds = getBlockTimeRemaining(chatId);
+                    long remainingMinutes = remainingSeconds / 60;
+                    clearAuthState(chatId);
+                    sendPersonalMessage(chatId, "⛔ Слишком много неудачных попыток авторизации.\n\n" +
+                            "Попробуйте снова через " + remainingMinutes + " минут.");
+                    return;
+                }
+                
+                try {
+                    // Пытаемся связать аккаунт
+                    notificationSettingsService.linkTelegramAccountByCredentials(
+                            username, password, telegramUserId, chatId);
+                    
+                    // Успешная авторизация
+                    recordAuthAttempt(chatId, true);
+                    clearAuthState(chatId);
+                    
+                    sendPersonalMessage(chatId, "✅ <b>Аккаунт успешно связан!</b>\n\n" +
+                            "Теперь вы будете получать персональные уведомления.\n\n" +
+                            "Доступные команды:\n" +
+                            "/games - Список предстоящих игр\n" +
+                            "/help - Справка по командам\n" +
+                            "/stop - Отписаться от уведомлений");
+                    
+                    logger.info("Telegram account linked via auth for chatId: {}", chatId);
+                    
+                } catch (RuntimeException e) {
+                    // Неудачная попытка
+                    recordAuthAttempt(chatId, false);
+                    
+                    int remainingAttempts = getRemainingAttempts(chatId);
+                    
+                    if (isBlocked(chatId)) {
+                        long remainingSeconds = getBlockTimeRemaining(chatId);
+                        long remainingMinutes = remainingSeconds / 60;
+                        clearAuthState(chatId);
+                        sendPersonalMessage(chatId, "⛔ <b>Слишком много неудачных попыток</b>\n\n" +
+                                "Авторизация заблокирована на " + remainingMinutes + " минут.\n\n" +
+                                "Попробуйте снова позже или используйте /link <token> для привязки через токен.");
+                        logger.warn("Telegram auth blocked for chatId: {} after failed attempt", chatId);
+                    } else {
+                        // Ошибка авторизации, но еще есть попытки
+                        String errorMessage = e.getMessage();
+                        if (errorMessage.contains("Invalid username or password")) {
+                            sendPersonalMessage(chatId, "❌ <b>Неверный логин или пароль</b>\n\n" +
+                                    "Осталось попыток: " + remainingAttempts + "\n\n" +
+                                    "Введите пароль еще раз или используйте /cancel для отмены.");
+                        } else if (errorMessage.contains("уже связан")) {
+                            clearAuthState(chatId);
+                            sendPersonalMessage(chatId, "❌ " + errorMessage + "\n\n" +
+                                    "Используйте /start для проверки статуса.");
+                        } else {
+                            sendPersonalMessage(chatId, "❌ Ошибка: " + errorMessage + "\n\n" +
+                                    "Осталось попыток: " + remainingAttempts + "\n\n" +
+                                    "Попробуйте снова или используйте /cancel для отмены.");
+                        }
+                        logger.warn("Telegram auth failed for chatId: {}, remaining attempts: {}", chatId, remainingAttempts);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error handling auth state", e);
+            clearAuthState(chatId);
+            sendPersonalMessage(chatId, "❌ Произошла ошибка при обработке авторизации. Попробуйте позже или используйте /link <token>.");
+        }
+    }
+    
+    private void handleRegistrationState(Long telegramUserId, String chatId, String text, RegistrationState state) {
+        try {
+            updateRegistrationTimestamp(chatId);
+            RegistrationData data = registrationData.get(chatId);
+            
+            if (data == null) {
+                clearRegistrationState(chatId);
+                sendPersonalMessage(chatId, "❌ Ошибка: данные регистрации не найдены. Начните заново с /register.");
+                return;
+            }
+            
+            switch (state) {
+                case WAITING_INVITE:
+                    handleInviteInput(telegramUserId, chatId, text.trim(), data);
+                    break;
+                case WAITING_USERNAME:
+                    handleUsernameInput(chatId, text.trim(), data);
+                    break;
+                case WAITING_NAME:
+                    handleNameInput(chatId, text.trim(), data);
+                    break;
+                case WAITING_EMAIL:
+                    handleEmailInput(chatId, text.trim(), data);
+                    break;
+                case WAITING_PASSWORD:
+                    handlePasswordInput(chatId, text.trim(), data);
+                    break;
+                case WAITING_PASSWORD_CONFIRM:
+                    handlePasswordConfirmInput(telegramUserId, chatId, text.trim(), data);
+                    break;
+            }
+        } catch (Exception e) {
+            logger.error("Error handling registration state", e);
+            clearRegistrationState(chatId);
+            sendPersonalMessage(chatId, "❌ Произошла ошибка при обработке регистрации. Попробуйте позже.");
+        }
+    }
+    
+    private void handleInviteInput(Long telegramUserId, String chatId, String inviteCode, RegistrationData data) {
+        if (inviteCode.isEmpty()) {
+            sendPersonalMessage(chatId, "❌ Инвайт-код не может быть пустым. Введите инвайт-код:");
+            return;
+        }
+        
+        try {
+            // Проверяем валидность инвайт-кода
+            inviteService.getInviteByCode(inviteCode);
+            data.inviteCode = inviteCode;
+            registrationStates.put(chatId, RegistrationState.WAITING_USERNAME);
+            updateRegistrationTimestamp(chatId);
+            
+            sendPersonalMessage(chatId, "✅ Инвайт-код принят!\n\n" +
+                    "Введите логин (имя пользователя):\n\n" +
+                    "💡 Используйте /cancel для отмены.");
+        } catch (RuntimeException e) {
+            String errorMsg = e.getMessage();
+            if (errorMsg.contains("not found") || errorMsg.contains("Invalid")) {
+                sendPersonalMessage(chatId, "❌ <b>Неверный инвайт-код</b>\n\n" +
+                        "Проверьте правильность кода и попробуйте снова.\n\n" +
+                        "💡 Используйте /cancel для отмены.");
+            } else if (errorMsg.contains("expired") || errorMsg.contains("used")) {
+                sendPersonalMessage(chatId, "❌ <b>Инвайт-код недействителен</b>\n\n" +
+                        "Код истек или уже использован.\n\n" +
+                        "💡 Используйте /cancel для отмены.");
+            } else {
+                sendPersonalMessage(chatId, "❌ Ошибка: " + errorMsg + "\n\n" +
+                        "Попробуйте снова или используйте /cancel для отмены.");
+            }
+            logger.warn("Invalid invite code for registration: {}", inviteCode);
+        }
+    }
+    
+    private void handleUsernameInput(String chatId, String username, RegistrationData data) {
+        if (username.isEmpty()) {
+            sendPersonalMessage(chatId, "❌ Логин не может быть пустым. Введите логин:");
+            return;
+        }
+        
+        // Проверяем уникальность логина
+        if (userRepository.existsByUsername(username)) {
+            sendPersonalMessage(chatId, "❌ <b>Логин уже занят</b>\n\n" +
+                    "Выберите другой логин:\n\n" +
+                    "💡 Используйте /cancel для отмены.");
+            return;
+        }
+        
+        data.username = username;
+        registrationStates.put(chatId, RegistrationState.WAITING_NAME);
+        updateRegistrationTimestamp(chatId);
+        
+        sendPersonalMessage(chatId, "✅ Логин принят!\n\n" +
+                "Введите ваше имя (или нажмите Enter, чтобы использовать логин):\n\n" +
+                "💡 Используйте /cancel для отмены.");
+    }
+    
+    private void handleNameInput(String chatId, String name, RegistrationData data) {
+        // Имя опционально, если пустое - используем username
+        if (name.trim().isEmpty()) {
+            data.name = data.username;
+        } else {
+            data.name = name.trim();
+        }
+        
+        registrationStates.put(chatId, RegistrationState.WAITING_EMAIL);
+        updateRegistrationTimestamp(chatId);
+        
+        sendPersonalMessage(chatId, "✅ Имя принято!\n\n" +
+                "Введите ваш email:\n\n" +
+                "💡 Используйте /cancel для отмены.");
+    }
+    
+    private void handleEmailInput(String chatId, String email, RegistrationData data) {
+        if (email.isEmpty()) {
+            sendPersonalMessage(chatId, "❌ Email не может быть пустым. Введите email:");
+            return;
+        }
+        
+        // Проверяем формат email
+        if (!isValidEmail(email)) {
+            sendPersonalMessage(chatId, "❌ <b>Неверный формат email</b>\n\n" +
+                    "Введите корректный email адрес:\n\n" +
+                    "💡 Используйте /cancel для отмены.");
+            return;
+        }
+        
+        // Проверяем уникальность email
+        if (userRepository.existsByEmail(email)) {
+            sendPersonalMessage(chatId, "❌ <b>Email уже используется</b>\n\n" +
+                    "Используйте другой email:\n\n" +
+                    "💡 Используйте /cancel для отмены.");
+            return;
+        }
+        
+        data.email = email;
+        registrationStates.put(chatId, RegistrationState.WAITING_PASSWORD);
+        updateRegistrationTimestamp(chatId);
+        
+        sendPersonalMessage(chatId, "✅ Email принят!\n\n" +
+                "Введите пароль (минимум " + MIN_PASSWORD_LENGTH + " символов):\n\n" +
+                "💡 Используйте /cancel для отмены.");
+    }
+    
+    private void handlePasswordInput(String chatId, String password, RegistrationData data) {
+        if (password.isEmpty()) {
+            sendPersonalMessage(chatId, "❌ Пароль не может быть пустым. Введите пароль:");
+            return;
+        }
+        
+        if (password.length() < MIN_PASSWORD_LENGTH) {
+            sendPersonalMessage(chatId, "❌ <b>Пароль слишком короткий</b>\n\n" +
+                    "Пароль должен содержать минимум " + MIN_PASSWORD_LENGTH + " символов.\n\n" +
+                    "Введите пароль еще раз:\n\n" +
+                    "💡 Используйте /cancel для отмены.");
+            return;
+        }
+        
+        data.password = password;
+        registrationStates.put(chatId, RegistrationState.WAITING_PASSWORD_CONFIRM);
+        updateRegistrationTimestamp(chatId);
+        
+        sendPersonalMessage(chatId, "✅ Пароль принят!\n\n" +
+                "Подтвердите пароль (введите его еще раз):\n\n" +
+                "💡 Используйте /cancel для отмены.");
+    }
+    
+    private void handlePasswordConfirmInput(Long telegramUserId, String chatId, String passwordConfirm, RegistrationData data) {
+        if (passwordConfirm.isEmpty()) {
+            sendPersonalMessage(chatId, "❌ Подтверждение пароля не может быть пустым. Введите пароль еще раз:");
+            return;
+        }
+        
+        if (!passwordConfirm.equals(data.password)) {
+            sendPersonalMessage(chatId, "❌ <b>Пароли не совпадают</b>\n\n" +
+                    "Введите пароль еще раз:\n\n" +
+                    "💡 Используйте /cancel для отмены.");
+            // Возвращаемся к вводу пароля
+            registrationStates.put(chatId, RegistrationState.WAITING_PASSWORD);
+            updateRegistrationTimestamp(chatId);
+            return;
+        }
+        
+        // Все данные собраны, выполняем регистрацию
+        try {
+            // Проверяем блокировку перед попыткой
+            if (isRegistrationBlocked(chatId)) {
+                long remainingSeconds = getRegistrationBlockTimeRemaining(chatId);
+                long remainingMinutes = remainingSeconds / 60;
+                clearRegistrationState(chatId);
+                sendPersonalMessage(chatId, "⛔ Слишком много неудачных попыток регистрации.\n\n" +
+                        "Попробуйте снова через " + remainingMinutes + " минут.");
+                return;
+            }
+            
+            // Выполняем регистрацию через AuthService
+            authService.register(
+                    data.username,
+                    data.password,
+                    data.email,
+                    data.inviteCode,
+                    data.name
+            );
+            
+            // Регистрация успешна - автоматически привязываем Telegram
+            User registeredUser = userRepository.findByUsername(data.username)
+                    .orElseThrow(() -> new RuntimeException("User not found after registration"));
+            
+            registeredUser.setTelegramUserId(telegramUserId);
+            registeredUser.setTelegramChatId(chatId);
+            registeredUser.setTelegramSubscribed(true);
+            userRepository.save(registeredUser);
+            
+            // Успешная регистрация
+            recordRegistrationAttempt(chatId, true);
+            clearRegistrationState(chatId);
+            
+            sendPersonalMessage(chatId, "🎉 <b>Регистрация успешна!</b>\n\n" +
+                    "Ваш аккаунт создан и автоматически привязан к Telegram.\n\n" +
+                    "Теперь вы будете получать персональные уведомления.\n\n" +
+                    "Доступные команды:\n" +
+                    "/games - Список предстоящих игр\n" +
+                    "/help - Справка по командам\n" +
+                    "/stop - Отписаться от уведомлений");
+            
+            logger.info("Telegram registration successful for chatId: {}, username: {}", chatId, data.username);
+            
+        } catch (RuntimeException e) {
+            // Неудачная попытка регистрации
+            recordRegistrationAttempt(chatId, false);
+            
+            int remainingAttempts = getRemainingRegistrationAttempts(chatId);
+            String errorMsg = e.getMessage();
+            
+            if (isRegistrationBlocked(chatId)) {
+                long remainingSeconds = getRegistrationBlockTimeRemaining(chatId);
+                long remainingMinutes = remainingSeconds / 60;
+                clearRegistrationState(chatId);
+                sendPersonalMessage(chatId, "⛔ <b>Слишком много неудачных попыток</b>\n\n" +
+                        "Регистрация заблокирована на " + remainingMinutes + " минут.\n\n" +
+                        "Попробуйте снова позже.");
+                logger.warn("Telegram registration blocked for chatId: {} after failed attempt", chatId);
+            } else {
+                // Ошибка регистрации, но еще есть попытки
+                if (errorMsg.contains("already exists")) {
+                    if (errorMsg.contains("Username")) {
+                        sendPersonalMessage(chatId, "❌ <b>Логин уже занят</b>\n\n" +
+                                "Начните регистрацию заново с /register и выберите другой логин.\n\n" +
+                                "Осталось попыток: " + remainingAttempts);
+                    } else if (errorMsg.contains("Email")) {
+                        sendPersonalMessage(chatId, "❌ <b>Email уже используется</b>\n\n" +
+                                "Начните регистрацию заново с /register и используйте другой email.\n\n" +
+                                "Осталось попыток: " + remainingAttempts);
+                    } else {
+                        sendPersonalMessage(chatId, "❌ Ошибка: " + errorMsg + "\n\n" +
+                                "Осталось попыток: " + remainingAttempts + "\n\n" +
+                                "Начните регистрацию заново с /register.");
+                    }
+                } else if (errorMsg.contains("Invite")) {
+                    sendPersonalMessage(chatId, "❌ <b>Ошибка с инвайт-кодом</b>\n\n" +
+                            errorMsg + "\n\n" +
+                            "Начните регистрацию заново с /register.\n\n" +
+                            "Осталось попыток: " + remainingAttempts);
+                } else {
+                    sendPersonalMessage(chatId, "❌ Ошибка регистрации: " + errorMsg + "\n\n" +
+                            "Осталось попыток: " + remainingAttempts + "\n\n" +
+                            "Начните регистрацию заново с /register или используйте /cancel для отмены.");
+                }
+                logger.warn("Telegram registration failed for chatId: {}, error: {}, remaining attempts: {}", 
+                        chatId, errorMsg, remainingAttempts);
+            }
+        }
+    }
+    
     private void handleGamesCommand(Long telegramUserId, String chatId) {
         try {
             User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
@@ -229,17 +1257,498 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
+    private void handleInviteCommand(Long telegramUserId, String chatId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                sendPersonalMessage(chatId, "❌ Ваш аккаунт не связан с веб-сайтом.\n\n" +
+                        "Используйте /register для регистрации или /auth для привязки существующего аккаунта.");
+                return;
+            }
+            
+            // Создаем бессрочный одноразовый инвайт-код
+            ru.ambryo.gameplannerback.dto.CreateInviteRequest request = 
+                    new ru.ambryo.gameplannerback.dto.CreateInviteRequest(null, 1);
+            
+            ru.ambryo.gameplannerback.dto.InviteDto invite = inviteService.createInvite(user, request);
+            
+            // Форматируем и отправляем сообщение с инвайт-кодом
+            String message = buildInviteCreatedMessage(invite);
+            sendPersonalMessage(chatId, message);
+            
+            logger.info("Invite code created via Telegram for user: {}, chatId: {}", user.getUsername(), chatId);
+        } catch (Exception e) {
+            logger.error("Error handling /invite command", e);
+            sendPersonalMessage(chatId, "❌ Ошибка при создании инвайт-кода. Попробуйте позже.");
+        }
+    }
+    
+    private void handleMyInvitesCommand(Long telegramUserId, String chatId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                sendPersonalMessage(chatId, "❌ Ваш аккаунт не связан с веб-сайтом.\n\n" +
+                        "Используйте /register для регистрации или /auth для привязки существующего аккаунта.");
+                return;
+            }
+            
+            // Получаем список инвайт-кодов пользователя
+            List<ru.ambryo.gameplannerback.dto.InviteDto> invites = inviteService.getMyInvites(user);
+            
+            if (invites.isEmpty()) {
+                sendPersonalMessage(chatId, "📋 <b>Мои инвайт-коды</b>\n\n" +
+                        "У вас пока нет созданных инвайт-кодов.\n\n" +
+                        "Используйте /invite для создания нового инвайт-кода.");
+                return;
+            }
+            
+            String message = buildMyInvitesListMessage(invites);
+            sendPersonalMessage(chatId, message);
+        } catch (Exception e) {
+            logger.error("Error handling /myinvites command", e);
+            sendPersonalMessage(chatId, "❌ Ошибка при получении списка инвайт-кодов. Попробуйте позже.");
+        }
+    }
+    
+    private void handleMarkCommand(Long telegramUserId, String chatId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                sendPersonalMessage(chatId, "❌ Ваш аккаунт не связан с веб-сайтом.\n\n" +
+                        "Используйте /register для регистрации или /auth для привязки существующего аккаунта.");
+                return;
+            }
+            
+            // Проверяем наличие часового пояса
+            if (user.getTimezone() == null || user.getTimezone().trim().isEmpty()) {
+                sendPersonalMessage(chatId, "❌ <b>Часовой пояс не установлен</b>\n\n" +
+                        "Для разметки времени необходимо установить часовой пояс в настройках профиля на веб-сайте.\n\n" +
+                        "После установки часового пояса вы сможете использовать команду /mark для разметки времени.");
+                return;
+            }
+            
+            // Инициализируем состояние разметки времени
+            timeSlotMarkingStates.put(chatId, TimeSlotMarkingState.WAITING_DATE);
+            timeSlotMarkingData.put(chatId, new TimeSlotMarkingData());
+            updateTimeSlotMarkingTimestamp(chatId);
+            
+            sendPersonalMessage(chatId, "📅 <b>Разметка свободного времени</b>\n\n" +
+                    "Введите дату в формате ДД.ММ.ГГГГ (например: 15.01.2025)\n" +
+                    "Или используйте: сегодня, завтра, послезавтра\n\n" +
+                    "💡 Используйте /cancel для отмены.");
+        } catch (Exception e) {
+            logger.error("Error handling /mark command", e);
+            clearTimeSlotMarkingState(chatId);
+            sendPersonalMessage(chatId, "❌ Произошла ошибка при инициализации разметки времени. Попробуйте позже.");
+        }
+    }
+    
+    private void handleTimeSlotMarkingState(Long telegramUserId, String chatId, String text, TimeSlotMarkingState state) {
+        try {
+            updateTimeSlotMarkingTimestamp(chatId);
+            TimeSlotMarkingData data = timeSlotMarkingData.get(chatId);
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (data == null || user == null) {
+                clearTimeSlotMarkingState(chatId);
+                sendPersonalMessage(chatId, "❌ Ошибка: данные разметки не найдены. Начните заново с /mark.");
+                return;
+            }
+            
+            // Получаем часовой пояс пользователя
+            ZoneId userTimezone;
+            try {
+                userTimezone = ZoneId.of(user.getTimezone());
+            } catch (Exception e) {
+                clearTimeSlotMarkingState(chatId);
+                sendPersonalMessage(chatId, "❌ <b>Неверный часовой пояс</b>\n\n" +
+                        "Установите корректный часовой пояс в настройках профиля на веб-сайте.");
+                return;
+            }
+            
+            switch (state) {
+                case WAITING_DATE:
+                    handleDateInput(chatId, text.trim(), data, userTimezone);
+                    break;
+                case WAITING_TIME:
+                    handleTimeInput(chatId, text.trim(), data, userTimezone);
+                    break;
+                case WAITING_DURATION:
+                    handleDurationInput(telegramUserId, chatId, text.trim(), data, user, userTimezone);
+                    break;
+            }
+        } catch (Exception e) {
+            logger.error("Error handling time slot marking state", e);
+            clearTimeSlotMarkingState(chatId);
+            sendPersonalMessage(chatId, "❌ Произошла ошибка при обработке разметки времени. Попробуйте позже.");
+        }
+    }
+    
+    private void handleDateInput(String chatId, String dateStr, TimeSlotMarkingData data, ZoneId userTimezone) {
+        if (dateStr.isEmpty()) {
+            sendPersonalMessage(chatId, "❌ Дата не может быть пустой. Введите дату:");
+            return;
+        }
+        
+        LocalDate localDate = parseDate(dateStr, userTimezone);
+        if (localDate == null) {
+            sendPersonalMessage(chatId, "❌ <b>Неверный формат даты</b>\n\n" +
+                    "Используйте формат ДД.ММ.ГГГГ (например: 15.01.2025)\n" +
+                    "Или используйте: сегодня, завтра, послезавтра\n\n" +
+                    "💡 Используйте /cancel для отмены.");
+            return;
+        }
+        
+        data.dateStr = dateStr;
+        data.dateInstant = localDate.atStartOfDay(userTimezone).toInstant();
+        timeSlotMarkingStates.put(chatId, TimeSlotMarkingState.WAITING_TIME);
+        updateTimeSlotMarkingTimestamp(chatId);
+        
+        sendPersonalMessage(chatId, "✅ Дата принята: " + formatLocalDate(localDate) + "\n\n" +
+                "Введите время начала в формате ЧЧ:ММ или ЧЧ (например: 18:00 или 18):\n\n" +
+                "💡 Используйте /cancel для отмены.");
+    }
+    
+    private void handleTimeInput(String chatId, String timeStr, TimeSlotMarkingData data, ZoneId userTimezone) {
+        if (timeStr.isEmpty()) {
+            sendPersonalMessage(chatId, "❌ Время не может быть пустым. Введите время:");
+            return;
+        }
+        
+        LocalTime localTime = parseTime(timeStr);
+        if (localTime == null) {
+            sendPersonalMessage(chatId, "❌ <b>Неверный формат времени</b>\n\n" +
+                    "Используйте формат ЧЧ:ММ (например: 18:00) или ЧЧ (например: 18)\n\n" +
+                    "💡 Используйте /cancel для отмены.");
+            return;
+        }
+        
+        data.timeStr = timeStr;
+        // Пока сохраняем только время, финальный Instant создадим после получения продолжительности
+        timeSlotMarkingStates.put(chatId, TimeSlotMarkingState.WAITING_DURATION);
+        updateTimeSlotMarkingTimestamp(chatId);
+        
+        sendPersonalMessage(chatId, "✅ Время принято: " + formatLocalTime(localTime) + "\n\n" +
+                "Введите продолжительность в часах (например: 1, 2, 3):\n\n" +
+                "💡 Используйте /cancel для отмены.");
+    }
+    
+    private void handleDurationInput(Long telegramUserId, String chatId, String durationStr, 
+                                     TimeSlotMarkingData data, User user, ZoneId userTimezone) {
+        if (durationStr.isEmpty()) {
+            sendPersonalMessage(chatId, "❌ Продолжительность не может быть пустой. Введите количество часов:");
+            return;
+        }
+        
+        Integer duration = parseDuration(durationStr);
+        if (duration == null) {
+            sendPersonalMessage(chatId, "❌ <b>Неверный формат продолжительности</b>\n\n" +
+                    "Введите число от 1 до 24 (количество часов)\n\n" +
+                    "💡 Используйте /cancel для отмены.");
+            return;
+        }
+        
+        data.duration = duration;
+        
+        // Создаем финальный Instant: дата + время в часовом поясе пользователя, конвертируем в UTC
+        LocalDate localDate = LocalDate.ofInstant(data.dateInstant, userTimezone);
+        LocalTime localTime = parseTime(data.timeStr);
+        if (localTime == null) {
+            clearTimeSlotMarkingState(chatId);
+            sendPersonalMessage(chatId, "❌ Ошибка: время не найдено. Начните заново с /mark.");
+            return;
+        }
+        
+        Instant startInstant = convertToUTC(localDate, localTime, userTimezone);
+        data.startInstant = startInstant;
+        
+        // Вызываем UserService.toggleTimeSlot для создания/удаления слота
+        try {
+            userService.toggleTimeSlot(user, startInstant, duration);
+            
+            // Успешная разметка
+            clearTimeSlotMarkingState(chatId);
+            
+            String message = buildTimeSlotMarkedMessage(localDate, localTime, duration, userTimezone);
+            sendPersonalMessage(chatId, message);
+            
+            logger.info("Time slot marked via Telegram for user: {}, chatId: {}, start: {}, duration: {}", 
+                    user.getUsername(), chatId, startInstant, duration);
+        } catch (Exception e) {
+            logger.error("Error toggling time slot via Telegram", e);
+            clearTimeSlotMarkingState(chatId);
+            sendPersonalMessage(chatId, "❌ Ошибка при сохранении временного слота. Попробуйте позже.");
+        }
+    }
+    
+    private void handleMySlotsCommand(Long telegramUserId, String chatId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                sendPersonalMessage(chatId, "❌ Ваш аккаунт не связан с веб-сайтом.\n\n" +
+                        "Используйте /register для регистрации или /auth для привязки существующего аккаунта.");
+                return;
+            }
+            
+            // Получаем текущего пользователя как PlayerDto с временными слотами
+            Instant now = Instant.now();
+            Instant endDate = now.plusSeconds(30L * 24 * 60 * 60); // 30 дней вперед
+            ru.ambryo.gameplannerback.dto.PlayerDto player = userService.getUserAsPlayerWithTimeSlots(user, now, endDate);
+            
+            List<ru.ambryo.gameplannerback.dto.TimeSlotDto> slots = player.getAvailableTimes();
+            
+            if (slots == null || slots.isEmpty()) {
+                sendPersonalMessage(chatId, "📅 <b>Мои временные слоты</b>\n\n" +
+                        "У вас пока нет размеченного времени.\n\n" +
+                        "Используйте /mark для разметки свободного времени.");
+                return;
+            }
+            
+            String message = buildMySlotsListMessage(slots, user.getTimezone());
+            sendPersonalMessage(chatId, message);
+        } catch (Exception e) {
+            logger.error("Error handling /myslots command", e);
+            sendPersonalMessage(chatId, "❌ Ошибка при получении списка временных слотов. Попробуйте позже.");
+        }
+    }
+    
+    private void handleMenuCommand(Long telegramUserId, String chatId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            boolean isLinked = user != null;
+            
+            String message = "📱 <b>Главное меню</b>\n\n";
+            if (isLinked && user != null) {
+                message += "✅ Аккаунт связан\n";
+                message += "👤 Пользователь: " + escapeHtml(user.getUsername()) + "\n\n";
+                message += "Выберите раздел:";
+            } else {
+                message += "❌ Аккаунт не связан\n\n";
+                message += "Для доступа ко всем функциям необходимо зарегистрироваться.\n\n";
+                message += "Нажмите кнопку ниже, чтобы начать регистрацию:";
+            }
+            
+            InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(isLinked);
+            
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatId);
+            sendMessage.setText(message);
+            sendMessage.setParseMode("HTML");
+            sendMessage.setReplyMarkup(keyboard);
+            
+            execute(sendMessage);
+        } catch (Exception e) {
+            logger.error("Error handling /menu command", e);
+            sendPersonalMessage(chatId, "❌ Произошла ошибка при открытии меню. Попробуйте позже.");
+        }
+    }
+    
+    private InlineKeyboardMarkup buildMainMenuKeyboard(boolean isLinked) {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        if (isLinked) {
+            // Для связанных пользователей - полное меню
+            // Кнопка "Игры"
+            List<InlineKeyboardButton> gamesRow = new java.util.ArrayList<>();
+            InlineKeyboardButton gamesButton = new InlineKeyboardButton();
+            gamesButton.setText("🎮 Игры");
+            gamesButton.setCallbackData("menu_games");
+            gamesRow.add(gamesButton);
+            rows.add(gamesRow);
+            
+            // Кнопка "Разметка времени"
+            List<InlineKeyboardButton> timeRow = new java.util.ArrayList<>();
+            InlineKeyboardButton timeButton = new InlineKeyboardButton();
+            timeButton.setText("📅 Разметка времени");
+            timeButton.setCallbackData("menu_time");
+            timeRow.add(timeButton);
+            rows.add(timeRow);
+            
+            // Кнопка "Настройки"
+            List<InlineKeyboardButton> settingsRow = new java.util.ArrayList<>();
+            InlineKeyboardButton settingsButton = new InlineKeyboardButton();
+            settingsButton.setText("⚙️ Настройки");
+            settingsButton.setCallbackData("menu_settings");
+            settingsRow.add(settingsButton);
+            rows.add(settingsRow);
+            
+            // Кнопка "Помощь"
+            List<InlineKeyboardButton> helpRow = new java.util.ArrayList<>();
+            InlineKeyboardButton helpButton = new InlineKeyboardButton();
+            helpButton.setText("📖 Помощь");
+            helpButton.setCallbackData("menu_help");
+            helpRow.add(helpButton);
+            rows.add(helpRow);
+        } else {
+            // Для несвязанных пользователей - только регистрация
+            List<InlineKeyboardButton> registerRow = new java.util.ArrayList<>();
+            InlineKeyboardButton registerButton = new InlineKeyboardButton();
+            registerButton.setText("📝 Зарегистрироваться");
+            registerButton.setCallbackData("menu_register");
+            registerRow.add(registerButton);
+            rows.add(registerRow);
+        }
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
+    private InlineKeyboardMarkup buildGamesMenuKeyboard() {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        // Кнопка "Список предстоящих игр"
+        List<InlineKeyboardButton> listRow = new java.util.ArrayList<>();
+        InlineKeyboardButton listButton = new InlineKeyboardButton();
+        listButton.setText("📋 Список предстоящих игр");
+        listButton.setCallbackData("menu_games_list");
+        listRow.add(listButton);
+        rows.add(listRow);
+        
+        // Кнопка "Назад"
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад");
+        backButton.setCallbackData("menu_main");
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
+    private InlineKeyboardMarkup buildTimeMenuKeyboard() {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        // Кнопка "Разметить время"
+        List<InlineKeyboardButton> markRow = new java.util.ArrayList<>();
+        InlineKeyboardButton markButton = new InlineKeyboardButton();
+        markButton.setText("➕ Разметить время");
+        markButton.setCallbackData("menu_time_mark");
+        markRow.add(markButton);
+        rows.add(markRow);
+        
+        // Кнопка "Мои слоты"
+        List<InlineKeyboardButton> slotsRow = new java.util.ArrayList<>();
+        InlineKeyboardButton slotsButton = new InlineKeyboardButton();
+        slotsButton.setText("📅 Мои слоты");
+        slotsButton.setCallbackData("menu_time_slots");
+        slotsRow.add(slotsButton);
+        rows.add(slotsRow);
+        
+        // Кнопка "Назад"
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад");
+        backButton.setCallbackData("menu_main");
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
+    private InlineKeyboardMarkup buildInvitesMenuKeyboard() {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        // Кнопка "Создать инвайт-код"
+        List<InlineKeyboardButton> createRow = new java.util.ArrayList<>();
+        InlineKeyboardButton createButton = new InlineKeyboardButton();
+        createButton.setText("➕ Создать инвайт-код");
+        createButton.setCallbackData("menu_invites_create");
+        createRow.add(createButton);
+        rows.add(createRow);
+        
+        // Кнопка "Мои инвайт-коды"
+        List<InlineKeyboardButton> listRow = new java.util.ArrayList<>();
+        InlineKeyboardButton listButton = new InlineKeyboardButton();
+        listButton.setText("📋 Мои инвайт-коды");
+        listButton.setCallbackData("menu_invites_list");
+        listRow.add(listButton);
+        rows.add(listRow);
+        
+        // Кнопка "Назад" (возврат в настройки)
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад");
+        backButton.setCallbackData("menu_settings");
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
+    private InlineKeyboardMarkup buildSettingsMenuKeyboard(boolean isLinked) {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
+        
+        // Кнопка "Профиль"
+        List<InlineKeyboardButton> profileRow = new java.util.ArrayList<>();
+        InlineKeyboardButton profileButton = new InlineKeyboardButton();
+        profileButton.setText("👤 Профиль");
+        profileButton.setCallbackData("menu_settings_profile");
+        profileRow.add(profileButton);
+        rows.add(profileRow);
+        
+        // Кнопка "Инвайты" (только если аккаунт связан)
+        if (isLinked) {
+            List<InlineKeyboardButton> invitesRow = new java.util.ArrayList<>();
+            InlineKeyboardButton invitesButton = new InlineKeyboardButton();
+            invitesButton.setText("🎫 Инвайты");
+            invitesButton.setCallbackData("menu_invites");
+            invitesRow.add(invitesButton);
+            rows.add(invitesRow);
+        }
+        
+        // Кнопка "Назад"
+        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
+        InlineKeyboardButton backButton = new InlineKeyboardButton();
+        backButton.setText("◀️ Назад");
+        backButton.setCallbackData("menu_main");
+        backRow.add(backButton);
+        rows.add(backRow);
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
     private void handleHelpCommand(String chatId) {
         StringBuilder help = new StringBuilder();
         help.append("📖 <b>Доступные команды:</b>\n\n");
         help.append("/start - Подписаться на уведомления\n");
         help.append("/stop - Отписаться от уведомлений\n");
-        help.append("/link &lt;token&gt; - Связать аккаунт с веб-сайтом\n");
+        help.append("/register - Зарегистрировать новый аккаунт\n");
+        help.append("/auth - Связать аккаунт через логин/пароль\n");
+        help.append("/link &lt;token&gt; - Связать аккаунт через токен\n");
+        help.append("/cancel - Отменить процесс регистрации/авторизации/разметки\n");
+        help.append("/invite - Создать инвайт-код\n");
+        help.append("/myinvites - Показать список моих инвайт-кодов\n");
+        help.append("/mark - Разметить свободное время\n");
+        help.append("/myslots - Показать размеченные временные слоты\n");
         help.append("/games - Получить список предстоящих игр\n");
         help.append("/upcoming - То же, что и /games\n");
         help.append("/game &lt;id&gt; - Посмотреть детали игры\n");
+        help.append("/menu - Главное меню\n");
         help.append("/help - Показать эту справку\n\n");
-        help.append("💡 Для получения токена связывания откройте настройки профиля на веб-сайте.\n\n");
+        help.append("<b>Способы работы с аккаунтом:</b>\n");
+        help.append("1. /register - регистрация нового аккаунта через Telegram\n");
+        help.append("2. /auth - авторизация через логин и пароль для привязки существующего аккаунта\n");
+        help.append("3. /link &lt;token&gt; - привязка через токен (получите токен в настройках профиля на веб-сайте)\n\n");
+        help.append("<b>Управление инвайт-кодами:</b>\n");
+        help.append("/invite - создать новый бессрочный одноразовый инвайт-код\n");
+        help.append("/myinvites - просмотреть все созданные вами инвайт-коды\n\n");
+        help.append("<b>Разметка времени:</b>\n");
+        help.append("/mark - разметить свободное время (последовательный диалог: дата → время → продолжительность)\n");
+        help.append("/myslots - просмотреть все размеченные временные слоты\n\n");
+        help.append("💡 Используйте /menu для удобной навигации через меню.\n");
         help.append("💡 Используйте кнопки под играми для быстрой записи/отписки.");
         
         sendPersonalMessage(chatId, help.toString());
@@ -255,7 +1764,10 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             // Отвечаем на callback query, чтобы убрать индикатор загрузки
             answerCallbackQuery(callbackQuery.getId());
             
-            if (data.startsWith("join_game_")) {
+            // Обработка меню (префикс menu_)
+            if (data.startsWith("menu_")) {
+                handleMenuCallback(telegramUserId, chatId.toString(), messageId, data);
+            } else if (data.startsWith("join_game_")) {
                 Long gameId = Long.parseLong(data.substring("join_game_".length()));
                 handleJoinGameCallback(telegramUserId, chatId.toString(), messageId, gameId);
             } else if (data.startsWith("leave_game_")) {
@@ -268,6 +1780,347 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         } catch (Exception e) {
             logger.error("Error handling callback query", e);
             answerCallbackQuery(callbackQuery.getId(), "❌ Произошла ошибка. Попробуйте позже.");
+        }
+    }
+    
+    private void handleMenuCallback(Long telegramUserId, String chatId, Integer messageId, String data) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            boolean isLinked = user != null;
+            
+            if (data.equals("menu_main")) {
+                // Возврат в главное меню
+                String message = "📱 <b>Главное меню</b>\n\n";
+                if (isLinked && user != null) {
+                    message += "✅ Аккаунт связан\n";
+                    message += "👤 Пользователь: " + escapeHtml(user.getUsername()) + "\n\n";
+                } else {
+                    message += "❌ Аккаунт не связан\n\n";
+                }
+                message += "Выберите раздел:";
+                
+                InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(isLinked);
+                updateMenuMessage(chatId, messageId, message, keyboard);
+                
+            } else if (data.equals("menu_register")) {
+                // Регистрация через меню
+                if (isLinked) {
+                    answerCallbackQuery("", "✅ Вы уже зарегистрированы!");
+                    return;
+                }
+                // Инициализируем регистрацию
+                handleRegisterCommand(telegramUserId, chatId);
+                // Возвращаемся в главное меню
+                String menuMessage = "📱 <b>Главное меню</b>\n\n❌ Аккаунт не связан\n\nДля доступа ко всем функциям необходимо зарегистрироваться.\n\nНажмите кнопку ниже, чтобы начать регистрацию:";
+                InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(false);
+                updateMenuMessage(chatId, messageId, menuMessage, keyboard);
+                
+            } else if (data.equals("menu_games")) {
+                // Подменю игр
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                String message = "🎮 <b>Игры</b>\n\nВыберите действие:";
+                InlineKeyboardMarkup keyboard = buildGamesMenuKeyboard();
+                updateMenuMessage(chatId, messageId, message, keyboard);
+                
+            } else if (data.equals("menu_time")) {
+                // Подменю разметки времени
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Используйте /link для связывания.");
+                    return;
+                }
+                String message = "📅 <b>Разметка времени</b>\n\nВыберите действие:";
+                InlineKeyboardMarkup keyboard = buildTimeMenuKeyboard();
+                updateMenuMessage(chatId, messageId, message, keyboard);
+                
+            } else if (data.equals("menu_invites")) {
+                // Подменю инвайтов
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Используйте /link для связывания.");
+                    return;
+                }
+                String message = "🎫 <b>Инвайты</b>\n\nВыберите действие:";
+                InlineKeyboardMarkup keyboard = buildInvitesMenuKeyboard();
+                updateMenuMessage(chatId, messageId, message, keyboard);
+                
+            } else if (data.equals("menu_settings")) {
+                // Подменю настроек
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                String message = "⚙️ <b>Настройки</b>\n\nВыберите действие:";
+                InlineKeyboardMarkup keyboard = buildSettingsMenuKeyboard(isLinked);
+                updateMenuMessage(chatId, messageId, message, keyboard);
+                
+            } else if (data.equals("menu_help")) {
+                // Помощь
+                if (!isLinked || user == null) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                handleHelpCommand(chatId);
+                // Возвращаемся в главное меню
+                String menuMessage = "📱 <b>Главное меню</b>\n\n✅ Аккаунт связан\n👤 Пользователь: " + escapeHtml(user.getUsername()) + "\n\nВыберите раздел:";
+                InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(isLinked);
+                updateMenuMessage(chatId, messageId, menuMessage, keyboard);
+                
+            } else if (data.equals("menu_games_list")) {
+                // Действие: список игр
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                handleMenuGamesList(telegramUserId, chatId, messageId);
+                
+            } else if (data.equals("menu_time_mark")) {
+                // Действие: разметка времени
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Используйте /link для связывания.");
+                    return;
+                }
+                handleMenuTimeMark(telegramUserId, chatId, messageId);
+                
+            } else if (data.equals("menu_time_slots")) {
+                // Действие: мои слоты
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Используйте /link для связывания.");
+                    return;
+                }
+                handleMenuTimeSlots(telegramUserId, chatId, messageId);
+                
+            } else if (data.equals("menu_invites_create")) {
+                // Действие: создать инвайт
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Используйте /link для связывания.");
+                    return;
+                }
+                handleMenuInvitesCreate(telegramUserId, chatId, messageId);
+                
+            } else if (data.equals("menu_invites_list")) {
+                // Действие: список инвайтов
+                if (!isLinked) {
+                    answerCallbackQuery("", "❌ Аккаунт не связан. Используйте /link для связывания.");
+                    return;
+                }
+                handleMenuInvitesList(telegramUserId, chatId, messageId);
+                
+            } else if (data.equals("menu_settings_profile")) {
+                // Действие: профиль
+                handleMenuSettingsProfile(telegramUserId, chatId, messageId);
+            }
+        } catch (Exception e) {
+            logger.error("Error handling menu callback", e);
+            answerCallbackQuery("", "❌ Произошла ошибка. Попробуйте позже.");
+        }
+    }
+    
+    private void updateMenuMessage(String chatId, Integer messageId, String message, InlineKeyboardMarkup keyboard) {
+        try {
+            EditMessageText editMessage = new EditMessageText();
+            editMessage.setChatId(chatId);
+            editMessage.setMessageId(messageId);
+            editMessage.setText(message);
+            editMessage.setParseMode("HTML");
+            editMessage.setReplyMarkup(keyboard);
+            execute(editMessage);
+        } catch (TelegramApiException e) {
+            logger.error("Failed to update menu message", e);
+        }
+    }
+    
+    private void handleMenuGamesList(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            List<GameDto> upcomingGames = gameService.getUpcomingGamesForUser(user.getId());
+            
+            String message;
+            InlineKeyboardMarkup keyboard = buildGamesMenuKeyboard();
+            
+            if (upcomingGames.isEmpty()) {
+                message = "📅 <b>Предстоящие игры</b>\n\nУ вас пока нет запланированных игр.";
+            } else {
+                message = buildUpcomingGamesListMessage(upcomingGames);
+            }
+            
+            updateMenuMessage(chatId, messageId, message, keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling menu games list", e);
+            answerCallbackQuery("", "❌ Ошибка при получении списка игр.");
+        }
+    }
+    
+    private void handleMenuTimeMark(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            // Проверяем наличие часового пояса
+            if (user.getTimezone() == null || user.getTimezone().trim().isEmpty()) {
+                String errorMessage = "❌ <b>Часовой пояс не установлен</b>\n\n" +
+                        "Для разметки времени необходимо установить часовой пояс в настройках профиля на веб-сайте.\n\n" +
+                        "После установки часового пояса вы сможете использовать разметку времени.";
+                InlineKeyboardMarkup keyboard = buildTimeMenuKeyboard();
+                updateMenuMessage(chatId, messageId, errorMessage, keyboard);
+                return;
+            }
+            
+            // Инициализируем состояние разметки времени
+            timeSlotMarkingStates.put(chatId, TimeSlotMarkingState.WAITING_DATE);
+            timeSlotMarkingData.put(chatId, new TimeSlotMarkingData());
+            updateTimeSlotMarkingTimestamp(chatId);
+            
+            String message = "📅 <b>Разметка свободного времени</b>\n\n" +
+                    "Введите дату в формате ДД.ММ.ГГГГ (например: 15.01.2025)\n" +
+                    "Или используйте: сегодня, завтра, послезавтра\n\n" +
+                    "💡 Используйте /cancel для отмены.";
+            
+            // Отправляем новое сообщение для диалога разметки
+            sendPersonalMessage(chatId, message);
+            
+            // Возвращаемся в подменю разметки времени
+            String menuMessage = "📅 <b>Разметка времени</b>\n\nВыберите действие:";
+            InlineKeyboardMarkup keyboard = buildTimeMenuKeyboard();
+            updateMenuMessage(chatId, messageId, menuMessage, keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling menu time mark", e);
+            answerCallbackQuery("", "❌ Ошибка при инициализации разметки времени.");
+        }
+    }
+    
+    private void handleMenuTimeSlots(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            Instant now = Instant.now();
+            Instant endDate = now.plusSeconds(30L * 24 * 60 * 60); // 30 дней вперед
+            ru.ambryo.gameplannerback.dto.PlayerDto player = userService.getUserAsPlayerWithTimeSlots(user, now, endDate);
+            
+            List<ru.ambryo.gameplannerback.dto.TimeSlotDto> slots = player.getAvailableTimes();
+            
+            String message;
+            InlineKeyboardMarkup keyboard = buildTimeMenuKeyboard();
+            
+            if (slots == null || slots.isEmpty()) {
+                message = "📅 <b>Мои временные слоты</b>\n\n" +
+                        "У вас пока нет размеченного времени.\n\n" +
+                        "Используйте кнопку 'Разметить время' для добавления слотов.";
+            } else {
+                message = buildMySlotsListMessage(slots, user.getTimezone());
+            }
+            
+            updateMenuMessage(chatId, messageId, message, keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling menu time slots", e);
+            answerCallbackQuery("", "❌ Ошибка при получении списка слотов.");
+        }
+    }
+    
+    private void handleMenuInvitesCreate(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            // Создаем бессрочный одноразовый инвайт-код
+            ru.ambryo.gameplannerback.dto.CreateInviteRequest request = 
+                    new ru.ambryo.gameplannerback.dto.CreateInviteRequest(null, 1);
+            
+            ru.ambryo.gameplannerback.dto.InviteDto invite = inviteService.createInvite(user, request);
+            
+            String message = buildInviteCreatedMessage(invite);
+            InlineKeyboardMarkup keyboard = buildInvitesMenuKeyboard();
+            
+            updateMenuMessage(chatId, messageId, message, keyboard);
+            
+            logger.info("Invite code created via menu for user: {}, chatId: {}", user.getUsername(), chatId);
+        } catch (Exception e) {
+            logger.error("Error handling menu invites create", e);
+            answerCallbackQuery("", "❌ Ошибка при создании инвайт-кода.");
+        }
+    }
+    
+    private void handleMenuInvitesList(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            if (user == null) {
+                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
+                return;
+            }
+            
+            List<ru.ambryo.gameplannerback.dto.InviteDto> invites = inviteService.getMyInvites(user);
+            
+            String message;
+            InlineKeyboardMarkup keyboard = buildInvitesMenuKeyboard();
+            
+            if (invites.isEmpty()) {
+                message = "📋 <b>Мои инвайт-коды</b>\n\n" +
+                        "У вас пока нет созданных инвайт-кодов.\n\n" +
+                        "Используйте кнопку 'Создать инвайт-код' для создания нового.";
+            } else {
+                message = buildMyInvitesListMessage(invites);
+            }
+            
+            updateMenuMessage(chatId, messageId, message, keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling menu invites list", e);
+            answerCallbackQuery("", "❌ Ошибка при получении списка инвайт-кодов.");
+        }
+    }
+    
+    private void handleMenuSettingsProfile(Long telegramUserId, String chatId, Integer messageId) {
+        try {
+            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
+            
+            StringBuilder message = new StringBuilder();
+            message.append("👤 <b>Профиль</b>\n\n");
+            
+            if (user == null) {
+                message.append("❌ Аккаунт не связан\n\n");
+                message.append("Для доступа ко всем функциям необходимо связать аккаунт:\n");
+                message.append("• /register - регистрация нового аккаунта\n");
+                message.append("• /auth - авторизация через логин/пароль\n");
+                message.append("• /link <token> - привязка через токен");
+            } else {
+                message.append("✅ Аккаунт связан\n\n");
+                message.append("👤 <b>Логин:</b> ").append(escapeHtml(user.getUsername())).append("\n");
+                message.append("📝 <b>Имя:</b> ").append(escapeHtml(user.getName() != null ? user.getName() : "Не указано")).append("\n");
+                message.append("📧 <b>Email:</b> ").append(escapeHtml(user.getEmail() != null ? user.getEmail() : "Не указан")).append("\n");
+                
+                if (user.getTimezone() != null && !user.getTimezone().trim().isEmpty()) {
+                    message.append("🌍 <b>Часовой пояс:</b> ").append(escapeHtml(user.getTimezone())).append("\n");
+                } else {
+                    message.append("🌍 <b>Часовой пояс:</b> Не установлен\n");
+                    message.append("⚠️ Установите часовой пояс для использования разметки времени");
+                }
+            }
+            
+            InlineKeyboardMarkup keyboard = buildSettingsMenuKeyboard(user != null);
+            updateMenuMessage(chatId, messageId, message.toString(), keyboard);
+        } catch (Exception e) {
+            logger.error("Error handling menu settings profile", e);
+            answerCallbackQuery("", "❌ Ошибка при получении информации о профиле.");
         }
     }
     
@@ -599,6 +2452,159 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         
         keyboard.setKeyboard(rows);
         return keyboard;
+    }
+    
+    private String buildInviteCreatedMessage(ru.ambryo.gameplannerback.dto.InviteDto invite) {
+        StringBuilder message = new StringBuilder();
+        message.append("🎫 <b>Инвайт-код создан!</b>\n\n");
+        message.append("📋 <b>Код:</b> <code>").append(escapeHtml(invite.getCode())).append("</code>\n\n");
+        
+        // Статус инвайта
+        if (invite.getExpiresAt() == null) {
+            message.append("⏰ <b>Срок действия:</b> Бессрочный\n");
+        } else {
+            message.append("⏰ <b>Срок действия:</b> До ").append(formatInstant(invite.getExpiresAt())).append("\n");
+        }
+        
+        if (invite.getMaxUses() != null) {
+            message.append("🔢 <b>Использований:</b> ").append(invite.getUsesCount() != null ? invite.getUsesCount() : 0)
+                    .append("/").append(invite.getMaxUses()).append("\n");
+        } else {
+            message.append("🔢 <b>Использований:</b> Неограниченно\n");
+        }
+        
+        message.append("\n💡 Отправьте этот код другу для регистрации.\n");
+        message.append("💡 Используйте /myinvites для просмотра всех ваших инвайт-кодов.");
+        
+        return message.toString();
+    }
+    
+    private String buildMyInvitesListMessage(List<ru.ambryo.gameplannerback.dto.InviteDto> invites) {
+        StringBuilder message = new StringBuilder();
+        message.append("📋 <b>Мои инвайт-коды</b>\n\n");
+        message.append("Всего: ").append(invites.size()).append("\n\n");
+        
+        for (int i = 0; i < invites.size(); i++) {
+            ru.ambryo.gameplannerback.dto.InviteDto invite = invites.get(i);
+            
+            message.append("<b>").append(i + 1).append(".</b> ");
+            message.append("<code>").append(escapeHtml(invite.getCode())).append("</code>\n");
+            
+            // Статус
+            if (invite.getIsValid() != null && invite.getIsValid()) {
+                message.append("✅ Действителен\n");
+            } else {
+                message.append("❌ Недействителен\n");
+            }
+            
+            // Дата создания
+            if (invite.getCreatedAt() != null) {
+                message.append("📅 Создан: ").append(formatInstant(invite.getCreatedAt())).append("\n");
+            }
+            
+            // Срок действия
+            if (invite.getExpiresAt() == null) {
+                message.append("⏰ Бессрочный\n");
+            } else {
+                message.append("⏰ Действителен до: ").append(formatInstant(invite.getExpiresAt())).append("\n");
+            }
+            
+            // Использования
+            if (invite.getMaxUses() != null) {
+                message.append("🔢 Использований: ").append(invite.getUsesCount() != null ? invite.getUsesCount() : 0)
+                        .append("/").append(invite.getMaxUses()).append("\n");
+            } else {
+                message.append("🔢 Использований: ").append(invite.getUsesCount() != null ? invite.getUsesCount() : 0)
+                        .append(" (неограниченно)\n");
+            }
+            
+            // Использован
+            if (invite.getUsed() != null && invite.getUsed()) {
+                if (invite.getUsedByName() != null) {
+                    message.append("👤 Использован: ").append(escapeHtml(invite.getUsedByName())).append("\n");
+                }
+                if (invite.getUsedAt() != null) {
+                    message.append("🕐 Дата использования: ").append(formatInstant(invite.getUsedAt())).append("\n");
+                }
+            }
+            
+            if (i < invites.size() - 1) {
+                message.append("\n");
+            }
+        }
+        
+        message.append("\n💡 Используйте /invite для создания нового инвайт-кода.");
+        
+        return message.toString();
+    }
+    
+    private String formatLocalDate(LocalDate date) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
+        return date.format(formatter);
+    }
+    
+    private String formatLocalTime(LocalTime time) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("HH:mm");
+        return time.format(formatter);
+    }
+    
+    private String formatInstantInTimezone(Instant instant, String timezone) {
+        try {
+            ZoneId zoneId = ZoneId.of(timezone);
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
+                    .withZone(zoneId);
+            return formatter.format(instant);
+        } catch (Exception e) {
+            // Fallback к общему формату
+            return formatInstant(instant);
+        }
+    }
+    
+    private String buildTimeSlotMarkedMessage(LocalDate localDate, LocalTime localTime, Integer duration, ZoneId userTimezone) {
+        StringBuilder message = new StringBuilder();
+        message.append("✅ <b>Временной слот размечен!</b>\n\n");
+        message.append("📅 <b>Дата:</b> ").append(formatLocalDate(localDate)).append("\n");
+        message.append("🕐 <b>Время:</b> ").append(formatLocalTime(localTime)).append("\n");
+        message.append("⏱️ <b>Продолжительность:</b> ").append(duration).append(" ").append(duration == 1 ? "час" : "часа").append("\n\n");
+        message.append("💡 Используйте /myslots для просмотра всех размеченных слотов.\n");
+        message.append("💡 Повторная разметка того же времени удалит слот.");
+        
+        return message.toString();
+    }
+    
+    private String buildMySlotsListMessage(List<ru.ambryo.gameplannerback.dto.TimeSlotDto> slots, String userTimezone) {
+        StringBuilder message = new StringBuilder();
+        message.append("📅 <b>Мои временные слоты</b>\n\n");
+        message.append("Всего: ").append(slots.size()).append("\n\n");
+        
+        if (slots.isEmpty()) {
+            message.append("У вас пока нет размеченного времени.\n\n");
+            message.append("💡 Используйте /mark для разметки свободного времени.");
+            return message.toString();
+        }
+        
+        for (int i = 0; i < slots.size(); i++) {
+            ru.ambryo.gameplannerback.dto.TimeSlotDto slot = slots.get(i);
+            
+            message.append("<b>").append(i + 1).append(".</b> ");
+            
+            // Форматируем время в часовом поясе пользователя
+            String startTime = formatInstantInTimezone(slot.getStart(), userTimezone);
+            Instant endTime = slot.getStart().plusSeconds(slot.getDuration() * 3600L);
+            String endTimeStr = formatInstantInTimezone(endTime, userTimezone);
+            
+            message.append(startTime).append(" - ").append(endTimeStr).append("\n");
+            message.append("⏱️ Продолжительность: ").append(slot.getDuration()).append(" ").append(slot.getDuration() == 1 ? "час" : "часа").append("\n");
+            
+            if (i < slots.size() - 1) {
+                message.append("\n");
+            }
+        }
+        
+        message.append("\n💡 Используйте /mark для разметки нового времени.\n");
+        message.append("💡 Повторная разметка того же времени удалит слот.");
+        
+        return message.toString();
     }
     
     public void sendPersonalMessage(String chatId, String text) {
