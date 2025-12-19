@@ -79,157 +79,35 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     @Autowired
     private UserService userService;
     
-    // Система состояний для авторизации через логин/пароль
-    private enum AuthState {
-        WAITING_USERNAME,
-        WAITING_PASSWORD
-    }
+    @Autowired
+    private ru.ambryo.gameplannerback.service.telegram.command.CommandRouter commandRouter;
     
-    // Хранение состояний авторизации: chatId -> AuthState
-    private final Map<String, AuthState> authStates = new ConcurrentHashMap<>();
+    @Autowired
+    private ru.ambryo.gameplannerback.service.telegram.menu.MenuRouter menuRouter;
     
-    // Хранение временных данных: chatId -> username
-    private final Map<String, String> authUsernames = new ConcurrentHashMap<>();
+    @Autowired
+    private ru.ambryo.gameplannerback.service.telegram.state.AuthStateManager authStateManager;
     
-    // Хранение времени последнего действия: chatId -> Instant
-    private final Map<String, Instant> authTimestamps = new ConcurrentHashMap<>();
+    @Autowired
+    private ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager registrationStateManager;
     
-    // Защита от брутфорса: chatId -> AttemptInfo
-    private static class AttemptInfo {
-        int attempts;
-        Instant firstAttempt;
-        Instant blockedUntil;
-        
-        AttemptInfo() {
-            this.attempts = 0;
-            this.firstAttempt = Instant.now();
-            this.blockedUntil = null;
-        }
-    }
+    @Autowired
+    private ru.ambryo.gameplannerback.service.telegram.state.TimeSlotMarkingStateManager timeSlotMarkingStateManager;
     
-    private final Map<String, AttemptInfo> authAttempts = new ConcurrentHashMap<>();
+    @Autowired
+    private ru.ambryo.gameplannerback.service.telegram.state.TimezoneChangeStateManager timezoneChangeStateManager;
     
-    // Константы для защиты от брутфорса
-    private static final int MAX_AUTH_ATTEMPTS = 3;
-    private static final long AUTH_ATTEMPT_WINDOW_SECONDS = 900; // 15 минут
-    private static final long AUTH_BLOCK_DURATION_SECONDS = 900; // 15 минут блокировки
-    private static final long AUTH_STATE_TIMEOUT_SECONDS = 300; // 5 минут таймаут состояния
+    @Autowired
+    private ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager notificationStateManager;
     
-    // Система состояний для регистрации через Telegram
-    private enum RegistrationState {
-        WAITING_INVITE,
-        WAITING_USERNAME,
-        WAITING_NAME,
-        WAITING_EMAIL,
-        WAITING_PASSWORD,
-        WAITING_PASSWORD_CONFIRM
-    }
+    @Autowired
+    private ru.ambryo.gameplannerback.service.telegram.config.TelegramBotProperties telegramBotProperties;
     
-    // Класс для хранения данных регистрации
-    private static class RegistrationData {
-        String inviteCode;
-        String username;
-        String name;
-        String email;
-        String password;
-    }
+    @Autowired
+    private ru.ambryo.gameplannerback.service.telegram.message.TimeSlotMessageBuilder timeSlotMessageBuilder;
     
-    // Хранение состояний регистрации: chatId -> RegistrationState
-    private final Map<String, RegistrationState> registrationStates = new ConcurrentHashMap<>();
-    
-    // Хранение данных регистрации: chatId -> RegistrationData
-    private final Map<String, RegistrationData> registrationData = new ConcurrentHashMap<>();
-    
-    // Хранение времени последнего действия регистрации: chatId -> Instant
-    private final Map<String, Instant> registrationTimestamps = new ConcurrentHashMap<>();
-    
-    // Защита от спама регистрации: chatId -> AttemptInfo
-    private final Map<String, AttemptInfo> registrationAttempts = new ConcurrentHashMap<>();
-    
-    // Константы для регистрации
-    private static final int MAX_REGISTRATION_ATTEMPTS = 3;
-    private static final long REGISTRATION_ATTEMPT_WINDOW_SECONDS = 3600; // 1 час
-    private static final long REGISTRATION_STATE_TIMEOUT_SECONDS = 600; // 10 минут таймаут состояния
-    private static final int MIN_PASSWORD_LENGTH = 6;
-    
-    // Система состояний для разметки времени через Telegram
-    private enum TimeSlotMarkingState {
-        WAITING_DATE,
-        WAITING_TIME,
-        WAITING_DURATION
-    }
-    
-    // Класс для хранения данных разметки времени
-    private static class TimeSlotMarkingData {
-        String dateStr;  // Введенная дата как строка
-        String timeStr;  // Введенное время как строка
-        Instant dateInstant;  // Парсированная дата (начало дня в UTC)
-        Instant startInstant;  // Финальный Instant для слота (в UTC)
-        Integer duration;  // Продолжительность в часах
-    }
-    
-    // Хранение состояний разметки времени: chatId -> TimeSlotMarkingState
-    private final Map<String, TimeSlotMarkingState> timeSlotMarkingStates = new ConcurrentHashMap<>();
-    
-    // Хранение данных разметки времени: chatId -> TimeSlotMarkingData
-    private final Map<String, TimeSlotMarkingData> timeSlotMarkingData = new ConcurrentHashMap<>();
-    
-    // Хранение времени последнего действия разметки: chatId -> Instant
-    private final Map<String, Instant> timeSlotMarkingTimestamps = new ConcurrentHashMap<>();
-    
-    // Константы для разметки времени
-    private static final long TIME_SLOT_MARKING_STATE_TIMEOUT_SECONDS = 300; // 5 минут таймаут состояния
-    
-    // Система состояний для смены часового пояса через Telegram
-    private enum TimezoneChangeState {
-        WAITING_TIMEZONE
-    }
-    
-    // Хранение состояний смены часового пояса: chatId -> TimezoneChangeState
-    private final Map<String, TimezoneChangeState> timezoneChangeStates = new ConcurrentHashMap<>();
-    
-    // Хранение времени последнего действия смены часового пояса: chatId -> Instant
-    private final Map<String, Instant> timezoneChangeTimestamps = new ConcurrentHashMap<>();
-    
-    // Константы для смены часового пояса
-    private static final long TIMEZONE_CHANGE_STATE_TIMEOUT_SECONDS = 300; // 5 минут таймаут состояния
-    
-    // Система состояний для настроек уведомлений через Telegram
-    private enum NotificationState {
-        WAITING_REMINDER_VALUE,      // Ожидание значения напоминания
-        WAITING_REMINDER_UNIT,       // Ожидание единицы (минуты/часы/дни)
-        WAITING_CRON_FREQUENCY,      // Ожидание частоты cron (daily/weekly/monthly)
-        WAITING_CRON_DAY,            // Ожидание дня для weekly/monthly
-        WAITING_CRON_TIME            // Ожидание времени для cron
-    }
-    
-    // Класс для хранения данных настроек уведомлений
-    private static class NotificationData {
-        Integer reminderIndex;        // Индекс редактируемого напоминания
-        Integer reminderValue;        // Временное значение
-        String reminderUnit;          // Временная единица (minutes/hours/days)
-        String cronFrequency;        // Частота cron (daily/weekly/monthly)
-        Integer cronDay;              // День для cron
-        String cronTime;              // Время для cron (HH:mm)
-    }
-    
-    // Хранение состояний настроек уведомлений: chatId -> NotificationState
-    private final Map<String, NotificationState> notificationStates = new ConcurrentHashMap<>();
-    
-    // Хранение данных настроек уведомлений: chatId -> NotificationData
-    private final Map<String, NotificationData> notificationData = new ConcurrentHashMap<>();
-    
-    // Хранение времени последнего действия настроек уведомлений: chatId -> Instant
-    private final Map<String, Instant> notificationTimestamps = new ConcurrentHashMap<>();
-    
-    // Константы для настроек уведомлений
-    private static final long NOTIFICATION_STATE_TIMEOUT_SECONDS = 300; // 5 минут таймаут состояния
-    
-    // Хранение текущей страницы списка игр: chatId -> page (0-based)
-    private final Map<String, Integer> gamesListPage = new ConcurrentHashMap<>();
-    
-    // Константы для списка игр
-    private static final int GAMES_PER_PAGE = 5;
+    // Старые системы состояний, enum'ы и Maps удалены - теперь используется StateManager классы
+    // Старые константы удалены - теперь используется TelegramBotProperties
     
     private ZoneId getNotificationZone() {
         try {
@@ -259,183 +137,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         };
     }
     
-    // Вспомогательные методы для работы с состояниями авторизации
-    
-    private void clearAuthState(String chatId) {
-        authStates.remove(chatId);
-        authUsernames.remove(chatId);
-        authTimestamps.remove(chatId);
-    }
-    
-    private boolean isAuthStateExpired(String chatId) {
-        Instant timestamp = authTimestamps.get(chatId);
-        if (timestamp == null) {
-            return true;
-        }
-        return Instant.now().isAfter(timestamp.plusSeconds(AUTH_STATE_TIMEOUT_SECONDS));
-    }
-    
-    private void updateAuthTimestamp(String chatId) {
-        authTimestamps.put(chatId, Instant.now());
-    }
-    
-    private boolean isBlocked(String chatId) {
-        AttemptInfo info = authAttempts.get(chatId);
-        if (info == null) {
-            return false;
-        }
-        
-        if (info.blockedUntil != null && Instant.now().isBefore(info.blockedUntil)) {
-            return true;
-        }
-        
-        // Если блокировка истекла, сбрасываем попытки
-        if (info.blockedUntil != null && Instant.now().isAfter(info.blockedUntil)) {
-            authAttempts.remove(chatId);
-            return false;
-        }
-        
-        // Проверяем, не истекло ли окно попыток
-        if (Instant.now().isAfter(info.firstAttempt.plusSeconds(AUTH_ATTEMPT_WINDOW_SECONDS))) {
-            // Окно истекло, сбрасываем попытки
-            authAttempts.remove(chatId);
-            return false;
-        }
-        
-        return false;
-    }
-    
-    private void recordAuthAttempt(String chatId, boolean success) {
-        if (success) {
-            // Успешная авторизация - сбрасываем попытки
-            authAttempts.remove(chatId);
-            return;
-        }
-        
-        AttemptInfo info = authAttempts.computeIfAbsent(chatId, k -> new AttemptInfo());
-        info.attempts++;
-        
-        if (info.attempts >= MAX_AUTH_ATTEMPTS) {
-            // Блокируем на 15 минут
-            info.blockedUntil = Instant.now().plusSeconds(AUTH_BLOCK_DURATION_SECONDS);
-            logger.warn("Telegram auth blocked for chatId {} after {} failed attempts", chatId, info.attempts);
-        }
-    }
-    
-    private int getRemainingAttempts(String chatId) {
-        AttemptInfo info = authAttempts.get(chatId);
-        if (info == null) {
-            return MAX_AUTH_ATTEMPTS;
-        }
-        
-        if (Instant.now().isAfter(info.firstAttempt.plusSeconds(AUTH_ATTEMPT_WINDOW_SECONDS))) {
-            return MAX_AUTH_ATTEMPTS;
-        }
-        
-        return Math.max(0, MAX_AUTH_ATTEMPTS - info.attempts);
-    }
-    
-    private long getBlockTimeRemaining(String chatId) {
-        AttemptInfo info = authAttempts.get(chatId);
-        if (info == null || info.blockedUntil == null) {
-            return 0;
-        }
-        
-        if (Instant.now().isAfter(info.blockedUntil)) {
-            return 0;
-        }
-        
-        return java.time.Duration.between(Instant.now(), info.blockedUntil).getSeconds();
-    }
-    
-    // Вспомогательные методы для работы с состояниями регистрации
-    
-    private void clearRegistrationState(String chatId) {
-        registrationStates.remove(chatId);
-        registrationData.remove(chatId);
-        registrationTimestamps.remove(chatId);
-    }
-    
-    private boolean isRegistrationStateExpired(String chatId) {
-        Instant timestamp = registrationTimestamps.get(chatId);
-        if (timestamp == null) {
-            return true;
-        }
-        return Instant.now().isAfter(timestamp.plusSeconds(REGISTRATION_STATE_TIMEOUT_SECONDS));
-    }
-    
-    private void updateRegistrationTimestamp(String chatId) {
-        registrationTimestamps.put(chatId, Instant.now());
-    }
-    
-    private boolean isRegistrationBlocked(String chatId) {
-        AttemptInfo info = registrationAttempts.get(chatId);
-        if (info == null) {
-            return false;
-        }
-        
-        if (info.blockedUntil != null && Instant.now().isBefore(info.blockedUntil)) {
-            return true;
-        }
-        
-        // Если блокировка истекла, сбрасываем попытки
-        if (info.blockedUntil != null && Instant.now().isAfter(info.blockedUntil)) {
-            registrationAttempts.remove(chatId);
-            return false;
-        }
-        
-        // Проверяем, не истекло ли окно попыток
-        if (Instant.now().isAfter(info.firstAttempt.plusSeconds(REGISTRATION_ATTEMPT_WINDOW_SECONDS))) {
-            // Окно истекло, сбрасываем попытки
-            registrationAttempts.remove(chatId);
-            return false;
-        }
-        
-        return false;
-    }
-    
-    private void recordRegistrationAttempt(String chatId, boolean success) {
-        if (success) {
-            // Успешная регистрация - сбрасываем попытки
-            registrationAttempts.remove(chatId);
-            return;
-        }
-        
-        AttemptInfo info = registrationAttempts.computeIfAbsent(chatId, k -> new AttemptInfo());
-        info.attempts++;
-        
-        if (info.attempts >= MAX_REGISTRATION_ATTEMPTS) {
-            // Блокируем на время окна попыток
-            info.blockedUntil = Instant.now().plusSeconds(REGISTRATION_ATTEMPT_WINDOW_SECONDS);
-            logger.warn("Telegram registration blocked for chatId {} after {} failed attempts", chatId, info.attempts);
-        }
-    }
-    
-    private int getRemainingRegistrationAttempts(String chatId) {
-        AttemptInfo info = registrationAttempts.get(chatId);
-        if (info == null) {
-            return MAX_REGISTRATION_ATTEMPTS;
-        }
-        
-        if (Instant.now().isAfter(info.firstAttempt.plusSeconds(REGISTRATION_ATTEMPT_WINDOW_SECONDS))) {
-            return MAX_REGISTRATION_ATTEMPTS;
-        }
-        
-        return Math.max(0, MAX_REGISTRATION_ATTEMPTS - info.attempts);
-    }
-    
-    private long getRegistrationBlockTimeRemaining(String chatId) {
-        AttemptInfo info = registrationAttempts.get(chatId);
-        if (info == null || info.blockedUntil == null) {
-            return 0;
-        }
-        
-        if (Instant.now().isAfter(info.blockedUntil)) {
-            return 0;
-        }
-        
-        return java.time.Duration.between(Instant.now(), info.blockedUntil).getSeconds();
-    }
+    // Старые вспомогательные методы для работы с состояниями удалены - теперь используется StateManager классы
     
     private boolean isValidEmail(String email) {
         if (email == null || email.trim().isEmpty()) {
@@ -443,65 +145,6 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
         // Простая проверка формата email
         return email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
-    }
-    
-    // Вспомогательные методы для работы с состояниями разметки времени
-    
-    private void clearTimeSlotMarkingState(String chatId) {
-        timeSlotMarkingStates.remove(chatId);
-        timeSlotMarkingData.remove(chatId);
-        timeSlotMarkingTimestamps.remove(chatId);
-    }
-    
-    private boolean isTimeSlotMarkingStateExpired(String chatId) {
-        Instant timestamp = timeSlotMarkingTimestamps.get(chatId);
-        if (timestamp == null) {
-            return true;
-        }
-        return Instant.now().isAfter(timestamp.plusSeconds(TIME_SLOT_MARKING_STATE_TIMEOUT_SECONDS));
-    }
-    
-    private void updateTimeSlotMarkingTimestamp(String chatId) {
-        timeSlotMarkingTimestamps.put(chatId, Instant.now());
-    }
-    
-    // Вспомогательные методы для работы с состояниями смены часового пояса
-    
-    private void clearTimezoneChangeState(String chatId) {
-        timezoneChangeStates.remove(chatId);
-        timezoneChangeTimestamps.remove(chatId);
-    }
-    
-    private boolean isTimezoneChangeStateExpired(String chatId) {
-        Instant timestamp = timezoneChangeTimestamps.get(chatId);
-        if (timestamp == null) {
-            return true;
-        }
-        return Instant.now().isAfter(timestamp.plusSeconds(TIMEZONE_CHANGE_STATE_TIMEOUT_SECONDS));
-    }
-    
-    private void updateTimezoneChangeTimestamp(String chatId) {
-        timezoneChangeTimestamps.put(chatId, Instant.now());
-    }
-    
-    // Вспомогательные методы для работы с состояниями настроек уведомлений
-    
-    private void clearNotificationState(String chatId) {
-        notificationStates.remove(chatId);
-        notificationData.remove(chatId);
-        notificationTimestamps.remove(chatId);
-    }
-    
-    private boolean isNotificationStateExpired(String chatId) {
-        Instant timestamp = notificationTimestamps.get(chatId);
-        if (timestamp == null) {
-            return true;
-        }
-        return Instant.now().isAfter(timestamp.plusSeconds(NOTIFICATION_STATE_TIMEOUT_SECONDS));
-    }
-    
-    private void updateNotificationTimestamp(String chatId) {
-        notificationTimestamps.put(chatId, Instant.now());
     }
     
     // Методы парсинга даты, времени и продолжительности
@@ -670,7 +313,16 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         
         // Обработка callback query (нажатия на inline кнопки)
         if (update.hasCallbackQuery()) {
-            handleCallbackQuery(update.getCallbackQuery());
+            CallbackQuery callbackQuery = update.getCallbackQuery();
+            Long telegramUserId = callbackQuery.getFrom().getId();
+            String chatId = callbackQuery.getMessage().getChatId().toString();
+            Integer messageId = callbackQuery.getMessage().getMessageId();
+            
+            // Отвечаем на callback query, чтобы убрать индикатор загрузки
+            answerCallbackQuery(callbackQuery.getId());
+            
+            // Используем MenuRouter для обработки callback'ов
+            menuRouter.handle(callbackQuery, telegramUserId, chatId, messageId);
             return;
         }
         
@@ -681,166 +333,66 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             Long telegramUserId = message.getFrom().getId();
             
             // Проверяем, не истекло ли состояние авторизации
-            if (authStates.containsKey(chatIdStr) && isAuthStateExpired(chatIdStr)) {
-                clearAuthState(chatIdStr);
+            if (authStateManager.hasState(chatIdStr) && authStateManager.isStateExpired(chatIdStr)) {
+                authStateManager.clearState(chatIdStr);
                 sendPersonalMessage(chatIdStr, "⏱️ Время ожидания истекло. Процесс авторизации отменен.\n\nИспользуйте /auth для начала заново.");
             }
             
             // Проверяем, не истекло ли состояние регистрации
-            if (registrationStates.containsKey(chatIdStr) && isRegistrationStateExpired(chatIdStr)) {
-                clearRegistrationState(chatIdStr);
+            if (registrationStateManager.hasState(chatIdStr) && registrationStateManager.isStateExpired(chatIdStr)) {
+                registrationStateManager.clearState(chatIdStr);
                 sendPersonalMessage(chatIdStr, "⏱️ Время ожидания истекло. Процесс регистрации отменен.\n\nИспользуйте /register для начала заново.");
             }
             
             // Проверяем, не истекло ли состояние разметки времени
-            if (timeSlotMarkingStates.containsKey(chatIdStr) && isTimeSlotMarkingStateExpired(chatIdStr)) {
-                clearTimeSlotMarkingState(chatIdStr);
+            if (timeSlotMarkingStateManager.hasState(chatIdStr) && timeSlotMarkingStateManager.isStateExpired(chatIdStr)) {
+                timeSlotMarkingStateManager.clearState(chatIdStr);
                 sendPersonalMessage(chatIdStr, "⏱️ Время ожидания истекло. Процесс разметки времени отменен.\n\nИспользуйте /mark для начала заново.");
             }
             
             // Проверяем, не истекло ли состояние смены часового пояса
-            if (timezoneChangeStates.containsKey(chatIdStr) && isTimezoneChangeStateExpired(chatIdStr)) {
-                clearTimezoneChangeState(chatIdStr);
+            if (timezoneChangeStateManager.hasState(chatIdStr) && timezoneChangeStateManager.isStateExpired(chatIdStr)) {
+                timezoneChangeStateManager.clearState(chatIdStr);
                 sendPersonalMessage(chatIdStr, "⏱️ Время ожидания истекло. Процесс смены часового пояса отменен.\n\nИспользуйте меню для начала заново.");
             }
             
             // Проверяем, не истекло ли состояние настроек уведомлений
-            if (notificationStates.containsKey(chatIdStr) && isNotificationStateExpired(chatIdStr)) {
-                clearNotificationState(chatIdStr);
+            if (notificationStateManager.hasState(chatIdStr) && notificationStateManager.isStateExpired(chatIdStr)) {
+                notificationStateManager.clearState(chatIdStr);
                 sendPersonalMessage(chatIdStr, "⏱️ Время ожидания истекло. Процесс настройки уведомлений отменен.\n\nИспользуйте меню для начала заново.");
             }
             
             // Обработка команд (команды имеют приоритет над состояниями)
-            if (text.startsWith("/start")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                handleStartCommand(telegramUserId, chatIdStr);
-            } else if (text.startsWith("/stop")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                handleStopCommand(telegramUserId, chatIdStr);
-            } else if (text.startsWith("/register")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                handleRegisterCommand(telegramUserId, chatIdStr);
-            } else if (text.startsWith("/auth")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                handleAuthCommand(telegramUserId, chatIdStr);
-            } else if (text.startsWith("/cancel")) {
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                handleCancelCommand(chatIdStr);
-            } else if (text.startsWith("/link")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                String[] parts = text.split("\\s+", 2);
-                if (parts.length == 2) {
-                    handleLinkCommand(telegramUserId, chatIdStr, parts[1]);
-                } else {
-                    sendPersonalMessage(chatIdStr, "Использование: /link <token>\n\nПолучите токен в настройках профиля на веб-сайте.");
-                }
-            } else if (text.startsWith("/games") || text.startsWith("/upcoming")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                handleGamesCommand(telegramUserId, chatIdStr);
-            } else if (text.startsWith("/game")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                String[] parts = text.split("\\s+", 2);
-                if (parts.length == 2) {
-                    try {
-                        Long gameId = Long.parseLong(parts[1]);
-                        handleGameDetailsCommand(telegramUserId, chatIdStr, gameId);
-                    } catch (NumberFormatException e) {
-                        sendPersonalMessage(chatIdStr, "❌ Неверный формат ID игры.\n\nИспользование: /game <id>\n\nПолучите ID из списка игр командой /games");
-                    }
-                } else {
-                    sendPersonalMessage(chatIdStr, "Использование: /game <id>\n\nПолучите ID из списка игр командой /games");
-                }
-            } else if (text.startsWith("/invite")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                handleInviteCommand(telegramUserId, chatIdStr);
-            } else if (text.startsWith("/myinvites")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                handleMyInvitesCommand(telegramUserId, chatIdStr);
-            } else if (text.startsWith("/mark")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                handleMarkCommand(telegramUserId, chatIdStr);
-            } else if (text.startsWith("/myslots")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                handleMySlotsCommand(telegramUserId, chatIdStr);
-            } else if (text.startsWith("/menu")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                handleMenuCommand(telegramUserId, chatIdStr);
-            } else if (text.startsWith("/help")) {
-                clearAuthState(chatIdStr);
-                clearRegistrationState(chatIdStr);
-                clearTimeSlotMarkingState(chatIdStr);
-                clearTimezoneChangeState(chatIdStr);
-                clearNotificationState(chatIdStr);
-                handleHelpCommand(chatIdStr);
+            if (text.startsWith("/")) {
+                // Очищаем все состояния перед обработкой команды
+                authStateManager.clearState(chatIdStr);
+                registrationStateManager.clearState(chatIdStr);
+                timeSlotMarkingStateManager.clearState(chatIdStr);
+                timezoneChangeStateManager.clearState(chatIdStr);
+                notificationStateManager.clearState(chatIdStr);
+                
+                // Используем CommandRouter для обработки команд
+                commandRouter.handle(message, telegramUserId, chatIdStr);
             } else {
                 // Обработка состояний (если не команда)
                 // Проверяем в порядке приоритета: регистрация -> авторизация -> разметка времени -> смена часового пояса -> настройки уведомлений
-                RegistrationState regState = registrationStates.get(chatIdStr);
+                var regState = registrationStateManager.getState(chatIdStr);
                 if (regState != null) {
                     handleRegistrationState(telegramUserId, chatIdStr, text, regState);
                 } else {
-                    AuthState authState = authStates.get(chatIdStr);
+                    var authState = authStateManager.getState(chatIdStr);
                     if (authState != null) {
                         handleAuthState(telegramUserId, chatIdStr, text, authState);
                     } else {
-                        TimeSlotMarkingState markingState = timeSlotMarkingStates.get(chatIdStr);
+                        var markingState = timeSlotMarkingStateManager.getState(chatIdStr);
                         if (markingState != null) {
                             handleTimeSlotMarkingState(telegramUserId, chatIdStr, text, markingState);
                         } else {
-                            TimezoneChangeState timezoneState = timezoneChangeStates.get(chatIdStr);
+                            var timezoneState = timezoneChangeStateManager.getState(chatIdStr);
                             if (timezoneState != null) {
                                 handleTimezoneChangeState(telegramUserId, chatIdStr, text, timezoneState);
                             } else {
-                                NotificationState notificationState = notificationStates.get(chatIdStr);
+                                var notificationState = notificationStateManager.getState(chatIdStr);
                                 if (notificationState != null) {
                                     handleNotificationState(telegramUserId, chatIdStr, text, notificationState);
                                 }
@@ -927,8 +479,8 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
             
             // Проверяем блокировку
-            if (isBlocked(chatId)) {
-                long remainingSeconds = getBlockTimeRemaining(chatId);
+            if (authStateManager.isBlocked(chatId)) {
+                long remainingSeconds = authStateManager.getBlockTimeRemaining(chatId);
                 long remainingMinutes = remainingSeconds / 60;
                 sendPersonalMessage(chatId, "⛔ Слишком много неудачных попыток авторизации.\n\n" +
                         "Попробуйте снова через " + remainingMinutes + " минут.");
@@ -936,15 +488,14 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
             
             // Инициализируем состояние авторизации
-            authStates.put(chatId, AuthState.WAITING_USERNAME);
-            updateAuthTimestamp(chatId);
+            authStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.AuthStateManager.AuthState.WAITING_USERNAME);
             
             sendPersonalMessage(chatId, "🔐 <b>Авторизация для привязки аккаунта</b>\n\n" +
                     "Введите ваш логин (имя пользователя):\n\n" +
                     "💡 Используйте /cancel для отмены.");
         } catch (Exception e) {
             logger.error("Error handling /auth command", e);
-            clearAuthState(chatId);
+            authStateManager.clearState(chatId);
             sendPersonalMessage(chatId, "❌ Произошла ошибка при инициализации авторизации. Попробуйте позже.");
         }
     }
@@ -960,8 +511,8 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
             
             // Проверяем блокировку регистрации
-            if (isRegistrationBlocked(chatId)) {
-                long remainingSeconds = getRegistrationBlockTimeRemaining(chatId);
+            if (registrationStateManager.isBlocked(chatId)) {
+                long remainingSeconds = registrationStateManager.getBlockTimeRemaining(chatId);
                 long remainingMinutes = remainingSeconds / 60;
                 sendPersonalMessage(chatId, "⛔ Слишком много неудачных попыток регистрации.\n\n" +
                         "Попробуйте снова через " + remainingMinutes + " минут.");
@@ -969,57 +520,27 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
             
             // Инициализируем состояние регистрации
-            registrationStates.put(chatId, RegistrationState.WAITING_INVITE);
-            registrationData.put(chatId, new RegistrationData());
-            updateRegistrationTimestamp(chatId);
+            registrationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationState.WAITING_INVITE);
+            registrationStateManager.setData(chatId, new ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationData());
             
             sendPersonalMessage(chatId, "📝 <b>Регистрация нового аккаунта</b>\n\n" +
                     "Введите инвайт-код для регистрации:\n\n" +
                     "💡 Используйте /cancel для отмены.");
         } catch (Exception e) {
             logger.error("Error handling /register command", e);
-            clearRegistrationState(chatId);
+            registrationStateManager.clearState(chatId);
             sendPersonalMessage(chatId, "❌ Произошла ошибка при инициализации регистрации. Попробуйте позже.");
         }
     }
     
-    private void handleCancelCommand(String chatId) {
-        boolean hasAuth = authStates.containsKey(chatId);
-        boolean hasRegistration = registrationStates.containsKey(chatId);
-        boolean hasMarking = timeSlotMarkingStates.containsKey(chatId);
-        boolean hasTimezoneChange = timezoneChangeStates.containsKey(chatId);
-        boolean hasNotification = notificationStates.containsKey(chatId);
-        
-        if (hasRegistration) {
-            clearRegistrationState(chatId);
-            sendPersonalMessage(chatId, "✅ Процесс регистрации отменен.\n\n" +
-                    "Используйте /register для начала заново.");
-        } else if (hasAuth) {
-            clearAuthState(chatId);
-            sendPersonalMessage(chatId, "✅ Процесс авторизации отменен.\n\n" +
-                    "Используйте /auth для начала заново или /link <token> для привязки через токен.");
-        } else if (hasMarking) {
-            clearTimeSlotMarkingState(chatId);
-            sendPersonalMessage(chatId, "✅ Процесс разметки времени отменен.\n\n" +
-                    "Используйте /mark для начала заново.");
-        } else if (hasTimezoneChange) {
-            clearTimezoneChangeState(chatId);
-            sendPersonalMessage(chatId, "✅ Процесс смены часового пояса отменен.\n\n" +
-                    "Используйте меню для начала заново.");
-        } else if (hasNotification) {
-            clearNotificationState(chatId);
-            sendPersonalMessage(chatId, "✅ Процесс настройки уведомлений отменен.\n\n" +
-                    "Используйте меню для начала заново.");
-        } else {
-            sendPersonalMessage(chatId, "ℹ️ Нет активного процесса для отмены.");
-        }
-    }
+    // Метод handleCancelCommand больше не используется напрямую,
+    // обработка команды /cancel теперь происходит через CancelCommandHandler
     
-    private void handleAuthState(Long telegramUserId, String chatId, String text, AuthState state) {
+    private void handleAuthState(Long telegramUserId, String chatId, String text, ru.ambryo.gameplannerback.service.telegram.state.AuthStateManager.AuthState state) {
         try {
-            updateAuthTimestamp(chatId);
+            authStateManager.updateTimestamp(chatId);
             
-            if (state == AuthState.WAITING_USERNAME) {
+            if (state == ru.ambryo.gameplannerback.service.telegram.state.AuthStateManager.AuthState.WAITING_USERNAME) {
                 // Сохраняем username и переходим к паролю
                 String username = text.trim();
                 if (username.isEmpty()) {
@@ -1027,17 +548,16 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                     return;
                 }
                 
-                authUsernames.put(chatId, username);
-                authStates.put(chatId, AuthState.WAITING_PASSWORD);
-                updateAuthTimestamp(chatId);
+                authStateManager.setUsername(chatId, username);
+                authStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.AuthStateManager.AuthState.WAITING_PASSWORD);
                 
                 sendPersonalMessage(chatId, "🔑 Теперь введите ваш пароль:\n\n" +
                         "💡 Используйте /cancel для отмены.");
                 
-            } else if (state == AuthState.WAITING_PASSWORD) {
+            } else if (state == ru.ambryo.gameplannerback.service.telegram.state.AuthStateManager.AuthState.WAITING_PASSWORD) {
                 // Проверяем учетные данные и связываем аккаунт
                 String password = text.trim();
-                String username = authUsernames.get(chatId);
+                String username = authStateManager.getUsername(chatId);
                 
                 if (password.isEmpty()) {
                     sendPersonalMessage(chatId, "❌ Пароль не может быть пустым. Введите ваш пароль:");
@@ -1046,16 +566,16 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 
                 if (username == null || username.isEmpty()) {
                     // Не должно произойти, но на всякий случай
-                    clearAuthState(chatId);
+                    authStateManager.clearState(chatId);
                     sendPersonalMessage(chatId, "❌ Ошибка: логин не найден. Начните заново с /auth.");
                     return;
                 }
                 
                 // Проверяем блокировку перед попыткой
-                if (isBlocked(chatId)) {
-                    long remainingSeconds = getBlockTimeRemaining(chatId);
+                if (authStateManager.isBlocked(chatId)) {
+                    long remainingSeconds = authStateManager.getBlockTimeRemaining(chatId);
                     long remainingMinutes = remainingSeconds / 60;
-                    clearAuthState(chatId);
+                    authStateManager.clearState(chatId);
                     sendPersonalMessage(chatId, "⛔ Слишком много неудачных попыток авторизации.\n\n" +
                             "Попробуйте снова через " + remainingMinutes + " минут.");
                     return;
@@ -1067,8 +587,8 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                             username, password, telegramUserId, chatId);
                     
                     // Успешная авторизация
-                    recordAuthAttempt(chatId, true);
-                    clearAuthState(chatId);
+                    authStateManager.recordAttempt(chatId, true);
+                    authStateManager.clearState(chatId);
                     
                     sendPersonalMessage(chatId, "✅ <b>Аккаунт успешно связан!</b>\n\n" +
                             "Теперь вы будете получать персональные уведомления.\n\n" +
@@ -1081,14 +601,14 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                     
                 } catch (RuntimeException e) {
                     // Неудачная попытка
-                    recordAuthAttempt(chatId, false);
+                    authStateManager.recordAttempt(chatId, false);
                     
-                    int remainingAttempts = getRemainingAttempts(chatId);
+                    int remainingAttempts = authStateManager.getRemainingAttempts(chatId);
                     
-                    if (isBlocked(chatId)) {
-                        long remainingSeconds = getBlockTimeRemaining(chatId);
+                    if (authStateManager.isBlocked(chatId)) {
+                        long remainingSeconds = authStateManager.getBlockTimeRemaining(chatId);
                         long remainingMinutes = remainingSeconds / 60;
-                        clearAuthState(chatId);
+                        authStateManager.clearState(chatId);
                         sendPersonalMessage(chatId, "⛔ <b>Слишком много неудачных попыток</b>\n\n" +
                                 "Авторизация заблокирована на " + remainingMinutes + " минут.\n\n" +
                                 "Попробуйте снова позже или используйте /link <token> для привязки через токен.");
@@ -1096,16 +616,16 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                     } else {
                         // Ошибка авторизации, но еще есть попытки
                         String errorMessage = e.getMessage();
-                        if (errorMessage.contains("Invalid username or password")) {
+                        if (errorMessage != null && errorMessage.contains("Invalid username or password")) {
                             sendPersonalMessage(chatId, "❌ <b>Неверный логин или пароль</b>\n\n" +
                                     "Осталось попыток: " + remainingAttempts + "\n\n" +
                                     "Введите пароль еще раз или используйте /cancel для отмены.");
-                        } else if (errorMessage.contains("уже связан")) {
-                            clearAuthState(chatId);
+                        } else if (errorMessage != null && errorMessage.contains("уже связан")) {
+                            authStateManager.clearState(chatId);
                             sendPersonalMessage(chatId, "❌ " + errorMessage + "\n\n" +
                                     "Используйте /start для проверки статуса.");
                         } else {
-                            sendPersonalMessage(chatId, "❌ Ошибка: " + errorMessage + "\n\n" +
+                            sendPersonalMessage(chatId, "❌ Ошибка: " + (errorMessage != null ? errorMessage : "Неизвестная ошибка") + "\n\n" +
                                     "Осталось попыток: " + remainingAttempts + "\n\n" +
                                     "Попробуйте снова или используйте /cancel для отмены.");
                         }
@@ -1115,18 +635,18 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
         } catch (Exception e) {
             logger.error("Error handling auth state", e);
-            clearAuthState(chatId);
+            authStateManager.clearState(chatId);
             sendPersonalMessage(chatId, "❌ Произошла ошибка при обработке авторизации. Попробуйте позже или используйте /link <token>.");
         }
     }
     
-    private void handleRegistrationState(Long telegramUserId, String chatId, String text, RegistrationState state) {
+    private void handleRegistrationState(Long telegramUserId, String chatId, String text, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationState state) {
         try {
-            updateRegistrationTimestamp(chatId);
-            RegistrationData data = registrationData.get(chatId);
+            registrationStateManager.updateTimestamp(chatId);
+            var data = registrationStateManager.getData(chatId);
             
             if (data == null) {
-                clearRegistrationState(chatId);
+                registrationStateManager.clearState(chatId);
                 sendPersonalMessage(chatId, "❌ Ошибка: данные регистрации не найдены. Начните заново с /register.");
                 return;
             }
@@ -1153,12 +673,12 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
         } catch (Exception e) {
             logger.error("Error handling registration state", e);
-            clearRegistrationState(chatId);
+            registrationStateManager.clearState(chatId);
             sendPersonalMessage(chatId, "❌ Произошла ошибка при обработке регистрации. Попробуйте позже.");
         }
     }
     
-    private void handleInviteInput(Long telegramUserId, String chatId, String inviteCode, RegistrationData data) {
+    private void handleInviteInput(Long telegramUserId, String chatId, String inviteCode, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationData data) {
         if (inviteCode.isEmpty()) {
             sendPersonalMessage(chatId, "❌ Инвайт-код не может быть пустым. Введите инвайт-код:");
             return;
@@ -1168,31 +688,30 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             // Проверяем валидность инвайт-кода
             inviteService.getInviteByCode(inviteCode);
             data.inviteCode = inviteCode;
-            registrationStates.put(chatId, RegistrationState.WAITING_USERNAME);
-            updateRegistrationTimestamp(chatId);
+            registrationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationState.WAITING_USERNAME);
             
             sendPersonalMessage(chatId, "✅ Инвайт-код принят!\n\n" +
                     "Введите логин (имя пользователя):\n\n" +
                     "💡 Используйте /cancel для отмены.");
         } catch (RuntimeException e) {
             String errorMsg = e.getMessage();
-            if (errorMsg.contains("not found") || errorMsg.contains("Invalid")) {
+            if (errorMsg != null && (errorMsg.contains("not found") || errorMsg.contains("Invalid"))) {
                 sendPersonalMessage(chatId, "❌ <b>Неверный инвайт-код</b>\n\n" +
                         "Проверьте правильность кода и попробуйте снова.\n\n" +
                         "💡 Используйте /cancel для отмены.");
-            } else if (errorMsg.contains("expired") || errorMsg.contains("used")) {
+            } else if (errorMsg != null && (errorMsg.contains("expired") || errorMsg.contains("used"))) {
                 sendPersonalMessage(chatId, "❌ <b>Инвайт-код недействителен</b>\n\n" +
                         "Код истек или уже использован.\n\n" +
                         "💡 Используйте /cancel для отмены.");
             } else {
-                sendPersonalMessage(chatId, "❌ Ошибка: " + errorMsg + "\n\n" +
+                sendPersonalMessage(chatId, "❌ Ошибка: " + (errorMsg != null ? errorMsg : "Неизвестная ошибка") + "\n\n" +
                         "Попробуйте снова или используйте /cancel для отмены.");
             }
             logger.warn("Invalid invite code for registration: {}", inviteCode);
         }
     }
     
-    private void handleUsernameInput(String chatId, String username, RegistrationData data) {
+    private void handleUsernameInput(String chatId, String username, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationData data) {
         if (username.isEmpty()) {
             sendPersonalMessage(chatId, "❌ Логин не может быть пустым. Введите логин:");
             return;
@@ -1207,15 +726,14 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
         
         data.username = username;
-        registrationStates.put(chatId, RegistrationState.WAITING_NAME);
-        updateRegistrationTimestamp(chatId);
+        registrationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationState.WAITING_NAME);
         
         sendPersonalMessage(chatId, "✅ Логин принят!\n\n" +
                 "Введите ваше имя (или нажмите Enter, чтобы использовать логин):\n\n" +
                 "💡 Используйте /cancel для отмены.");
     }
     
-    private void handleNameInput(String chatId, String name, RegistrationData data) {
+    private void handleNameInput(String chatId, String name, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationData data) {
         // Имя опционально, если пустое - используем username
         if (name.trim().isEmpty()) {
             data.name = data.username;
@@ -1223,15 +741,14 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             data.name = name.trim();
         }
         
-        registrationStates.put(chatId, RegistrationState.WAITING_EMAIL);
-        updateRegistrationTimestamp(chatId);
+        registrationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationState.WAITING_EMAIL);
         
         sendPersonalMessage(chatId, "✅ Имя принято!\n\n" +
                 "Введите ваш email:\n\n" +
                 "💡 Используйте /cancel для отмены.");
     }
     
-    private void handleEmailInput(String chatId, String email, RegistrationData data) {
+    private void handleEmailInput(String chatId, String email, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationData data) {
         if (email.isEmpty()) {
             sendPersonalMessage(chatId, "❌ Email не может быть пустым. Введите email:");
             return;
@@ -1254,38 +771,37 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
         
         data.email = email;
-        registrationStates.put(chatId, RegistrationState.WAITING_PASSWORD);
-        updateRegistrationTimestamp(chatId);
+        registrationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationState.WAITING_PASSWORD);
         
         sendPersonalMessage(chatId, "✅ Email принят!\n\n" +
-                "Введите пароль (минимум " + MIN_PASSWORD_LENGTH + " символов):\n\n" +
+                "Введите пароль (минимум " + telegramBotProperties.getMinPasswordLength() + " символов):\n\n" +
                 "💡 Используйте /cancel для отмены.");
     }
     
-    private void handlePasswordInput(String chatId, String password, RegistrationData data) {
+    private void handlePasswordInput(String chatId, String password, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationData data) {
         if (password.isEmpty()) {
             sendPersonalMessage(chatId, "❌ Пароль не может быть пустым. Введите пароль:");
             return;
         }
         
-        if (password.length() < MIN_PASSWORD_LENGTH) {
+        int minPasswordLength = telegramBotProperties.getMinPasswordLength();
+        if (password.length() < minPasswordLength) {
             sendPersonalMessage(chatId, "❌ <b>Пароль слишком короткий</b>\n\n" +
-                    "Пароль должен содержать минимум " + MIN_PASSWORD_LENGTH + " символов.\n\n" +
+                    "Пароль должен содержать минимум " + minPasswordLength + " символов.\n\n" +
                     "Введите пароль еще раз:\n\n" +
                     "💡 Используйте /cancel для отмены.");
             return;
         }
         
         data.password = password;
-        registrationStates.put(chatId, RegistrationState.WAITING_PASSWORD_CONFIRM);
-        updateRegistrationTimestamp(chatId);
+        registrationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationState.WAITING_PASSWORD_CONFIRM);
         
         sendPersonalMessage(chatId, "✅ Пароль принят!\n\n" +
                 "Подтвердите пароль (введите его еще раз):\n\n" +
                 "💡 Используйте /cancel для отмены.");
     }
     
-    private void handlePasswordConfirmInput(Long telegramUserId, String chatId, String passwordConfirm, RegistrationData data) {
+    private void handlePasswordConfirmInput(Long telegramUserId, String chatId, String passwordConfirm, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationData data) {
         if (passwordConfirm.isEmpty()) {
             sendPersonalMessage(chatId, "❌ Подтверждение пароля не может быть пустым. Введите пароль еще раз:");
             return;
@@ -1296,18 +812,17 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                     "Введите пароль еще раз:\n\n" +
                     "💡 Используйте /cancel для отмены.");
             // Возвращаемся к вводу пароля
-            registrationStates.put(chatId, RegistrationState.WAITING_PASSWORD);
-            updateRegistrationTimestamp(chatId);
+            registrationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager.RegistrationState.WAITING_PASSWORD);
             return;
         }
         
         // Все данные собраны, выполняем регистрацию
         try {
             // Проверяем блокировку перед попыткой
-            if (isRegistrationBlocked(chatId)) {
-                long remainingSeconds = getRegistrationBlockTimeRemaining(chatId);
+            if (registrationStateManager.isBlocked(chatId)) {
+                long remainingSeconds = registrationStateManager.getBlockTimeRemaining(chatId);
                 long remainingMinutes = remainingSeconds / 60;
-                clearRegistrationState(chatId);
+                registrationStateManager.clearState(chatId);
                 sendPersonalMessage(chatId, "⛔ Слишком много неудачных попыток регистрации.\n\n" +
                         "Попробуйте снова через " + remainingMinutes + " минут.");
                 return;
@@ -1332,8 +847,8 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             userRepository.save(registeredUser);
             
             // Успешная регистрация
-            recordRegistrationAttempt(chatId, true);
-            clearRegistrationState(chatId);
+            registrationStateManager.recordAttempt(chatId, true);
+            registrationStateManager.clearState(chatId);
             
             sendPersonalMessage(chatId, "🎉 <b>Регистрация успешна!</b>\n\n" +
                     "Ваш аккаунт создан и автоматически привязан к Telegram.\n\n" +
@@ -1347,22 +862,22 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             
         } catch (RuntimeException e) {
             // Неудачная попытка регистрации
-            recordRegistrationAttempt(chatId, false);
+            registrationStateManager.recordAttempt(chatId, false);
             
-            int remainingAttempts = getRemainingRegistrationAttempts(chatId);
+            int remainingAttempts = registrationStateManager.getRemainingAttempts(chatId);
             String errorMsg = e.getMessage();
             
-            if (isRegistrationBlocked(chatId)) {
-                long remainingSeconds = getRegistrationBlockTimeRemaining(chatId);
+            if (registrationStateManager.isBlocked(chatId)) {
+                long remainingSeconds = registrationStateManager.getBlockTimeRemaining(chatId);
                 long remainingMinutes = remainingSeconds / 60;
-                clearRegistrationState(chatId);
+                registrationStateManager.clearState(chatId);
                 sendPersonalMessage(chatId, "⛔ <b>Слишком много неудачных попыток</b>\n\n" +
                         "Регистрация заблокирована на " + remainingMinutes + " минут.\n\n" +
                         "Попробуйте снова позже.");
                 logger.warn("Telegram registration blocked for chatId: {} after failed attempt", chatId);
             } else {
                 // Ошибка регистрации, но еще есть попытки
-                if (errorMsg.contains("already exists")) {
+                if (errorMsg != null && errorMsg.contains("already exists")) {
                     if (errorMsg.contains("Username")) {
                         sendPersonalMessage(chatId, "❌ <b>Логин уже занят</b>\n\n" +
                                 "Начните регистрацию заново с /register и выберите другой логин.\n\n" +
@@ -1376,13 +891,13 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                                 "Осталось попыток: " + remainingAttempts + "\n\n" +
                                 "Начните регистрацию заново с /register.");
                     }
-                } else if (errorMsg.contains("Invite")) {
+                } else if (errorMsg != null && errorMsg.contains("Invite")) {
                     sendPersonalMessage(chatId, "❌ <b>Ошибка с инвайт-кодом</b>\n\n" +
                             errorMsg + "\n\n" +
                             "Начните регистрацию заново с /register.\n\n" +
                             "Осталось попыток: " + remainingAttempts);
                 } else {
-                    sendPersonalMessage(chatId, "❌ Ошибка регистрации: " + errorMsg + "\n\n" +
+                    sendPersonalMessage(chatId, "❌ Ошибка регистрации: " + (errorMsg != null ? errorMsg : "Неизвестная ошибка") + "\n\n" +
                             "Осталось попыток: " + remainingAttempts + "\n\n" +
                             "Начните регистрацию заново с /register или используйте /cancel для отмены.");
                 }
@@ -1410,7 +925,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
             
             // Для команды /games показываем все игры без пагинации
-            int totalPages = (int) Math.ceil((double) upcomingGames.size() / GAMES_PER_PAGE);
+            int totalPages = (int) Math.ceil((double) upcomingGames.size() / (double) telegramBotProperties.getGamesPerPage());
             String message = buildUpcomingGamesListMessage(upcomingGames, 0, totalPages);
             sendPersonalMessage(chatId, message);
         } catch (Exception e) {
@@ -1496,9 +1011,8 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
             
             // Инициализируем состояние разметки времени
-            timeSlotMarkingStates.put(chatId, TimeSlotMarkingState.WAITING_DATE);
-            timeSlotMarkingData.put(chatId, new TimeSlotMarkingData());
-            updateTimeSlotMarkingTimestamp(chatId);
+            timeSlotMarkingStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.TimeSlotMarkingStateManager.TimeSlotMarkingState.WAITING_DATE);
+            timeSlotMarkingStateManager.setData(chatId, new ru.ambryo.gameplannerback.service.telegram.state.TimeSlotMarkingStateManager.TimeSlotMarkingData());
             
             sendPersonalMessage(chatId, "📅 <b>Разметка свободного времени</b>\n\n" +
                     "Введите дату в формате ДД.ММ.ГГГГ (например: 15.01.2025)\n" +
@@ -1506,19 +1020,19 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                     "💡 Используйте /cancel для отмены.");
         } catch (Exception e) {
             logger.error("Error handling /mark command", e);
-            clearTimeSlotMarkingState(chatId);
+            timeSlotMarkingStateManager.clearState(chatId);
             sendPersonalMessage(chatId, "❌ Произошла ошибка при инициализации разметки времени. Попробуйте позже.");
         }
     }
     
-    private void handleTimeSlotMarkingState(Long telegramUserId, String chatId, String text, TimeSlotMarkingState state) {
+    private void handleTimeSlotMarkingState(Long telegramUserId, String chatId, String text, ru.ambryo.gameplannerback.service.telegram.state.TimeSlotMarkingStateManager.TimeSlotMarkingState state) {
         try {
-            updateTimeSlotMarkingTimestamp(chatId);
-            TimeSlotMarkingData data = timeSlotMarkingData.get(chatId);
+            timeSlotMarkingStateManager.updateTimestamp(chatId);
+            var data = timeSlotMarkingStateManager.getData(chatId);
             User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
             
             if (data == null || user == null) {
-                clearTimeSlotMarkingState(chatId);
+                timeSlotMarkingStateManager.clearState(chatId);
                 sendPersonalMessage(chatId, "❌ Ошибка: данные разметки не найдены. Начните заново с /mark.");
                 return;
             }
@@ -1528,7 +1042,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             try {
                 userTimezone = ZoneId.of(user.getTimezone());
             } catch (Exception e) {
-                clearTimeSlotMarkingState(chatId);
+                timeSlotMarkingStateManager.clearState(chatId);
                 sendPersonalMessage(chatId, "❌ <b>Неверный часовой пояс</b>\n\n" +
                         "Установите корректный часовой пояс в настройках профиля на веб-сайте.");
                 return;
@@ -1547,12 +1061,12 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
         } catch (Exception e) {
             logger.error("Error handling time slot marking state", e);
-            clearTimeSlotMarkingState(chatId);
+            timeSlotMarkingStateManager.clearState(chatId);
             sendPersonalMessage(chatId, "❌ Произошла ошибка при обработке разметки времени. Попробуйте позже.");
         }
     }
     
-    private void handleDateInput(String chatId, String dateStr, TimeSlotMarkingData data, ZoneId userTimezone) {
+    private void handleDateInput(String chatId, String dateStr, ru.ambryo.gameplannerback.service.telegram.state.TimeSlotMarkingStateManager.TimeSlotMarkingData data, ZoneId userTimezone) {
         if (dateStr.isEmpty()) {
             sendPersonalMessage(chatId, "❌ Дата не может быть пустой. Введите дату:");
             return;
@@ -1569,15 +1083,14 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         
         data.dateStr = dateStr;
         data.dateInstant = localDate.atStartOfDay(userTimezone).toInstant();
-        timeSlotMarkingStates.put(chatId, TimeSlotMarkingState.WAITING_TIME);
-        updateTimeSlotMarkingTimestamp(chatId);
+        timeSlotMarkingStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.TimeSlotMarkingStateManager.TimeSlotMarkingState.WAITING_TIME);
         
         sendPersonalMessage(chatId, "✅ Дата принята: " + formatLocalDate(localDate) + "\n\n" +
                 "Введите время начала в формате ЧЧ:ММ или ЧЧ (например: 18:00 или 18):\n\n" +
                 "💡 Используйте /cancel для отмены.");
     }
     
-    private void handleTimeInput(String chatId, String timeStr, TimeSlotMarkingData data, ZoneId userTimezone) {
+    private void handleTimeInput(String chatId, String timeStr, ru.ambryo.gameplannerback.service.telegram.state.TimeSlotMarkingStateManager.TimeSlotMarkingData data, ZoneId userTimezone) {
         if (timeStr.isEmpty()) {
             sendPersonalMessage(chatId, "❌ Время не может быть пустым. Введите время:");
             return;
@@ -1593,8 +1106,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         
         data.timeStr = timeStr;
         // Пока сохраняем только время, финальный Instant создадим после получения продолжительности
-        timeSlotMarkingStates.put(chatId, TimeSlotMarkingState.WAITING_DURATION);
-        updateTimeSlotMarkingTimestamp(chatId);
+        timeSlotMarkingStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.TimeSlotMarkingStateManager.TimeSlotMarkingState.WAITING_DURATION);
         
         sendPersonalMessage(chatId, "✅ Время принято: " + formatLocalTime(localTime) + "\n\n" +
                 "Введите продолжительность в часах (например: 1, 2, 3):\n\n" +
@@ -1602,7 +1114,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     }
     
     private void handleDurationInput(Long telegramUserId, String chatId, String durationStr, 
-                                     TimeSlotMarkingData data, User user, ZoneId userTimezone) {
+                                     ru.ambryo.gameplannerback.service.telegram.state.TimeSlotMarkingStateManager.TimeSlotMarkingData data, User user, ZoneId userTimezone) {
         if (durationStr.isEmpty()) {
             sendPersonalMessage(chatId, "❌ Продолжительность не может быть пустой. Введите количество часов:");
             return;
@@ -1622,7 +1134,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         LocalDate localDate = LocalDate.ofInstant(data.dateInstant, userTimezone);
         LocalTime localTime = parseTime(data.timeStr);
         if (localTime == null) {
-            clearTimeSlotMarkingState(chatId);
+            timeSlotMarkingStateManager.clearState(chatId);
             sendPersonalMessage(chatId, "❌ Ошибка: время не найдено. Начните заново с /mark.");
             return;
         }
@@ -1635,16 +1147,17 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             userService.toggleTimeSlot(user, startInstant, duration);
             
             // Успешная разметка
-            clearTimeSlotMarkingState(chatId);
+            timeSlotMarkingStateManager.clearState(chatId);
             
-            String message = buildTimeSlotMarkedMessage(localDate, localTime, duration, userTimezone);
+            // Используем TimeSlotMessageBuilder для форматирования сообщения
+            String message = timeSlotMessageBuilder.buildTimeSlotMarkedMessage(localDate, localTime, duration, userTimezone);
             sendPersonalMessage(chatId, message);
             
             logger.info("Time slot marked via Telegram for user: {}, chatId: {}, start: {}, duration: {}", 
                     user.getUsername(), chatId, startInstant, duration);
         } catch (Exception e) {
             logger.error("Error toggling time slot via Telegram", e);
-            clearTimeSlotMarkingState(chatId);
+            timeSlotMarkingStateManager.clearState(chatId);
             sendPersonalMessage(chatId, "❌ Ошибка при сохранении временного слота. Попробуйте позже.");
         }
     }
@@ -1681,36 +1194,8 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
-    private void handleMenuCommand(Long telegramUserId, String chatId) {
-        try {
-            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
-            boolean isLinked = user != null;
-            
-            String message = "📱 <b>Главное меню</b>\n\n";
-            if (isLinked && user != null) {
-                message += "✅ Аккаунт связан\n";
-                message += "👤 Пользователь: " + escapeHtml(user.getUsername()) + "\n\n";
-                message += "Выберите раздел:";
-            } else {
-                message += "❌ Аккаунт не связан\n\n";
-                message += "Для доступа ко всем функциям необходимо связать аккаунт.\n\n";
-                message += "Выберите способ связывания:";
-            }
-            
-            InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(isLinked);
-            
-            SendMessage sendMessage = new SendMessage();
-            sendMessage.setChatId(chatId);
-            sendMessage.setText(message);
-            sendMessage.setParseMode("HTML");
-            sendMessage.setReplyMarkup(keyboard);
-            
-            execute(sendMessage);
-        } catch (Exception e) {
-            logger.error("Error handling /menu command", e);
-            sendPersonalMessage(chatId, "❌ Произошла ошибка при открытии меню. Попробуйте позже.");
-        }
-    }
+    // Метод handleMenuCommand больше не используется напрямую,
+    // обработка команды /menu теперь происходит через MenuCommandHandler в CommandRouter
     
     private InlineKeyboardMarkup buildMainMenuKeyboard(boolean isLinked) {
         InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
@@ -1956,352 +1441,11 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         sendPersonalMessage(chatId, help.toString());
     }
     
-    private void handleCallbackQuery(CallbackQuery callbackQuery) {
-        try {
-            String data = callbackQuery.getData();
-            Long telegramUserId = callbackQuery.getFrom().getId();
-            Long chatId = callbackQuery.getMessage().getChatId();
-            Integer messageId = callbackQuery.getMessage().getMessageId();
-            
-            // Отвечаем на callback query, чтобы убрать индикатор загрузки
-            answerCallbackQuery(callbackQuery.getId());
-            
-            // Обработка меню (префикс menu_)
-            if (data.startsWith("menu_")) {
-                handleMenuCallback(telegramUserId, chatId.toString(), messageId, data);
-            } else if (data.startsWith("timezone_select_")) {
-                String timezoneId = data.substring("timezone_select_".length());
-                handleTimezoneSelectCallback(telegramUserId, chatId.toString(), messageId, timezoneId);
-            } else if (data.equals("timezone_manual")) {
-                handleTimezoneManualCallback(telegramUserId, chatId.toString(), messageId);
-            } else if (data.equals("timezone_separator")) {
-                // Игнорируем нажатие на разделитель (не делаем ничего)
-                answerCallbackQuery(callbackQuery.getId());
-                return;
-            } else if (data.startsWith("join_game_")) {
-                Long gameId = Long.parseLong(data.substring("join_game_".length()));
-                handleJoinGameCallback(telegramUserId, chatId.toString(), messageId, gameId);
-            } else if (data.startsWith("leave_game_")) {
-                Long gameId = Long.parseLong(data.substring("leave_game_".length()));
-                handleLeaveGameCallback(telegramUserId, chatId.toString(), messageId, gameId);
-            } else if (data.startsWith("refresh_game_")) {
-                Long gameId = Long.parseLong(data.substring("refresh_game_".length()));
-                handleRefreshGameCallback(telegramUserId, chatId.toString(), messageId, gameId);
-            } else if (data.startsWith("view_game_")) {
-                Long gameId = Long.parseLong(data.substring("view_game_".length()));
-                handleViewGameFromMenu(telegramUserId, chatId.toString(), messageId, gameId);
-            }
-        } catch (Exception e) {
-            logger.error("Error handling callback query", e);
-            answerCallbackQuery(callbackQuery.getId(), "❌ Произошла ошибка. Попробуйте позже.");
-        }
-    }
+    // Метод handleCallbackQuery больше не используется напрямую,
+    // обработка callback'ов теперь происходит через MenuRouter в onUpdateReceived
     
-    private void handleMenuCallback(Long telegramUserId, String chatId, Integer messageId, String data) {
-        try {
-            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
-            boolean isLinked = user != null;
-            
-            if (data.equals("menu_main")) {
-                // Возврат в главное меню
-                String message = "📱 <b>Главное меню</b>\n\n";
-                if (isLinked && user != null) {
-                    message += "✅ Аккаунт связан\n";
-                    message += "👤 Пользователь: " + escapeHtml(user.getUsername()) + "\n\n";
-                } else {
-                    message += "❌ Аккаунт не связан\n\n";
-                }
-                message += "Выберите раздел:";
-                
-                InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(isLinked);
-                updateMenuMessage(chatId, messageId, message, keyboard);
-                
-            } else if (data.equals("menu_register")) {
-                // Регистрация через меню
-                if (isLinked) {
-                    answerCallbackQuery("", "✅ Вы уже зарегистрированы!");
-                    return;
-                }
-                // Инициализируем регистрацию
-                handleRegisterCommand(telegramUserId, chatId);
-                // Возвращаемся в главное меню
-                String menuMessage = "📱 <b>Главное меню</b>\n\n❌ Аккаунт не связан\n\nДля доступа ко всем функциям необходимо зарегистрироваться.\n\nНажмите кнопку ниже, чтобы начать регистрацию:";
-                InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(false);
-                updateMenuMessage(chatId, messageId, menuMessage, keyboard);
-                
-            } else if (data.equals("menu_auth")) {
-                // Авторизация через меню
-                if (isLinked) {
-                    answerCallbackQuery("", "✅ Ваш аккаунт уже связан!");
-                    return;
-                }
-                // Инициализируем авторизацию
-                handleAuthCommand(telegramUserId, chatId);
-                // Возвращаемся в главное меню
-                String menuMessage = "📱 <b>Главное меню</b>\n\n❌ Аккаунт не связан\n\nДля доступа ко всем функциям необходимо связать аккаунт.\n\nВыберите способ связывания:";
-                InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(false);
-                updateMenuMessage(chatId, messageId, menuMessage, keyboard);
-                
-            } else if (data.equals("menu_link")) {
-                // Связывание через токен через меню
-                if (isLinked) {
-                    answerCallbackQuery("", "✅ Ваш аккаунт уже связан!");
-                    return;
-                }
-                // Отправляем инструкцию по использованию токена
-                sendPersonalMessage(chatId, "🔗 <b>Связывание аккаунта через токен</b>\n\n" +
-                        "Для связывания аккаунта через токен:\n\n" +
-                        "1. Откройте настройки профиля на веб-сайте\n" +
-                        "2. Получите токен для связывания Telegram\n" +
-                        "3. Отправьте команду: <code>/link &lt;token&gt;</code>\n\n" +
-                        "Например: <code>/link abc123xyz</code>\n\n" +
-                        "💡 Используйте /cancel для отмены.");
-                // Возвращаемся в главное меню
-                String menuMessage = "📱 <b>Главное меню</b>\n\n❌ Аккаунт не связан\n\nДля доступа ко всем функциям необходимо связать аккаунт.\n\nВыберите способ связывания:";
-                InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(false);
-                updateMenuMessage(chatId, messageId, menuMessage, keyboard);
-                
-            } else if (data.equals("menu_games")) {
-                // Подменю игр
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                String message = "🎮 <b>Игры</b>\n\nВыберите действие:";
-                InlineKeyboardMarkup keyboard = buildGamesMenuKeyboard();
-                updateMenuMessage(chatId, messageId, message, keyboard);
-                
-            } else if (data.equals("menu_time")) {
-                // Подменю разметки времени
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Используйте /link для связывания.");
-                    return;
-                }
-                String message = "📅 <b>Разметка времени</b>\n\nВыберите действие:";
-                InlineKeyboardMarkup keyboard = buildTimeMenuKeyboard();
-                updateMenuMessage(chatId, messageId, message, keyboard);
-                
-            } else if (data.equals("menu_invites")) {
-                // Подменю инвайтов
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Используйте /link для связывания.");
-                    return;
-                }
-                String message = "🎫 <b>Инвайты</b>\n\nВыберите действие:";
-                InlineKeyboardMarkup keyboard = buildInvitesMenuKeyboard();
-                updateMenuMessage(chatId, messageId, message, keyboard);
-                
-            } else if (data.equals("menu_settings")) {
-                // Подменю настроек
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                String message = "⚙️ <b>Настройки</b>\n\nВыберите действие:";
-                InlineKeyboardMarkup keyboard = buildSettingsMenuKeyboard(isLinked);
-                updateMenuMessage(chatId, messageId, message, keyboard);
-                
-            } else if (data.equals("menu_help")) {
-                // Помощь
-                if (!isLinked || user == null) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                handleHelpCommand(chatId);
-                // Возвращаемся в главное меню
-                String menuMessage = "📱 <b>Главное меню</b>\n\n✅ Аккаунт связан\n👤 Пользователь: " + escapeHtml(user.getUsername()) + "\n\nВыберите раздел:";
-                InlineKeyboardMarkup keyboard = buildMainMenuKeyboard(isLinked);
-                updateMenuMessage(chatId, messageId, menuMessage, keyboard);
-                
-            } else if (data.equals("menu_games_list")) {
-                // Действие: список игр
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                handleMenuGamesList(telegramUserId, chatId, messageId);
-                
-            } else if (data.startsWith("menu_games_page_")) {
-                // Пагинация списка игр
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                if (data.equals("menu_games_page_separator")) {
-                    // Игнорируем нажатие на индикатор страницы
-                    return;
-                }
-                int page = Integer.parseInt(data.substring("menu_games_page_".length()));
-                handleMenuGamesList(telegramUserId, chatId, messageId, page);
-                
-            } else if (data.startsWith("view_game_")) {
-                // Просмотр деталей игры
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                Long gameId = Long.parseLong(data.substring("view_game_".length()));
-                handleViewGameFromMenu(telegramUserId, chatId, messageId, gameId);
-                
-            } else if (data.equals("menu_time_mark")) {
-                // Действие: разметка времени
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Используйте /link для связывания.");
-                    return;
-                }
-                handleMenuTimeMark(telegramUserId, chatId, messageId);
-                
-            } else if (data.equals("menu_time_slots")) {
-                // Действие: мои слоты
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Используйте /link для связывания.");
-                    return;
-                }
-                handleMenuTimeSlots(telegramUserId, chatId, messageId);
-                
-            } else if (data.equals("menu_invites_create")) {
-                // Действие: создать инвайт
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Используйте /link для связывания.");
-                    return;
-                }
-                handleMenuInvitesCreate(telegramUserId, chatId, messageId);
-                
-            } else if (data.equals("menu_invites_list")) {
-                // Действие: список инвайтов
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Используйте /link для связывания.");
-                    return;
-                }
-                handleMenuInvitesList(telegramUserId, chatId, messageId);
-                
-            } else if (data.equals("menu_settings_profile")) {
-                // Действие: профиль
-                handleMenuSettingsProfile(telegramUserId, chatId, messageId);
-                
-            } else if (data.equals("menu_settings_timezone")) {
-                // Действие: смена часового пояса
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                handleMenuSettingsTimezone(telegramUserId, chatId, messageId);
-                
-            } else if (data.equals("menu_settings_notifications")) {
-                // Действие: настройки уведомлений
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                handleMenuNotifications(telegramUserId, chatId, messageId);
-                
-            } else if (data.startsWith("notification_set_")) {
-                // Обработка изменения простых настроек уведомлений
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                handleNotificationSettingChange(telegramUserId, chatId, messageId, data);
-                
-            } else if (data.equals("notification_reminders")) {
-                // Показать список напоминаний о предстоящих играх
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                handleMenuReminders(telegramUserId, chatId, messageId);
-                
-            } else if (data.equals("notification_reminder_add")) {
-                // Начать добавление нового напоминания
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                handleReminderAdd(telegramUserId, chatId, messageId);
-                
-            } else if (data.startsWith("notification_reminder_edit_")) {
-                // Редактирование существующего напоминания
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                int index = Integer.parseInt(data.substring("notification_reminder_edit_".length()));
-                handleReminderEdit(telegramUserId, chatId, messageId, index);
-                
-            } else if (data.startsWith("notification_reminder_delete_")) {
-                // Удаление напоминания
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                int index = Integer.parseInt(data.substring("notification_reminder_delete_".length()));
-                handleReminderDelete(telegramUserId, chatId, messageId, index);
-                
-            } else if (data.startsWith("notification_reminder_toggle_")) {
-                // Включить/выключить напоминание
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                int index = Integer.parseInt(data.substring("notification_reminder_toggle_".length()));
-                handleReminderToggle(telegramUserId, chatId, messageId, index);
-                
-            } else if (data.equals("notification_timeslot_reminder")) {
-                // Показать настройки напоминания о разметке времени
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                handleMenuTimeSlotReminder(telegramUserId, chatId, messageId);
-                
-            } else if (data.equals("notification_timeslot_reminder_toggle")) {
-                // Включить/выключить напоминание о разметке времени
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                handleTimeSlotReminderToggle(telegramUserId, chatId, messageId);
-                
-            } else if (data.equals("notification_timeslot_reminder_cron")) {
-                // Настройка cron для напоминания о разметке времени
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                handleTimeSlotReminderCron(telegramUserId, chatId, messageId);
-                
-            } else if (data.startsWith("notification_cron_frequency_")) {
-                // Выбор частоты cron
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                String frequency = data.substring("notification_cron_frequency_".length());
-                handleCronFrequencySelect(telegramUserId, chatId, messageId, frequency);
-                
-            } else if (data.startsWith("notification_cron_day_")) {
-                // Выбор дня для cron
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                int day = Integer.parseInt(data.substring("notification_cron_day_".length()));
-                handleCronDaySelect(telegramUserId, chatId, messageId, day);
-                
-            } else if (data.startsWith("notification_reminder_unit_")) {
-                // Выбор единицы для напоминания
-                if (!isLinked) {
-                    answerCallbackQuery("", "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                    return;
-                }
-                String unit = data.substring("notification_reminder_unit_".length());
-                handleReminderUnitSelect(telegramUserId, chatId, messageId, unit);
-            }
-        } catch (Exception e) {
-            logger.error("Error handling menu callback", e);
-            answerCallbackQuery("", "❌ Произошла ошибка. Попробуйте позже.");
-        }
-    }
+    // Метод handleMenuCallback больше не используется напрямую,
+    // обработка всех callback'ов теперь происходит через MenuRouter в onUpdateReceived
     
     private void updateMenuMessage(String chatId, Integer messageId, String message, InlineKeyboardMarkup keyboard) {
         try {
@@ -2317,57 +1461,16 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
-    private void handleMenuGamesList(Long telegramUserId, String chatId, Integer messageId) {
-        handleMenuGamesList(telegramUserId, chatId, messageId, 0);
-    }
-    
-    private void handleMenuGamesList(Long telegramUserId, String chatId, Integer messageId, int page) {
-        try {
-            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
-            
-            if (user == null) {
-                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
-                return;
-            }
-            
-            List<GameDto> upcomingGames = gameService.getUpcomingGamesForUser(user.getId());
-            
-            // Сохраняем текущую страницу
-            gamesListPage.put(chatId, page);
-            
-            String message;
-            InlineKeyboardMarkup keyboard;
-            
-            if (upcomingGames.isEmpty()) {
-                message = "📅 <b>Предстоящие игры</b>\n\nУ вас пока нет запланированных игр.";
-                keyboard = buildGamesMenuKeyboard();
-            } else {
-                // Сортируем игры по времени начала
-                List<GameDto> sortedGames = upcomingGames.stream()
-                    .sorted(Comparator.comparing(GameDto::getStartTime))
-                    .collect(Collectors.toList());
-                
-                int totalPages = (int) Math.ceil((double) sortedGames.size() / GAMES_PER_PAGE);
-                if (page < 0) page = 0;
-                if (page >= totalPages) page = totalPages - 1;
-                
-                message = buildUpcomingGamesListMessage(sortedGames, page, totalPages);
-                keyboard = buildGamesListKeyboard(sortedGames, page, totalPages);
-            }
-            
-            updateMenuMessage(chatId, messageId, message, keyboard);
-        } catch (Exception e) {
-            logger.error("Error handling menu games list", e);
-            answerCallbackQuery("", "❌ Ошибка при получении списка игр.");
-        }
-    }
+    // Методы handleMenuGamesList больше не используются напрямую,
+    // обработка menu_games_list и menu_games_page_ теперь происходит через GamesMenuHandler в MenuRouter
     
     private InlineKeyboardMarkup buildGamesListKeyboard(List<GameDto> games, int page, int totalPages) {
         InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new java.util.ArrayList<>();
         
-        int startIndex = page * GAMES_PER_PAGE;
-        int endIndex = Math.min(startIndex + GAMES_PER_PAGE, games.size());
+        int gamesPerPage = telegramBotProperties.getGamesPerPage();
+        int startIndex = page * gamesPerPage;
+        int endIndex = Math.min(startIndex + gamesPerPage, games.size());
         List<GameDto> pageGames = games.subList(startIndex, endIndex);
         
         // Создаем кнопки для каждой игры на текущей странице
@@ -2439,83 +1542,11 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         return keyboard;
     }
     
-    private void handleMenuTimeMark(Long telegramUserId, String chatId, Integer messageId) {
-        try {
-            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
-            
-            if (user == null) {
-                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
-                return;
-            }
-            
-            // Проверяем наличие часового пояса
-            if (user.getTimezone() == null || user.getTimezone().trim().isEmpty()) {
-                String errorMessage = "❌ <b>Часовой пояс не установлен</b>\n\n" +
-                        "Для разметки времени необходимо установить часовой пояс.\n\n" +
-                        "Вы можете установить часовой пояс:\n" +
-                        "• Через меню: Настройки → Часовой пояс\n" +
-                        "• В настройках профиля на веб-сайте\n\n" +
-                        "После установки часового пояса вы сможете использовать разметку времени.";
-                InlineKeyboardMarkup keyboard = buildTimeMenuKeyboard();
-                updateMenuMessage(chatId, messageId, errorMessage, keyboard);
-                return;
-            }
-            
-            // Инициализируем состояние разметки времени
-            timeSlotMarkingStates.put(chatId, TimeSlotMarkingState.WAITING_DATE);
-            timeSlotMarkingData.put(chatId, new TimeSlotMarkingData());
-            updateTimeSlotMarkingTimestamp(chatId);
-            
-            String message = "📅 <b>Разметка свободного времени</b>\n\n" +
-                    "Введите дату в формате ДД.ММ.ГГГГ (например: 15.01.2025)\n" +
-                    "Или используйте: сегодня, завтра, послезавтра\n\n" +
-                    "💡 Используйте /cancel для отмены.";
-            
-            // Отправляем новое сообщение для диалога разметки
-            sendPersonalMessage(chatId, message);
-            
-            // Возвращаемся в подменю разметки времени
-            String menuMessage = "📅 <b>Разметка времени</b>\n\nВыберите действие:";
-            InlineKeyboardMarkup keyboard = buildTimeMenuKeyboard();
-            updateMenuMessage(chatId, messageId, menuMessage, keyboard);
-        } catch (Exception e) {
-            logger.error("Error handling menu time mark", e);
-            answerCallbackQuery("", "❌ Ошибка при инициализации разметки времени.");
-        }
-    }
+    // Метод handleMenuTimeMark больше не используется напрямую,
+    // обработка menu_time_mark теперь происходит через TimeMenuHandler в MenuRouter
     
-    private void handleMenuTimeSlots(Long telegramUserId, String chatId, Integer messageId) {
-        try {
-            User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
-            
-            if (user == null) {
-                answerCallbackQuery("", "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
-                return;
-            }
-            
-            Instant now = Instant.now();
-            Instant endDate = now.plusSeconds(30L * 24 * 60 * 60); // 30 дней вперед
-            ru.ambryo.gameplannerback.dto.PlayerDto player = userService.getUserAsPlayerWithTimeSlots(user, now, endDate);
-            
-            List<ru.ambryo.gameplannerback.dto.TimeSlotDto> slots = player.getAvailableTimes();
-            
-            String message;
-            InlineKeyboardMarkup keyboard = buildTimeMenuKeyboard();
-            
-            if (slots == null || slots.isEmpty()) {
-                message = "📅 <b>Мои временные слоты</b>\n\n" +
-                        "У вас пока нет размеченного времени.\n\n" +
-                        "Используйте кнопку 'Разметить время' для добавления слотов.";
-            } else {
-                message = buildMySlotsListMessage(slots, user.getTimezone());
-            }
-            
-            updateMenuMessage(chatId, messageId, message, keyboard);
-        } catch (Exception e) {
-            logger.error("Error handling menu time slots", e);
-            answerCallbackQuery("", "❌ Ошибка при получении списка слотов.");
-        }
-    }
+    // Метод handleMenuTimeSlots больше не используется напрямую,
+    // обработка menu_time_slots теперь происходит через TimeMenuHandler в MenuRouter
     
     private void handleMenuInvitesCreate(Long telegramUserId, String chatId, Integer messageId) {
         try {
@@ -2807,8 +1838,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
             
             // Инициализируем состояние смены часового пояса для ручного ввода
-            timezoneChangeStates.put(chatId, TimezoneChangeState.WAITING_TIMEZONE);
-            updateTimezoneChangeTimestamp(chatId);
+            timezoneChangeStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.TimezoneChangeStateManager.TimezoneChangeState.WAITING_TIMEZONE);
             
             String currentTimezone = user.getTimezone() != null && !user.getTimezone().trim().isEmpty() 
                     ? user.getTimezone() 
@@ -2833,14 +1863,14 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
-    private void handleTimezoneChangeState(Long telegramUserId, String chatId, String text, TimezoneChangeState state) {
+    private void handleTimezoneChangeState(Long telegramUserId, String chatId, String text, ru.ambryo.gameplannerback.service.telegram.state.TimezoneChangeStateManager.TimezoneChangeState state) {
         try {
-            if (state == TimezoneChangeState.WAITING_TIMEZONE) {
-                updateTimezoneChangeTimestamp(chatId);
+            if (state == ru.ambryo.gameplannerback.service.telegram.state.TimezoneChangeStateManager.TimezoneChangeState.WAITING_TIMEZONE) {
+                timezoneChangeStateManager.updateTimestamp(chatId);
                 
                 User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
                 if (user == null) {
-                    clearTimezoneChangeState(chatId);
+                    timezoneChangeStateManager.clearState(chatId);
                     sendPersonalMessage(chatId, "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
                     return;
                 }
@@ -2863,7 +1893,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 userService.updateUserProfile(user, user.getName(), user.getColor(), zoneId.getId());
                 
                 // Очищаем состояние
-                clearTimezoneChangeState(chatId);
+                timezoneChangeStateManager.clearState(chatId);
                 
                 // Отправляем подтверждение
                 sendPersonalMessage(chatId, "✅ <b>Часовой пояс успешно изменен!</b>\n\n" +
@@ -2874,7 +1904,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
         } catch (Exception e) {
             logger.error("Error handling timezone change state", e);
-            clearTimezoneChangeState(chatId);
+            timezoneChangeStateManager.clearState(chatId);
             sendPersonalMessage(chatId, "❌ Произошла ошибка при смене часового пояса. Попробуйте позже.");
         }
     }
@@ -2911,10 +1941,8 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             
             GameDto game = gameService.joinGame(gameId, user);
             String message = buildGameDetailsMessage(game, user);
-            // Используем клавиатуру с кнопкой "Назад", если игра открыта из меню
-            InlineKeyboardMarkup keyboard = gamesListPage.containsKey(chatId) 
-                ? buildGameKeyboardWithBack(game, user, chatId) 
-                : buildGameKeyboard(game, user);
+            // Используем обычную клавиатуру (gamesListPage больше не используется, так как обработка через GameActionHandler)
+            InlineKeyboardMarkup keyboard = buildGameKeyboard(game, user);
             
             EditMessageText editMessage = new EditMessageText();
             editMessage.setChatId(chatId);
@@ -2952,10 +1980,8 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             
             GameDto game = gameService.leaveGame(gameId, user);
             String message = buildGameDetailsMessage(game, user);
-            // Используем клавиатуру с кнопкой "Назад", если игра открыта из меню
-            InlineKeyboardMarkup keyboard = gamesListPage.containsKey(chatId) 
-                ? buildGameKeyboardWithBack(game, user, chatId) 
-                : buildGameKeyboard(game, user);
+            // Используем обычную клавиатуру (gamesListPage больше не используется, так как обработка через GameActionHandler)
+            InlineKeyboardMarkup keyboard = buildGameKeyboard(game, user);
             
             EditMessageText editMessage = new EditMessageText();
             editMessage.setChatId(chatId);
@@ -2991,10 +2017,8 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             
             GameDto game = gameService.getGameById(gameId);
             String message = buildGameDetailsMessage(game, user);
-            // Используем клавиатуру с кнопкой "Назад", если игра открыта из меню
-            InlineKeyboardMarkup keyboard = gamesListPage.containsKey(chatId) 
-                ? buildGameKeyboardWithBack(game, user, chatId) 
-                : buildGameKeyboard(game, user);
+            // Используем обычную клавиатуру (gamesListPage больше не используется, так как обработка через GameActionHandler)
+            InlineKeyboardMarkup keyboard = buildGameKeyboard(game, user);
             
             EditMessageText editMessage = new EditMessageText();
             editMessage.setChatId(chatId);
@@ -3054,7 +2078,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             
             GameDto game = gameService.getGameById(gameId);
             String message = buildGameDetailsMessage(game, user);
-            InlineKeyboardMarkup keyboard = buildGameKeyboardWithBack(game, user, chatId);
+            InlineKeyboardMarkup keyboard = buildGameKeyboard(game, user);
             
             updateMenuMessage(chatId, messageId, message, keyboard);
         } catch (RuntimeException e) {
@@ -3125,15 +2149,9 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         refreshRow.add(refreshButton);
         rows.add(refreshRow);
         
-        // Кнопка "Назад к списку"
-        List<InlineKeyboardButton> backRow = new java.util.ArrayList<>();
-        InlineKeyboardButton backButton = new InlineKeyboardButton();
-        backButton.setText("◀️ Назад к списку");
-        // Получаем текущую страницу или используем 0
-        int currentPage = gamesListPage.getOrDefault(chatId, 0);
-        backButton.setCallbackData("menu_games_page_" + currentPage);
-        backRow.add(backButton);
-        rows.add(backRow);
+        // Кнопка "Назад к списку" больше не добавляется здесь,
+        // так как buildGameKeyboardWithBack больше не используется
+        // (обработка клавиатур с кнопкой "Назад" теперь происходит через GamesMenuKeyboardBuilder)
         
         keyboard.setKeyboard(rows);
         return keyboard;
@@ -3153,8 +2171,9 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             .sorted(Comparator.comparing(GameDto::getStartTime))
             .collect(Collectors.toList());
         
-        int startIndex = page * GAMES_PER_PAGE;
-        int endIndex = Math.min(startIndex + GAMES_PER_PAGE, sortedGames.size());
+        int gamesPerPage = telegramBotProperties.getGamesPerPage();
+        int startIndex = page * gamesPerPage;
+        int endIndex = Math.min(startIndex + gamesPerPage, sortedGames.size());
         List<GameDto> pageGames = sortedGames.subList(startIndex, endIndex);
         
         message.append("Всего игр: ").append(sortedGames.size());
@@ -4466,11 +3485,10 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
             
             // Инициализируем состояние добавления напоминания
-            notificationStates.put(chatId, NotificationState.WAITING_REMINDER_VALUE);
-            NotificationData data = new NotificationData();
+            notificationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_REMINDER_VALUE);
+            var data = new ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationData();
             data.reminderIndex = -1; // -1 означает новое напоминание
-            notificationData.put(chatId, data);
-            updateNotificationTimestamp(chatId);
+            notificationStateManager.setData(chatId, data);
             
             String message = "⏰ <b>Добавление напоминания</b>\n\n" +
                     "Введите значение (например: 60 для 60 минут, 2 для 2 часов, 1 для 1 дня):\n\n" +
@@ -4505,13 +3523,12 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
             
             // Инициализируем состояние редактирования напоминания
-            notificationStates.put(chatId, NotificationState.WAITING_REMINDER_VALUE);
-            NotificationData data = new NotificationData();
+            notificationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_REMINDER_VALUE);
+            var data = new ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationData();
             data.reminderIndex = index;
             UpcomingGameReminderDto reminder = reminders.get(index);
             data.reminderValue = reminder.getMinutesBefore();
-            notificationData.put(chatId, data);
-            updateNotificationTimestamp(chatId);
+            notificationStateManager.setData(chatId, data);
             
             String currentValue = formatReminderValue(reminder.getMinutesBefore());
             String message = "✏️ <b>Редактирование напоминания</b>\n\n" +
@@ -4598,19 +3615,18 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 return;
             }
             
-            NotificationData data = notificationData.get(chatId);
+            var data = notificationStateManager.getData(chatId);
             if (data == null) {
-                clearNotificationState(chatId);
+                notificationStateManager.clearState(chatId);
                 sendPersonalMessage(chatId, "❌ Ошибка: данные не найдены. Начните заново.");
                 return;
             }
             
             data.reminderUnit = unit;
-            notificationData.put(chatId, data);
+            notificationStateManager.setData(chatId, data);
             
             // Переходим к вопросу о включении/выключении
-            notificationStates.put(chatId, NotificationState.WAITING_REMINDER_UNIT); // Используем это состояние для финального подтверждения
-            updateNotificationTimestamp(chatId);
+            notificationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_REMINDER_UNIT); // Используем это состояние для финального подтверждения
             
             String valueText = data.reminderValue != null ? String.valueOf(data.reminderValue) : "0";
             String unitText = switch (unit) {
@@ -4738,14 +3754,13 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
             
             // Инициализируем состояние настройки cron
-            notificationStates.put(chatId, NotificationState.WAITING_CRON_FREQUENCY);
-            NotificationData data = new NotificationData();
+            notificationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_CRON_FREQUENCY);
+            var data = new ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationData();
             if (settings.getTimeSlotReminderCron() != null && !settings.getTimeSlotReminderCron().trim().isEmpty()) {
                 // Парсим существующий cron
                 parseCronToData(settings.getTimeSlotReminderCron(), data);
             }
-            notificationData.put(chatId, data);
-            updateNotificationTimestamp(chatId);
+            notificationStateManager.setData(chatId, data);
             
             String message = "⚙️ <b>Настройка расписания</b>\n\n" +
                     "Выберите частоту напоминания:";
@@ -4802,20 +3817,19 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 return;
             }
             
-            NotificationData data = notificationData.get(chatId);
+            var data = notificationStateManager.getData(chatId);
             if (data == null) {
-                clearNotificationState(chatId);
+                notificationStateManager.clearState(chatId);
                 sendPersonalMessage(chatId, "❌ Ошибка: данные не найдены. Начните заново.");
                 return;
             }
             
             data.cronFrequency = frequency;
-            notificationData.put(chatId, data);
+            notificationStateManager.setData(chatId, data);
             
             if ("daily".equals(frequency)) {
                 // Для ежедневного - сразу переходим к времени
-                notificationStates.put(chatId, NotificationState.WAITING_CRON_TIME);
-                updateNotificationTimestamp(chatId);
+                notificationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_CRON_TIME);
                 
                 String message = "✅ Частота выбрана: <b>Ежедневно</b>\n\n" +
                         "Введите время в формате ЧЧ:ММ (например: 09:00):\n\n" +
@@ -4824,8 +3838,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 sendPersonalMessage(chatId, message);
             } else if ("weekly".equals(frequency)) {
                 // Для еженедельного - выбираем день недели
-                notificationStates.put(chatId, NotificationState.WAITING_CRON_DAY);
-                updateNotificationTimestamp(chatId);
+                notificationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_CRON_DAY);
                 
                 String message = "✅ Частота выбрана: <b>Еженедельно</b>\n\n" +
                         "Выберите день недели:";
@@ -4834,8 +3847,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 updateMenuMessage(chatId, messageId, message, keyboard);
             } else if ("monthly".equals(frequency)) {
                 // Для ежемесячного - вводим день месяца
-                notificationStates.put(chatId, NotificationState.WAITING_CRON_DAY);
-                updateNotificationTimestamp(chatId);
+                notificationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_CRON_DAY);
                 
                 String message = "✅ Частота выбрана: <b>Ежемесячно</b>\n\n" +
                         "Введите день месяца (1-31):\n\n" +
@@ -4904,17 +3916,16 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 return;
             }
             
-            NotificationData data = notificationData.get(chatId);
+            var data = notificationStateManager.getData(chatId);
             if (data == null) {
-                clearNotificationState(chatId);
+                notificationStateManager.clearState(chatId);
                 sendPersonalMessage(chatId, "❌ Ошибка: данные не найдены. Начните заново.");
                 return;
             }
             
             data.cronDay = day;
-            notificationData.put(chatId, data);
-            notificationStates.put(chatId, NotificationState.WAITING_CRON_TIME);
-            updateNotificationTimestamp(chatId);
+            notificationStateManager.setData(chatId, data);
+            notificationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_CRON_TIME);
             
             String dayText = switch (day) {
                 case 0 -> "воскресенье";
@@ -4938,25 +3949,25 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
-    private void handleNotificationState(Long telegramUserId, String chatId, String text, NotificationState state) {
+    private void handleNotificationState(Long telegramUserId, String chatId, String text, ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState state) {
         try {
-            updateNotificationTimestamp(chatId);
+            notificationStateManager.updateTimestamp(chatId);
             
             User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
             if (user == null) {
-                clearNotificationState(chatId);
+                notificationStateManager.clearState(chatId);
                 sendPersonalMessage(chatId, "❌ Ваш аккаунт не связан. Используйте /link для связывания.");
                 return;
             }
             
-            NotificationData data = notificationData.get(chatId);
+            var data = notificationStateManager.getData(chatId);
             if (data == null) {
-                clearNotificationState(chatId);
+                notificationStateManager.clearState(chatId);
                 sendPersonalMessage(chatId, "❌ Ошибка: данные не найдены. Начните заново.");
                 return;
             }
             
-            if (state == NotificationState.WAITING_REMINDER_VALUE) {
+            if (state == ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_REMINDER_VALUE) {
                 // Ожидание значения напоминания
                 try {
                     int value = Integer.parseInt(text.trim());
@@ -4966,11 +3977,10 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                     }
                     
                     data.reminderValue = value;
-                    notificationData.put(chatId, data);
+                    notificationStateManager.setData(chatId, data);
                     
                     // Переходим к выбору единицы
-                    notificationStates.put(chatId, NotificationState.WAITING_REMINDER_UNIT);
-                    updateNotificationTimestamp(chatId);
+                    notificationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_REMINDER_UNIT);
                     
                     String message = "✅ Значение принято: <b>" + value + "</b>\n\n" +
                             "Выберите единицу измерения:";
@@ -5015,7 +4025,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                     return;
                 }
                 
-            } else if (state == NotificationState.WAITING_REMINDER_UNIT) {
+            } else if (state == ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_REMINDER_UNIT) {
                 // Это состояние используется для финального подтверждения (включить/выключить)
                 // после выбора единицы через callback
                 String lowerText = text.trim().toLowerCase();
@@ -5034,7 +4044,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 if (data.reminderIndex == -1) {
                     // Новое напоминание
                     if (reminders.size() >= 5) {
-                        clearNotificationState(chatId);
+                        notificationStateManager.clearState(chatId);
                         sendPersonalMessage(chatId, "❌ Максимум 5 напоминаний. Удалите одно из существующих.");
                         return;
                     }
@@ -5046,7 +4056,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                         reminder.setMinutesBefore(minutesBefore);
                         reminder.setEnabled(enabled);
                     } else {
-                        clearNotificationState(chatId);
+                        notificationStateManager.clearState(chatId);
                         sendPersonalMessage(chatId, "❌ Напоминание не найдено.");
                         return;
                     }
@@ -5055,7 +4065,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 settings.setUpcomingGameReminders(reminders);
                 notificationSettingsService.updateSettings(user.getId(), settings);
                 
-                clearNotificationState(chatId);
+                notificationStateManager.clearState(chatId);
                 
                 String displayValue = formatReminderValue(minutesBefore);
                 sendPersonalMessage(chatId, "✅ <b>Напоминание " + (data.reminderIndex == -1 ? "добавлено" : "изменено") + "!</b>\n\n" +
@@ -5065,7 +4075,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 logger.info("Reminder {} via Telegram for user: {}, value: {} minutes, enabled: {}", 
                         data.reminderIndex == -1 ? "added" : "updated", user.getUsername(), minutesBefore, enabled);
                 
-            } else if (state == NotificationState.WAITING_CRON_TIME) {
+            } else if (state == ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_CRON_TIME) {
                 // Ожидание времени для cron
                 LocalTime time = parseTime(text.trim());
                 if (time == null) {
@@ -5076,7 +4086,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 }
                 
                 data.cronTime = String.format("%02d:%02d", time.getHour(), time.getMinute());
-                notificationData.put(chatId, data);
+                notificationStateManager.setData(chatId, data);
                 
                 // Сохраняем cron
                 String cron = buildCronFromData(data);
@@ -5084,7 +4094,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 settings.setTimeSlotReminderCron(cron);
                 notificationSettingsService.updateSettings(user.getId(), settings);
                 
-                clearNotificationState(chatId);
+                notificationStateManager.clearState(chatId);
                 
                 String cronText = formatCronToReadable(cron);
                 sendPersonalMessage(chatId, "✅ <b>Расписание настроено!</b>\n\n" +
@@ -5092,7 +4102,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                 
                 logger.info("Time slot reminder cron updated via Telegram for user: {}, cron: {}", user.getUsername(), cron);
                 
-            } else if (state == NotificationState.WAITING_CRON_DAY && data.cronFrequency != null && "monthly".equals(data.cronFrequency)) {
+            } else if (state == ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_CRON_DAY && data.cronFrequency != null && "monthly".equals(data.cronFrequency)) {
                 // Ожидание дня месяца для ежемесячного расписания
                 try {
                     int dayOfMonth = Integer.parseInt(text.trim());
@@ -5104,9 +4114,9 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
                     }
                     
                     data.cronDay = dayOfMonth;
-                    notificationData.put(chatId, data);
-                    notificationStates.put(chatId, NotificationState.WAITING_CRON_TIME);
-                    updateNotificationTimestamp(chatId);
+                    notificationStateManager.setData(chatId, data);
+                    notificationStateManager.setState(chatId, ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationState.WAITING_CRON_TIME);
+                    notificationStateManager.updateTimestamp(chatId);
                     
                     sendPersonalMessage(chatId, "✅ День месяца принят: <b>" + dayOfMonth + "</b>\n\n" +
                             "Введите время в формате ЧЧ:ММ (например: 09:00):\n\n" +
@@ -5119,7 +4129,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
             }
         } catch (Exception e) {
             logger.error("Error handling notification state", e);
-            clearNotificationState(chatId);
+            notificationStateManager.clearState(chatId);
             sendPersonalMessage(chatId, "❌ Произошла ошибка. Попробуйте позже.");
         }
     }
@@ -5136,7 +4146,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         };
     }
     
-    private void parseCronToData(String cron, NotificationData data) {
+    private void parseCronToData(String cron, ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationData data) {
         if (cron == null || cron.trim().isEmpty()) {
             return;
         }
@@ -5166,7 +4176,7 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         }
     }
     
-    private String buildCronFromData(NotificationData data) {
+    private String buildCronFromData(ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager.NotificationData data) {
         if (data.cronFrequency == null || data.cronTime == null) {
             return "0 0 9 * * *"; // По умолчанию ежедневно в 9:00
         }
