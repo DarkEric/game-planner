@@ -3,6 +3,7 @@ package ru.ambryo.gameplannerback.service.telegram.notification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import ru.ambryo.gameplannerback.dto.GameDto;
@@ -23,7 +24,7 @@ public class GameNotificationSender extends PersonalNotificationSender {
     
     @Autowired
     public GameNotificationSender(
-            AbsSender bot,
+            @Lazy AbsSender bot,
             GameMessageBuilder messageBuilder,
             GamesMenuKeyboardBuilder keyboardBuilder) {
         super(bot);

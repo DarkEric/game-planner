@@ -3,6 +3,7 @@ package ru.ambryo.gameplannerback.service.telegram.state.handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.bots.AbsSender;
@@ -42,7 +43,7 @@ public class NotificationStateHandler implements StateHandler<NotificationStateM
             UserRepository userRepository,
             NotificationSettingsService notificationSettingsService,
             NotificationsMenuKeyboardBuilder notificationsMenuKeyboardBuilder,
-            AbsSender bot) {
+            @Lazy AbsSender bot) {
         this.notificationStateManager = notificationStateManager;
         this.userRepository = userRepository;
         this.notificationSettingsService = notificationSettingsService;

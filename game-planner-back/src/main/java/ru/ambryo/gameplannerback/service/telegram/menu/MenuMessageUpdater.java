@@ -3,6 +3,7 @@ package ru.ambryo.gameplannerback.service.telegram.menu;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
@@ -21,7 +22,7 @@ public class MenuMessageUpdater {
     private final AbsSender bot;
     
     @Autowired
-    public MenuMessageUpdater(AbsSender bot) {
+    public MenuMessageUpdater(@Lazy AbsSender bot) {
         this.bot = bot;
     }
     

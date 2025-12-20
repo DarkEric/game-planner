@@ -1,6 +1,7 @@
 package ru.ambryo.gameplannerback.service.telegram.menu;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.bots.AbsSender;
@@ -31,7 +32,7 @@ public class MainMenuHandler implements MenuHandler {
             MainMenuKeyboardBuilder keyboardBuilder,
             RegistrationStateManager registrationStateManager,
             AuthStateManager authStateManager,
-            AbsSender bot,
+            @Lazy AbsSender bot,
             MenuMessageUpdater messageUpdater) {
         this.userRepository = userRepository;
         this.keyboardBuilder = keyboardBuilder;

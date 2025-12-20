@@ -3,6 +3,7 @@ package ru.ambryo.gameplannerback.service.telegram.state.handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import ru.ambryo.gameplannerback.entity.User;
@@ -39,7 +40,7 @@ public class TimeSlotMarkingStateHandler implements StateHandler<TimeSlotMarking
             UserRepository userRepository,
             UserService userService,
             TimeSlotMessageBuilder timeSlotMessageBuilder,
-            AbsSender bot) {
+            @Lazy AbsSender bot) {
         this.timeSlotMarkingStateManager = timeSlotMarkingStateManager;
         this.userRepository = userRepository;
         this.userService = userService;

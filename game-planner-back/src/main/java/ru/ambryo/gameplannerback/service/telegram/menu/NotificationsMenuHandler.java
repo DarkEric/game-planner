@@ -3,6 +3,7 @@ package ru.ambryo.gameplannerback.service.telegram.menu;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -46,7 +47,7 @@ public class NotificationsMenuHandler implements MenuHandler {
             NotificationsMenuKeyboardBuilder keyboardBuilder,
             MenuMessageUpdater messageUpdater,
             NotificationStateManager notificationStateManager,
-            AbsSender bot) {
+            @Lazy AbsSender bot) {
         this.userRepository = userRepository;
         this.notificationSettingsService = notificationSettingsService;
         this.messageBuilder = messageBuilder;

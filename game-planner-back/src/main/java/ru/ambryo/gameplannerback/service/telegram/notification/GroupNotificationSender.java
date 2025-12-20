@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import ru.ambryo.gameplannerback.dto.GameDto;
@@ -22,7 +23,7 @@ public class GroupNotificationSender extends NotificationSender {
     
     @Autowired
     public GroupNotificationSender(
-            AbsSender bot,
+            @Lazy AbsSender bot,
             @Value("${telegram.bot.chat-id:}") String chatId,
             @Value("${telegram.bot.thread-id:}") String threadId,
             @Value("${telegram.bot.enabled:false}") boolean enabled,

@@ -3,6 +3,7 @@ package ru.ambryo.gameplannerback.service.telegram.state.handler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import ru.ambryo.gameplannerback.service.NotificationSettingsService;
@@ -25,7 +26,7 @@ public class AuthStateHandler implements StateHandler<AuthStateManager.AuthState
     public AuthStateHandler(
             AuthStateManager authStateManager,
             NotificationSettingsService notificationSettingsService,
-            AbsSender bot) {
+            @Lazy AbsSender bot) {
         this.authStateManager = authStateManager;
         this.notificationSettingsService = notificationSettingsService;
         this.messageSender = new TelegramMessageSender(bot);

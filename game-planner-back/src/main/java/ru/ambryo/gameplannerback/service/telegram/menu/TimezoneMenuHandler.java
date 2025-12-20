@@ -1,6 +1,7 @@
 package ru.ambryo.gameplannerback.service.telegram.menu;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import ru.ambryo.gameplannerback.entity.User;
@@ -34,7 +35,7 @@ public class TimezoneMenuHandler implements MenuHandler {
             TimezoneChangeStateManager stateManager,
             TimezoneSelectorKeyboardBuilder keyboardBuilder,
             SettingsMenuKeyboardBuilder settingsKeyboardBuilder,
-            org.telegram.telegrambots.meta.bots.AbsSender bot,
+            @Lazy org.telegram.telegrambots.meta.bots.AbsSender bot,
             MenuMessageUpdater messageUpdater) {
         this.userRepository = userRepository;
         this.userService = userService;
