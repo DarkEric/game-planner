@@ -33,10 +33,10 @@ public abstract class PersonalNotificationSender {
     }
     
     protected boolean canSendToUser(User user) {
-        return user != null 
-            && user.getTelegramSubscribed() != null 
-            && user.getTelegramSubscribed() 
-            && user.getTelegramChatId() != null;
+        return user == null
+            || user.getTelegramSubscribed() == null
+            || !user.getTelegramSubscribed()
+            || user.getTelegramChatId() == null;
     }
     
     /**
@@ -44,7 +44,7 @@ public abstract class PersonalNotificationSender {
      * @param user пользователь
      */
     public void sendTimeSlotReminder(User user) {
-        if (!canSendToUser(user)) {
+        if (canSendToUser(user)) {
             return;
         }
         
@@ -58,21 +58,20 @@ public abstract class PersonalNotificationSender {
      * @param token токен для сброса пароля
      */
     public void sendPasswordResetToken(User user, String token) {
-        if (!canSendToUser(user)) {
+        if (canSendToUser(user)) {
             logger.debug("User {} is not subscribed to Telegram or chat ID not available", user.getUsername());
             return;
         }
         
         try {
-            StringBuilder message = new StringBuilder();
-            message.append("🔐 <b>Сброс пароля</b>\n\n");
-            message.append("Вы запросили сброс пароля для аккаунта: <b>").append(TelegramHtmlFormatter.escapeHtml(user.getUsername())).append("</b>\n\n");
-            message.append("Ваш код для сброса: <code>").append(token).append("</code>\n\n");
-            message.append("Используйте этот код на странице восстановления пароля.\n\n");
-            message.append("⚠️ Код действителен 1 час.\n\n");
-            message.append("Если вы не запрашивали сброс пароля, проигнорируйте это сообщение.");
+            String message = "🔐 <b>Сброс пароля</b>\n\n" +
+                "Вы запросили сброс пароля для аккаунта: <b>" + TelegramHtmlFormatter.escapeHtml(user.getUsername()) + "</b>\n\n" +
+                "Ваш код для сброса: <code>" + token + "</code>\n\n" +
+                "Используйте этот код на странице восстановления пароля.\n\n" +
+                "⚠️ Код действителен 1 час.\n\n" +
+                "Если вы не запрашивали сброс пароля, проигнорируйте это сообщение.";
             
-            sendPersonalMessage(user.getTelegramChatId(), message.toString());
+            sendPersonalMessage(user.getTelegramChatId(), message);
             logger.info("Password reset token sent to user {} via Telegram", user.getUsername());
         } catch (Exception e) {
             logger.error("Failed to send password reset token to user {} via Telegram", user.getUsername(), e);

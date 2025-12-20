@@ -45,8 +45,10 @@ public class InviteCommandHandler implements CommandHandler {
             User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
             
             if (user == null) {
-                messageSender.sendPersonalMessage(chatId, "❌ Ваш аккаунт не связан с веб-сайтом.\n\n" +
-                        "Используйте /register для регистрации или /auth для привязки существующего аккаунта.");
+                messageSender.sendPersonalMessage(chatId, """
+                    ❌ Ваш аккаунт не связан с веб-сайтом.
+                    
+                    Используйте /register для регистрации или /auth для привязки существующего аккаунта.""");
                 return;
             }
             

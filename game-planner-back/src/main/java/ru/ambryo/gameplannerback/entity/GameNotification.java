@@ -1,6 +1,7 @@
 package ru.ambryo.gameplannerback.entity;
 
 import jakarta.persistence.*;
+
 import java.time.Instant;
 
 @Entity

@@ -59,7 +59,7 @@ public class GameActionHandler implements MenuHandler {
         }
         
         try {
-            Long gameId;
+            long gameId;
             if (data.startsWith("join_game_")) {
                 gameId = Long.parseLong(data.substring("join_game_".length()));
                 handleJoinGame(user, chatId, messageId, gameId, callbackQuery.getId());

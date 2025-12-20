@@ -1,6 +1,7 @@
 package ru.ambryo.gameplannerback.service.telegram.state;
 
 import org.springframework.stereotype.Component;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 

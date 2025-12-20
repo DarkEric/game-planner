@@ -6,16 +6,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ambryo.gameplannerback.dto.CreateGameRequest;
 import ru.ambryo.gameplannerback.dto.GameDto;
-import ru.ambryo.gameplannerback.entity.Campaign;
-import ru.ambryo.gameplannerback.entity.Game;
-import ru.ambryo.gameplannerback.entity.GameNotification;
-import ru.ambryo.gameplannerback.entity.User;
-import ru.ambryo.gameplannerback.entity.UserNotificationSettings;
-import ru.ambryo.gameplannerback.repository.CampaignRepository;
-import ru.ambryo.gameplannerback.repository.GameNotificationRepository;
-import ru.ambryo.gameplannerback.repository.GameRepository;
-import ru.ambryo.gameplannerback.repository.UserNotificationSettingsRepository;
-import ru.ambryo.gameplannerback.repository.UserRepository;
+import ru.ambryo.gameplannerback.entity.*;
+import ru.ambryo.gameplannerback.repository.*;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -242,9 +234,8 @@ public class GameService {
         }
         
         game = gameRepository.save(game);
-        GameDto gameDto = convertToDto(game);
-        
-        return gameDto;
+
+        return convertToDto(game);
     }
     
     @Transactional
@@ -434,8 +425,6 @@ public class GameService {
                     telegramNotificationService.sendGameCancelledPersonalNotification(gameDto, participant);
                     
                     // Не сохраняем GameNotification для отмененных игр, так как игра будет удалена
-                    // GameNotification notification = new GameNotification(game, "GAME_CANCELLED", participant);
-                    // gameNotificationRepository.save(notification);
                 }
             }
         }

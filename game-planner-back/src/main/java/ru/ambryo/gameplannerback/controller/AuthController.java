@@ -3,12 +3,11 @@ package ru.ambryo.gameplannerback.controller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import ru.ambryo.gameplannerback.dto.AuthResponse;
-import ru.ambryo.gameplannerback.dto.LoginRequest;
-import ru.ambryo.gameplannerback.dto.PasswordResetConfirmDto;
-import ru.ambryo.gameplannerback.dto.PasswordResetRequestDto;
-import ru.ambryo.gameplannerback.dto.RegisterRequest;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import ru.ambryo.gameplannerback.dto.*;
 import ru.ambryo.gameplannerback.service.AuthService;
 import ru.ambryo.gameplannerback.service.PasswordResetService;
 

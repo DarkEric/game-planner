@@ -74,14 +74,12 @@ public class TimezoneSelectorKeyboardBuilder {
             String label1 = OTHER_TIMEZONES[i][1];
             String display1 = timezone1.equals(currentTimezone) ? "✓ " + label1 : label1;
             row.add(createButton(display1, "timezone_select_" + timezone1));
-            
-            if (i + 1 < OTHER_TIMEZONES.length) {
-                String timezone2 = OTHER_TIMEZONES[i + 1][0];
-                String label2 = OTHER_TIMEZONES[i + 1][1];
-                String display2 = timezone2.equals(currentTimezone) ? "✓ " + label2 : label2;
-                row.add(createButton(display2, "timezone_select_" + timezone2));
-            }
-            
+
+            String timezone2 = OTHER_TIMEZONES[i + 1][0];
+            String label2 = OTHER_TIMEZONES[i + 1][1];
+            String display2 = timezone2.equals(currentTimezone) ? "✓ " + label2 : label2;
+            row.add(createButton(display2, "timezone_select_" + timezone2));
+
             rows.add(row);
         }
         

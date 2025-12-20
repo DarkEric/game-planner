@@ -1,6 +1,7 @@
 package ru.ambryo.gameplannerback.entity;
 
 import jakarta.persistence.*;
+
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,7 +20,7 @@ public class Game {
     @Column(nullable = false)
     private Instant endTime; // Время окончания игры в UTC
     
-    @Column(length = 255)
+    @Column
     private String title; // Название игры
     
     @Column(length = 1000)

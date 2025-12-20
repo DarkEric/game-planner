@@ -4,11 +4,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ambryo.gameplannerback.dto.*;
 import ru.ambryo.gameplannerback.entity.*;
-import ru.ambryo.gameplannerback.repository.CampaignInviteRepository;
-import ru.ambryo.gameplannerback.repository.CampaignPlayerRepository;
-import ru.ambryo.gameplannerback.repository.CampaignRepository;
-import ru.ambryo.gameplannerback.repository.GameRepository;
-import ru.ambryo.gameplannerback.repository.UserRepository;
+import ru.ambryo.gameplannerback.repository.*;
 
 import java.time.Instant;
 import java.util.Comparator;
@@ -446,7 +442,7 @@ public class CampaignService {
         if (cp.getJoinedInGame() != null) {
             List<Game> sortedGames = campaign.getGames().stream()
                     .sorted(Comparator.comparing(Game::getStartTime))
-                    .collect(Collectors.toList());
+                    .toList();
             
             for (int i = 0; i < sortedGames.size(); i++) {
                 if (sortedGames.get(i).getId().equals(cp.getJoinedInGame().getId())) {

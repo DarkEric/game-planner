@@ -33,15 +33,8 @@ public class NotificationSettingsService {
     
     // In-memory storage for link tokens: token -> userId, expires at
     private final Map<String, TokenInfo> linkTokens = new ConcurrentHashMap<>();
-    
-    private static class TokenInfo {
-        final Long userId;
-        final Instant expiresAt;
-        
-        TokenInfo(Long userId, Instant expiresAt) {
-            this.userId = userId;
-            this.expiresAt = expiresAt;
-        }
+
+    private record TokenInfo(Long userId, Instant expiresAt) {
     }
     
     @Transactional
@@ -202,7 +195,8 @@ public class NotificationSettingsService {
             if (settings.getUpcomingGameReminders() != null && !settings.getUpcomingGameReminders().isEmpty()) {
                 List<UpcomingGameReminderDto> reminders = objectMapper.readValue(
                         settings.getUpcomingGameReminders(),
-                        new TypeReference<List<UpcomingGameReminderDto>>() {}
+                    new TypeReference<>() {
+                    }
                 );
                 dto.setUpcomingGameReminders(reminders);
             } else {

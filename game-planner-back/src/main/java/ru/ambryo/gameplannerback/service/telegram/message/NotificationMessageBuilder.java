@@ -4,7 +4,6 @@ import org.springframework.stereotype.Component;
 import ru.ambryo.gameplannerback.dto.UpcomingGameReminderDto;
 import ru.ambryo.gameplannerback.dto.UserNotificationSettingsDto;
 import ru.ambryo.gameplannerback.service.telegram.util.CronExpressionBuilder;
-import ru.ambryo.gameplannerback.service.telegram.util.TelegramHtmlFormatter;
 
 import java.util.List;
 
@@ -58,7 +57,7 @@ public class NotificationMessageBuilder {
         if (settings.getTimeSlotReminderEnabled() != null && settings.getTimeSlotReminderEnabled()) {
             String cronText = CronExpressionBuilder.formatCronToReadable(settings.getTimeSlotReminderCron());
             message.append("• Напоминание разметить время: Включено");
-            if (cronText != null && !cronText.isEmpty()) {
+            if (!cronText.isEmpty()) {
                 message.append(" (").append(cronText).append(")");
             }
             message.append("\n");

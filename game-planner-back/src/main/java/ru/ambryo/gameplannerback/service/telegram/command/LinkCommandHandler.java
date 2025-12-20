@@ -41,12 +41,15 @@ public class LinkCommandHandler implements CommandHandler {
         
         try {
             notificationSettingsService.linkTelegramAccount(token, telegramUserId, chatId);
-            messageSender.sendPersonalMessage(chatId, "✅ Аккаунт успешно связан!\n\n" +
-                    "Теперь вы будете получать персональные уведомления.\n\n" +
-                    "Доступные команды:\n" +
-                    "/games - Список предстоящих игр\n" +
-                    "/help - Справка по командам\n" +
-                    "/stop - Отписаться от уведомлений");
+            messageSender.sendPersonalMessage(chatId, """
+                ✅ Аккаунт успешно связан!
+                
+                Теперь вы будете получать персональные уведомления.
+                
+                Доступные команды:
+                /games - Список предстоящих игр
+                /help - Справка по командам
+                /stop - Отписаться от уведомлений""");
         } catch (Exception e) {
             messageSender.sendPersonalMessage(chatId, "❌ Ошибка: " + e.getMessage() + "\n\nПроверьте правильность токена и попробуйте снова.");
         }

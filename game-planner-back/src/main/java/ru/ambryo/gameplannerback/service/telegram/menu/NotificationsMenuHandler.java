@@ -178,22 +178,28 @@ public class NotificationsMenuHandler implements MenuHandler {
     }
     
     private void showGameCreatedMenu(String chatId, Integer messageId, UserNotificationSettingsDto settings) {
-        String message = "🎮 <b>Игра создана</b>\n\n" +
-                "Выберите, когда получать уведомления:";
+        String message = """
+            🎮 <b>Игра создана</b>
+            
+            Выберите, когда получать уведомления:""";
         var keyboard = keyboardBuilder.buildGameSettingMenu("notification_set_gameCreated", settings.getGameCreated());
         messageUpdater.updateMessage(chatId, messageId, message, keyboard);
     }
     
     private void showGameCancelledMenu(String chatId, Integer messageId, UserNotificationSettingsDto settings) {
-        String message = "❌ <b>Игра отменена</b>\n\n" +
-                "Выберите, когда получать уведомления:";
+        String message = """
+            ❌ <b>Игра отменена</b>
+            
+            Выберите, когда получать уведомления:""";
         var keyboard = keyboardBuilder.buildGameSettingMenu("notification_set_gameCancelled", settings.getGameCancelled());
         messageUpdater.updateMessage(chatId, messageId, message, keyboard);
     }
     
     private void showGameHeldMenu(String chatId, Integer messageId, UserNotificationSettingsDto settings) {
-        String message = "✅ <b>Игра проведена</b>\n\n" +
-                "Выберите, когда получать уведомления:";
+        String message = """
+            ✅ <b>Игра проведена</b>
+            
+            Выберите, когда получать уведомления:""";
         var keyboard = keyboardBuilder.buildGameSettingMenu("notification_set_gameHeld", settings.getGameHeld());
         messageUpdater.updateMessage(chatId, messageId, message, keyboard);
     }
@@ -233,9 +239,12 @@ public class NotificationsMenuHandler implements MenuHandler {
             data.reminderIndex = -1;
             notificationStateManager.setData(chatId, data);
             
-            String message = "⏰ <b>Добавление напоминания</b>\n\n" +
-                    "Введите значение (например: 60 для 60 минут, 2 для 2 часов, 1 для 1 дня):\n\n" +
-                    "💡 Используйте /cancel для отмены.";
+            String message = """
+                ⏰ <b>Добавление напоминания</b>
+                
+                Введите значение (например: 60 для 60 минут, 2 для 2 часов, 1 для 1 дня):
+                
+                💡 Используйте /cancel для отмены.""";
             
             sendPersonalMessage(chatId, message);
             
@@ -337,27 +346,32 @@ public class NotificationsMenuHandler implements MenuHandler {
             data.reminderUnit = unit;
             notificationStateManager.setData(chatId, data);
             notificationStateManager.setState(chatId, NotificationStateManager.NotificationState.WAITING_REMINDER_UNIT);
-            
-            String valueText = data.reminderValue != null ? String.valueOf(data.reminderValue) : "0";
-            String unitText = switch (unit) {
-                case "minutes" -> "минут";
-                case "hours" -> "часов";
-                case "days" -> "дней";
-                default -> unit;
-            };
-            
-            String message = "✅ Значение принято!\n\n" +
-                    "Напоминание: <b>" + valueText + " " + unitText + "</b>\n\n" +
-                    "Включить это напоминание? (да/нет):\n\n" +
-                    "💡 Используйте /cancel для отмены.";
-            
+
+            String message = getMessage(unit, data);
+
             sendPersonalMessage(chatId, message);
         } catch (Exception e) {
             logger.error("Error handling reminder unit select", e);
             messageUpdater.answerCallback(callbackQueryId, "❌ Ошибка при выборе единицы");
         }
     }
-    
+
+    private static String getMessage(String unit, NotificationStateManager.NotificationData data) {
+        String valueText = data.reminderValue != null ? String.valueOf(data.reminderValue) : "0";
+        String unitText = switch (unit) {
+            case "minutes" -> "минут";
+            case "hours" -> "часов";
+            case "days" -> "дней";
+            default -> unit;
+        };
+
+        String message = "✅ Значение принято!\n\n" +
+                "Напоминание: <b>" + valueText + " " + unitText + "</b>\n\n" +
+                "Включить это напоминание? (да/нет):\n\n" +
+                "💡 Используйте /cancel для отмены.";
+        return message;
+    }
+
     private void handleMenuTimeSlotReminder(User user, String chatId, Integer messageId) {
         try {
             UserNotificationSettingsDto settings = notificationSettingsService.getSettings(user.getId());
@@ -367,7 +381,7 @@ public class NotificationsMenuHandler implements MenuHandler {
             if (settings.getTimeSlotReminderEnabled() != null && settings.getTimeSlotReminderEnabled()) {
                 String cronText = CronExpressionBuilder.formatCronToReadable(settings.getTimeSlotReminderCron());
                 message += "Статус: <b>Включено</b>\n";
-                if (cronText != null && !cronText.isEmpty()) {
+                if (!cronText.isEmpty()) {
                     message += "Расписание: <b>" + TelegramHtmlFormatter.escapeHtml(cronText) + "</b>\n";
                 }
             } else {
@@ -420,8 +434,10 @@ public class NotificationsMenuHandler implements MenuHandler {
             }
             notificationStateManager.setData(chatId, data);
             
-            String message = "⚙️ <b>Настройка расписания</b>\n\n" +
-                    "Выберите частоту напоминания:";
+            String message = """
+                ⚙️ <b>Настройка расписания</b>
+                
+                Выберите частоту напоминания:""";
             
             var keyboard = keyboardBuilder.buildCronFrequencyMenu();
             messageUpdater.updateMessage(chatId, messageId, message, keyboard);
@@ -445,21 +461,29 @@ public class NotificationsMenuHandler implements MenuHandler {
             
             if ("daily".equals(frequency)) {
                 notificationStateManager.setState(chatId, NotificationStateManager.NotificationState.WAITING_CRON_TIME);
-                String message = "✅ Частота выбрана: <b>Ежедневно</b>\n\n" +
-                        "Введите время в формате ЧЧ:ММ (например: 09:00):\n\n" +
-                        "💡 Используйте /cancel для отмены.";
+                String message = """
+                    ✅ Частота выбрана: <b>Ежедневно</b>
+                    
+                    Введите время в формате ЧЧ:ММ (например: 09:00):
+                    
+                    💡 Используйте /cancel для отмены.""";
                 sendPersonalMessage(chatId, message);
             } else if ("weekly".equals(frequency)) {
                 notificationStateManager.setState(chatId, NotificationStateManager.NotificationState.WAITING_CRON_DAY);
-                String message = "✅ Частота выбрана: <b>Еженедельно</b>\n\n" +
-                        "Выберите день недели:";
+                String message = """
+                    ✅ Частота выбрана: <b>Еженедельно</b>
+                    
+                    Выберите день недели:""";
                 var keyboard = keyboardBuilder.buildDayOfWeekKeyboard();
                 messageUpdater.updateMessage(chatId, messageId, message, keyboard);
             } else if ("monthly".equals(frequency)) {
                 notificationStateManager.setState(chatId, NotificationStateManager.NotificationState.WAITING_CRON_DAY);
-                String message = "✅ Частота выбрана: <b>Ежемесячно</b>\n\n" +
-                        "Введите день месяца (1-31):\n\n" +
-                        "💡 Используйте /cancel для отмены.";
+                String message = """
+                    ✅ Частота выбрана: <b>Ежемесячно</b>
+                    
+                    Введите день месяца (1-31):
+                    
+                    💡 Используйте /cancel для отмены.""";
                 sendPersonalMessage(chatId, message);
             }
         } catch (Exception e) {

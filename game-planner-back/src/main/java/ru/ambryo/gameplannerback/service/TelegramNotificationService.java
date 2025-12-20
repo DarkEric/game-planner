@@ -1,5 +1,6 @@
 package ru.ambryo.gameplannerback.service;
 
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,7 +14,6 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import jakarta.annotation.PostConstruct;
 import ru.ambryo.gameplannerback.dto.GameDto;
 import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.repository.UserRepository;
@@ -23,6 +23,7 @@ import java.time.ZoneId;
 import java.util.List;
 
 @Service
+@SuppressWarnings("deprecation") // Используется execute() из AbsSender, который помечен как deprecated, но функционально корректен
 public class TelegramNotificationService extends TelegramLongPollingBot {
     
     private static final Logger logger = LoggerFactory.getLogger(TelegramNotificationService.class);

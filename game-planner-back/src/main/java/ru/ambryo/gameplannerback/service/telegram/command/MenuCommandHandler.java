@@ -46,7 +46,7 @@ public class MenuCommandHandler implements CommandHandler {
             boolean isLinked = user != null;
             
             String menuMessage = "📱 <b>Главное меню</b>\n\n";
-            if (isLinked && user != null) {
+            if (isLinked) {
                 menuMessage += "✅ Аккаунт связан\n";
                 menuMessage += "👤 Пользователь: " + TelegramHtmlFormatter.escapeHtml(user.getUsername()) + "\n\n";
                 menuMessage += "Выберите раздел:";

@@ -40,19 +40,25 @@ public class MarkCommandHandler implements CommandHandler {
             User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
             
             if (user == null) {
-                messageSender.sendPersonalMessage(chatId, "❌ Ваш аккаунт не связан с веб-сайтом.\n\n" +
-                        "Используйте /register для регистрации или /auth для привязки существующего аккаунта.");
+                messageSender.sendPersonalMessage(chatId, """
+                    ❌ Ваш аккаунт не связан с веб-сайтом.
+                    
+                    Используйте /register для регистрации или /auth для привязки существующего аккаунта.""");
                 return;
             }
             
             // Проверяем наличие часового пояса
             if (user.getTimezone() == null || user.getTimezone().trim().isEmpty()) {
-                messageSender.sendPersonalMessage(chatId, "❌ <b>Часовой пояс не установлен</b>\n\n" +
-                        "Для разметки времени необходимо установить часовой пояс.\n\n" +
-                        "Вы можете установить часовой пояс:\n" +
-                        "• Через меню: /menu → Настройки → Часовой пояс\n" +
-                        "• В настройках профиля на веб-сайте\n\n" +
-                        "После установки часового пояса вы сможете использовать команду /mark для разметки времени.");
+                messageSender.sendPersonalMessage(chatId, """
+                    ❌ <b>Часовой пояс не установлен</b>
+                    
+                    Для разметки времени необходимо установить часовой пояс.
+                    
+                    Вы можете установить часовой пояс:
+                    • Через меню: /menu → Настройки → Часовой пояс
+                    • В настройках профиля на веб-сайте
+                    
+                    После установки часового пояса вы сможете использовать команду /mark для разметки времени.""");
                 return;
             }
             
@@ -60,10 +66,13 @@ public class MarkCommandHandler implements CommandHandler {
             stateManager.setState(chatId, TimeSlotMarkingStateManager.TimeSlotMarkingState.WAITING_DATE);
             stateManager.setData(chatId, new TimeSlotMarkingStateManager.TimeSlotMarkingData());
             
-            messageSender.sendPersonalMessage(chatId, "📅 <b>Разметка свободного времени</b>\n\n" +
-                    "Введите дату в формате ДД.ММ.ГГГГ (например: 15.01.2025)\n" +
-                    "Или используйте: сегодня, завтра, послезавтра\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                📅 <b>Разметка свободного времени</b>
+                
+                Введите дату в формате ДД.ММ.ГГГГ (например: 15.01.2025)
+                Или используйте: сегодня, завтра, послезавтра
+                
+                💡 Используйте /cancel для отмены.""");
         } catch (Exception e) {
             stateManager.clearState(chatId);
             messageSender.sendPersonalMessage(chatId, "❌ Произошла ошибка при инициализации разметки времени. Попробуйте позже.");

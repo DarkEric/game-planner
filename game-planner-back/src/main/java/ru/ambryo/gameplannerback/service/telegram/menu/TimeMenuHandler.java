@@ -61,29 +61,31 @@ public class TimeMenuHandler implements MenuHandler {
             messageUpdater.answerCallback(callbackQuery.getId(), "❌ Аккаунт не связан. Используйте /link для связывания.");
             return;
         }
-        
-        if (data.equals("menu_time")) {
-            String message = "📅 <b>Разметка времени</b>\n\nВыберите действие:";
-            var keyboard = keyboardBuilder.build();
-            messageUpdater.updateMessage(chatId, messageId, message, keyboard);
-            
-        } else if (data.equals("menu_time_mark")) {
-            handleTimeMark(user, chatId, messageId);
-            
-        } else if (data.equals("menu_time_slots")) {
-            handleTimeSlots(user, chatId, messageId);
+
+        switch (data) {
+            case "menu_time" -> {
+                String message = "📅 <b>Разметка времени</b>\n\nВыберите действие:";
+                var keyboard = keyboardBuilder.build();
+                messageUpdater.updateMessage(chatId, messageId, message, keyboard);
+            }
+            case "menu_time_mark" -> handleTimeMark(user, chatId, messageId);
+            case "menu_time_slots" -> handleTimeSlots(user, chatId, messageId);
         }
     }
     
     private void handleTimeMark(User user, String chatId, Integer messageId) {
         // Проверяем наличие часового пояса
         if (user.getTimezone() == null || user.getTimezone().trim().isEmpty()) {
-            String errorMessage = "❌ <b>Часовой пояс не установлен</b>\n\n" +
-                    "Для разметки времени необходимо установить часовой пояс.\n\n" +
-                    "Вы можете установить часовой пояс:\n" +
-                    "• Через меню: Настройки → Часовой пояс\n" +
-                    "• В настройках профиля на веб-сайте\n\n" +
-                    "После установки часового пояса вы сможете использовать разметку времени.";
+            String errorMessage = """
+                ❌ <b>Часовой пояс не установлен</b>
+                
+                Для разметки времени необходимо установить часовой пояс.
+                
+                Вы можете установить часовой пояс:
+                • Через меню: Настройки → Часовой пояс
+                • В настройках профиля на веб-сайте
+                
+                После установки часового пояса вы сможете использовать разметку времени.""";
             var keyboard = keyboardBuilder.build();
             messageUpdater.updateMessage(chatId, messageId, errorMessage, keyboard);
             return;
@@ -93,10 +95,13 @@ public class TimeMenuHandler implements MenuHandler {
         stateManager.setState(chatId, TimeSlotMarkingStateManager.TimeSlotMarkingState.WAITING_DATE);
         stateManager.setData(chatId, new TimeSlotMarkingStateManager.TimeSlotMarkingData());
         
-        String message = "📅 <b>Разметка свободного времени</b>\n\n" +
-                "Введите дату в формате ДД.ММ.ГГГГ (например: 15.01.2025)\n" +
-                "Или используйте: сегодня, завтра, послезавтра\n\n" +
-                "💡 Используйте /cancel для отмены.";
+        String message = """
+            📅 <b>Разметка свободного времени</b>
+            
+            Введите дату в формате ДД.ММ.ГГГГ (например: 15.01.2025)
+            Или используйте: сегодня, завтра, послезавтра
+            
+            💡 Используйте /cancel для отмены.""";
         
         // Отправляем новое сообщение для диалога разметки
         messageSender.sendPersonalMessage(chatId, message);

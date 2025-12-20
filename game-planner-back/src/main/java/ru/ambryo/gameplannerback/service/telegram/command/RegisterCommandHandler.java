@@ -40,8 +40,10 @@ public class RegisterCommandHandler implements CommandHandler {
             // Проверяем, не зарегистрирован ли уже пользователь
             User existingUser = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
             if (existingUser != null) {
-                messageSender.sendPersonalMessage(chatId, "✅ Вы уже зарегистрированы!\n\n" +
-                        "Используйте /games для получения списка предстоящих игр.");
+                messageSender.sendPersonalMessage(chatId, """
+                    ✅ Вы уже зарегистрированы!
+                    
+                    Используйте /games для получения списка предстоящих игр.""");
                 return;
             }
             
@@ -58,9 +60,12 @@ public class RegisterCommandHandler implements CommandHandler {
             stateManager.setState(chatId, RegistrationStateManager.RegistrationState.WAITING_INVITE);
             stateManager.setData(chatId, new RegistrationStateManager.RegistrationData());
             
-            messageSender.sendPersonalMessage(chatId, "📝 <b>Регистрация нового аккаунта</b>\n\n" +
-                    "Введите инвайт-код для регистрации:\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                📝 <b>Регистрация нового аккаунта</b>
+                
+                Введите инвайт-код для регистрации:
+                
+                💡 Используйте /cancel для отмены.""");
         } catch (Exception e) {
             stateManager.clearState(chatId);
             messageSender.sendPersonalMessage(chatId, "❌ Произошла ошибка при инициализации регистрации. Попробуйте позже.");

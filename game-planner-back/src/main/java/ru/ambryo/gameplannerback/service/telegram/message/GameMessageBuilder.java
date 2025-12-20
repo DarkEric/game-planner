@@ -7,7 +7,6 @@ import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.service.telegram.util.TelegramHtmlFormatter;
 import ru.ambryo.gameplannerback.service.telegram.util.TelegramTimeFormatter;
 
-import java.time.Instant;
 import java.time.ZoneId;
 
 /**

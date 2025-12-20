@@ -101,19 +101,28 @@ public class RegistrationStateHandler implements StateHandler<RegistrationStateM
             data.inviteCode = inviteCode;
             registrationStateManager.setState(chatId, RegistrationStateManager.RegistrationState.WAITING_USERNAME);
             
-            messageSender.sendPersonalMessage(chatId, "✅ Инвайт-код принят!\n\n" +
-                    "Введите логин (имя пользователя):\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                ✅ Инвайт-код принят!
+                
+                Введите логин (имя пользователя):
+                
+                💡 Используйте /cancel для отмены.""");
         } catch (RuntimeException e) {
             String errorMsg = e.getMessage();
             if (errorMsg != null && (errorMsg.contains("not found") || errorMsg.contains("Invalid"))) {
-                messageSender.sendPersonalMessage(chatId, "❌ <b>Неверный инвайт-код</b>\n\n" +
-                        "Проверьте правильность кода и попробуйте снова.\n\n" +
-                        "💡 Используйте /cancel для отмены.");
+                messageSender.sendPersonalMessage(chatId, """
+                    ❌ <b>Неверный инвайт-код</b>
+                    
+                    Проверьте правильность кода и попробуйте снова.
+                    
+                    💡 Используйте /cancel для отмены.""");
             } else if (errorMsg != null && (errorMsg.contains("expired") || errorMsg.contains("used"))) {
-                messageSender.sendPersonalMessage(chatId, "❌ <b>Инвайт-код недействителен</b>\n\n" +
-                        "Код истек или уже использован.\n\n" +
-                        "💡 Используйте /cancel для отмены.");
+                messageSender.sendPersonalMessage(chatId, """
+                    ❌ <b>Инвайт-код недействителен</b>
+                    
+                    Код истек или уже использован.
+                    
+                    💡 Используйте /cancel для отмены.""");
             } else {
                 messageSender.sendPersonalMessage(chatId, "❌ Ошибка: " + (errorMsg != null ? errorMsg : "Неизвестная ошибка") + "\n\n" +
                         "Попробуйте снова или используйте /cancel для отмены.");
@@ -130,18 +139,24 @@ public class RegistrationStateHandler implements StateHandler<RegistrationStateM
         
         // Проверяем уникальность логина
         if (userRepository.existsByUsername(username)) {
-            messageSender.sendPersonalMessage(chatId, "❌ <b>Логин уже занят</b>\n\n" +
-                    "Выберите другой логин:\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                ❌ <b>Логин уже занят</b>
+                
+                Выберите другой логин:
+                
+                💡 Используйте /cancel для отмены.""");
             return;
         }
         
         data.username = username;
         registrationStateManager.setState(chatId, RegistrationStateManager.RegistrationState.WAITING_NAME);
         
-        messageSender.sendPersonalMessage(chatId, "✅ Логин принят!\n\n" +
-                "Введите ваше имя (или нажмите Enter, чтобы использовать логин):\n\n" +
-                "💡 Используйте /cancel для отмены.");
+        messageSender.sendPersonalMessage(chatId, """
+            ✅ Логин принят!
+            
+            Введите ваше имя (или нажмите Enter, чтобы использовать логин):
+            
+            💡 Используйте /cancel для отмены.""");
     }
     
     private void handleNameInput(String chatId, String name, RegistrationStateManager.RegistrationData data) {
@@ -154,9 +169,12 @@ public class RegistrationStateHandler implements StateHandler<RegistrationStateM
         
         registrationStateManager.setState(chatId, RegistrationStateManager.RegistrationState.WAITING_EMAIL);
         
-        messageSender.sendPersonalMessage(chatId, "✅ Имя принято!\n\n" +
-                "Введите ваш email:\n\n" +
-                "💡 Используйте /cancel для отмены.");
+        messageSender.sendPersonalMessage(chatId, """
+            ✅ Имя принято!
+            
+            Введите ваш email:
+            
+            💡 Используйте /cancel для отмены.""");
     }
     
     private void handleEmailInput(String chatId, String email, RegistrationStateManager.RegistrationData data) {
@@ -167,17 +185,23 @@ public class RegistrationStateHandler implements StateHandler<RegistrationStateM
         
         // Проверяем формат email
         if (!TelegramValidationUtils.isValidEmail(email)) {
-            messageSender.sendPersonalMessage(chatId, "❌ <b>Неверный формат email</b>\n\n" +
-                    "Введите корректный email адрес:\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                ❌ <b>Неверный формат email</b>
+                
+                Введите корректный email адрес:
+                
+                💡 Используйте /cancel для отмены.""");
             return;
         }
         
         // Проверяем уникальность email
         if (userRepository.existsByEmail(email)) {
-            messageSender.sendPersonalMessage(chatId, "❌ <b>Email уже используется</b>\n\n" +
-                    "Используйте другой email:\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                ❌ <b>Email уже используется</b>
+                
+                Используйте другой email:
+                
+                💡 Используйте /cancel для отмены.""");
             return;
         }
         
@@ -207,9 +231,12 @@ public class RegistrationStateHandler implements StateHandler<RegistrationStateM
         data.password = password;
         registrationStateManager.setState(chatId, RegistrationStateManager.RegistrationState.WAITING_PASSWORD_CONFIRM);
         
-        messageSender.sendPersonalMessage(chatId, "✅ Пароль принят!\n\n" +
-                "Подтвердите пароль (введите его еще раз):\n\n" +
-                "💡 Используйте /cancel для отмены.");
+        messageSender.sendPersonalMessage(chatId, """
+            ✅ Пароль принят!
+            
+            Подтвердите пароль (введите его еще раз):
+            
+            💡 Используйте /cancel для отмены.""");
     }
     
     private void handlePasswordConfirmInput(Long telegramUserId, String chatId, String passwordConfirm, RegistrationStateManager.RegistrationData data) {
@@ -219,9 +246,12 @@ public class RegistrationStateHandler implements StateHandler<RegistrationStateM
         }
         
         if (!passwordConfirm.equals(data.password)) {
-            messageSender.sendPersonalMessage(chatId, "❌ <b>Пароли не совпадают</b>\n\n" +
-                    "Введите пароль еще раз:\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                ❌ <b>Пароли не совпадают</b>
+                
+                Введите пароль еще раз:
+                
+                💡 Используйте /cancel для отмены.""");
             // Возвращаемся к вводу пароля
             registrationStateManager.setState(chatId, RegistrationStateManager.RegistrationState.WAITING_PASSWORD);
             return;
@@ -261,13 +291,17 @@ public class RegistrationStateHandler implements StateHandler<RegistrationStateM
             registrationStateManager.recordAttempt(chatId, true);
             registrationStateManager.clearState(chatId);
             
-            messageSender.sendPersonalMessage(chatId, "🎉 <b>Регистрация успешна!</b>\n\n" +
-                    "Ваш аккаунт создан и автоматически привязан к Telegram.\n\n" +
-                    "Теперь вы будете получать персональные уведомления.\n\n" +
-                    "Доступные команды:\n" +
-                    "/games - Список предстоящих игр\n" +
-                    "/help - Справка по командам\n" +
-                    "/stop - Отписаться от уведомлений");
+            messageSender.sendPersonalMessage(chatId, """
+                🎉 <b>Регистрация успешна!</b>
+                
+                Ваш аккаунт создан и автоматически привязан к Telegram.
+                
+                Теперь вы будете получать персональные уведомления.
+                
+                Доступные команды:
+                /games - Список предстоящих игр
+                /help - Справка по командам
+                /stop - Отписаться от уведомлений""");
             
             logger.info("Telegram registration successful for chatId: {}, username: {}", chatId, data.username);
             
@@ -318,4 +352,5 @@ public class RegistrationStateHandler implements StateHandler<RegistrationStateM
         }
     }
 }
+
 

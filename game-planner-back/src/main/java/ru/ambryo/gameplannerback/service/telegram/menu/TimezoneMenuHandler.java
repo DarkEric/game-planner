@@ -23,7 +23,6 @@ public class TimezoneMenuHandler implements MenuHandler {
     private final UserRepository userRepository;
     private final UserService userService;
     private final TimezoneChangeStateManager stateManager;
-    private final TimezoneSelectorKeyboardBuilder keyboardBuilder;
     private final SettingsMenuKeyboardBuilder settingsKeyboardBuilder;
     private final TelegramMessageSender messageSender;
     private final MenuMessageUpdater messageUpdater;
@@ -40,7 +39,6 @@ public class TimezoneMenuHandler implements MenuHandler {
         this.userRepository = userRepository;
         this.userService = userService;
         this.stateManager = stateManager;
-        this.keyboardBuilder = keyboardBuilder;
         this.settingsKeyboardBuilder = settingsKeyboardBuilder;
         this.messageSender = new TelegramMessageSender(bot);
         this.messageUpdater = messageUpdater;

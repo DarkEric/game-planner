@@ -1,6 +1,7 @@
 package ru.ambryo.gameplannerback.entity;
 
 import jakarta.persistence.*;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -65,11 +66,7 @@ public class Invite {
         }
         
         // Проверяем, не превышено ли количество использований
-        if (maxUses != null && usesCount >= maxUses) {
-            return false;
-        }
-        
-        return true;
+        return maxUses == null || usesCount < maxUses;
     }
     
     public void markAsUsed(User user) {

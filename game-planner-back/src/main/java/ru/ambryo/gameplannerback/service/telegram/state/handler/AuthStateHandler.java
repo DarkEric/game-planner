@@ -63,8 +63,10 @@ public class AuthStateHandler implements StateHandler<AuthStateManager.AuthState
         authStateManager.setUsername(chatId, username);
         authStateManager.setState(chatId, AuthStateManager.AuthState.WAITING_PASSWORD);
         
-        messageSender.sendPersonalMessage(chatId, "🔑 Теперь введите ваш пароль:\n\n" +
-                "💡 Используйте /cancel для отмены.");
+        messageSender.sendPersonalMessage(chatId, """
+            🔑 Теперь введите ваш пароль:
+            
+            💡 Используйте /cancel для отмены.""");
     }
     
     private void handlePasswordInput(Long telegramUserId, String chatId, String text) {
@@ -101,12 +103,15 @@ public class AuthStateHandler implements StateHandler<AuthStateManager.AuthState
             authStateManager.recordAttempt(chatId, true);
             authStateManager.clearState(chatId);
             
-            messageSender.sendPersonalMessage(chatId, "✅ <b>Аккаунт успешно связан!</b>\n\n" +
-                    "Теперь вы будете получать персональные уведомления.\n\n" +
-                    "Доступные команды:\n" +
-                    "/games - Список предстоящих игр\n" +
-                    "/help - Справка по командам\n" +
-                    "/stop - Отписаться от уведомлений");
+            messageSender.sendPersonalMessage(chatId, """
+                ✅ <b>Аккаунт успешно связан!</b>
+                
+                Теперь вы будете получать персональные уведомления.
+                
+                Доступные команды:
+                /games - Список предстоящих игр
+                /help - Справка по командам
+                /stop - Отписаться от уведомлений""");
             
             logger.info("Telegram account linked via auth for chatId: {}", chatId);
             
@@ -145,4 +150,5 @@ public class AuthStateHandler implements StateHandler<AuthStateManager.AuthState
         }
     }
 }
+
 

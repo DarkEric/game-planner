@@ -35,8 +35,7 @@ public class TelegramExceptionHandler {
         String userMessage = defaultMessage;
         
         // Специфичная обработка для разных типов ошибок
-        if (exception instanceof TelegramApiException) {
-            TelegramApiException telegramException = (TelegramApiException) exception;
+        if (exception instanceof TelegramApiException telegramException) {
             String errorMessage = telegramException.getMessage();
             if (errorMessage != null) {
                 if (errorMessage.contains("400") || errorMessage.contains("Bad Request")) {

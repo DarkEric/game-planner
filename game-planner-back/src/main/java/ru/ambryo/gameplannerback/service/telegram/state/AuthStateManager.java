@@ -1,6 +1,7 @@
 package ru.ambryo.gameplannerback.service.telegram.state;
 
 import org.springframework.stereotype.Component;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -16,7 +17,7 @@ public class AuthStateManager extends AbstractStateManager<AuthStateManager.Auth
     // Защита от брутфорса: chatId -> AttemptInfo
     private static class AttemptInfo {
         int attempts;
-        java.time.Instant firstAttempt;
+        final java.time.Instant firstAttempt;
         java.time.Instant blockedUntil;
         
         AttemptInfo() {

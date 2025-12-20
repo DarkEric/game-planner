@@ -29,10 +29,7 @@ public class GamesMenuHandler implements MenuHandler {
     private final GamesMenuKeyboardBuilder keyboardBuilder;
     private final MenuMessageUpdater messageUpdater;
     private final int gamesPerPage;
-    
-    // Хранение текущей страницы для каждого чата
-    private final Map<String, Integer> gamesListPage = new ConcurrentHashMap<>();
-    
+
     @Autowired
     public GamesMenuHandler(
             UserRepository userRepository,
@@ -98,7 +95,6 @@ public class GamesMenuHandler implements MenuHandler {
             }
             
             List<GameDto> upcomingGames = gameService.getUpcomingGamesForUser(user.getId());
-            gamesListPage.put(chatId, page);
             
             String message;
             var keyboard = keyboardBuilder.buildGamesMenu();

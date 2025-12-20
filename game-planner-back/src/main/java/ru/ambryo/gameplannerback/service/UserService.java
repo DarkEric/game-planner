@@ -5,12 +5,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ambryo.gameplannerback.dto.PlayerDto;
 import ru.ambryo.gameplannerback.dto.TimeSlotDto;
-import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.entity.TimeSlot;
-import ru.ambryo.gameplannerback.repository.UserRepository;
+import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.repository.TimeSlotRepository;
+import ru.ambryo.gameplannerback.repository.UserRepository;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -119,7 +120,7 @@ public class UserService {
         
         // Сортируем и объединяем последовательные слоты
         List<TimeSlot> sortedSlots = user.getAvailableTimes().stream()
-                .sorted((a, b) -> a.getStart().compareTo(b.getStart()))
+                .sorted(Comparator.comparing(TimeSlot::getStart))
                 .collect(Collectors.toList());
         
         List<TimeSlotDto> mergedSlots = mergeConsecutiveSlots(sortedSlots);
@@ -145,13 +146,9 @@ public class UserService {
                     if (startDate != null && slotStart.isBefore(startDate)) {
                         return false;
                     }
-                    if (endDate != null && slotStart.isAfter(endDate)) {
-                        return false;
-                    }
-                    
-                    return true;
+                    return endDate == null || !slotStart.isAfter(endDate);
                 })
-                .sorted((a, b) -> a.getStart().compareTo(b.getStart()))
+                .sorted(Comparator.comparing(TimeSlot::getStart))
                 .collect(Collectors.toList());
         
         // Объединяем последовательные слоты
@@ -170,7 +167,7 @@ public class UserService {
         }
         
         List<TimeSlotDto> merged = new java.util.ArrayList<>();
-        TimeSlot current = slots.get(0);
+        TimeSlot current = slots.getFirst();
         Instant currentEnd = current.getStart().plusSeconds(current.getDuration() * 3600L);
         int totalDuration = current.getDuration();
         

@@ -63,7 +63,7 @@ public class PersonalNotificationScheduler {
     private boolean groupTimeSlotReminderEnabled;
     
     @Scheduled(fixedRateString = "${telegram.notifications.check-interval:60000}")
-    @Transactional(readOnly = false)
+    @Transactional()
     public void checkAndSendUpcomingGameReminders() {
         if (!scheduledEnabled) {
             return;
@@ -85,7 +85,8 @@ public class PersonalNotificationScheduler {
                         if (settings.getUpcomingGameReminders() != null && !settings.getUpcomingGameReminders().isEmpty()) {
                             reminders = objectMapper.readValue(
                                     settings.getUpcomingGameReminders(),
-                                    new TypeReference<List<UpcomingGameReminderDto>>() {}
+                                new TypeReference<>() {
+                                }
                             );
                         } else {
                             reminders = List.of();
@@ -142,7 +143,7 @@ public class PersonalNotificationScheduler {
     }
     
     @Scheduled(fixedRateString = "${telegram.notifications.check-interval:60000}")
-    @Transactional(readOnly = false)
+    @Transactional()
     public void checkAndSendTimeSlotReminders() {
         if (!scheduledEnabled) {
             return;
@@ -243,11 +244,7 @@ public class PersonalNotificationScheduler {
                         
                         // Обновляем время последнего выполнения на время выполнения cron (а не текущее время)
                         // Это важно для правильного определения следующего выполнения
-                        if (executionTimeToSave != null) {
-                            updateTimeSlotReminderDateTime(settings.getId(), executionTimeToSave);
-                        } else {
-                            updateTimeSlotReminderDateTime(settings.getId(), now);
-                        }
+                        updateTimeSlotReminderDateTime(settings.getId(), executionTimeToSave);
                     }
                 } catch (Exception e) {
                     logger.error("Error processing time slot reminder for user {}", user.getId(), e);
@@ -268,7 +265,7 @@ public class PersonalNotificationScheduler {
      * Метод не будет запускаться, если cron выражение не задано
      */
     @Scheduled(cron = "${telegram.notifications.group.time-slot-reminder-cron:0 0 0 * * ?}")
-    @Transactional(readOnly = false)
+    @Transactional()
     public void checkAndSendGroupTimeSlotReminder() {
         // Проверяем, что cron выражение задано (не пустое)
         if (groupTimeSlotReminderCron == null || groupTimeSlotReminderCron.trim().isEmpty()) {
@@ -288,7 +285,7 @@ public class PersonalNotificationScheduler {
     }
     
     @Scheduled(fixedRateString = "${telegram.notifications.check-interval:60000}")
-    @Transactional(readOnly = false)
+    @Transactional()
     public void checkAndSendGameCompletionReminders() {
         if (!scheduledEnabled) {
             return;
@@ -338,8 +335,8 @@ public class PersonalNotificationScheduler {
      * Обновляет время последнего выполнения напоминания
      * Используется для отслеживания последнего времени отправки cron-напоминаний
      */
-    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = false)
-    private void updateTimeSlotReminderDateTime(Long settingsId, Instant executionTime) {
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    protected void updateTimeSlotReminderDateTime(Long settingsId, Instant executionTime) {
         UserNotificationSettings settings = settingsRepository.findById(settingsId)
                 .orElse(null);
         if (settings != null) {

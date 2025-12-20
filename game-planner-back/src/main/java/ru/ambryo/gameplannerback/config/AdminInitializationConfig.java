@@ -1,5 +1,6 @@
 package ru.ambryo.gameplannerback.config;
 
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,7 +8,7 @@ import org.springframework.stereotype.Component;
 import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.repository.UserRepository;
 
-import jakarta.annotation.PostConstruct;
+import java.util.Comparator;
 import java.util.Optional;
 
 @Component
@@ -38,15 +39,13 @@ public class AdminInitializationConfig {
                         .toList());
                 
                 Optional<User> firstRealUserOpt = allUsers.stream()
-                        .filter(u -> {
-                            boolean matches = u.getId() != null && u.getId() > 0 && !"system".equals(u.getUsername());
-                            if (!matches) {
-                                logger.debug("🟢 [INIT] Filtered out user: id={}, username='{}'", u.getId(), u.getUsername());
-                            }
-                            return matches;
-                        })
-                        .sorted((u1, u2) -> Long.compare(u1.getId(), u2.getId()))
-                        .findFirst();
+                    .filter(u -> {
+                        boolean matches = u.getId() != null && u.getId() > 0 && !"system".equals(u.getUsername());
+                        if (!matches) {
+                            logger.debug("🟢 [INIT] Filtered out user: id={}, username='{}'", u.getId(), u.getUsername());
+                        }
+                        return matches;
+                    }).min(Comparator.comparingLong(User::getId));
                 
                 logger.info("🟢 [INIT] First real user found: {}", firstRealUserOpt.isPresent());
                 
@@ -114,9 +113,7 @@ public class AdminInitializationConfig {
                     
                     var allUsers = userRepository.findAll();
                     Optional<User> firstRealUserOpt = allUsers.stream()
-                            .filter(u -> u.getId() != null && u.getId() > 0 && !"system".equals(u.getUsername()))
-                            .sorted((u1, u2) -> Long.compare(u1.getId(), u2.getId()))
-                            .findFirst();
+                        .filter(u -> u.getId() != null && u.getId() > 0 && !"system".equals(u.getUsername())).min(Comparator.comparingLong(User::getId));
                     
                     if (firstRealUserOpt.isPresent()) {
                         User firstUser = firstRealUserOpt.get();

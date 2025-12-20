@@ -40,8 +40,10 @@ public class AuthCommandHandler implements CommandHandler {
             // Проверяем, не связан ли уже аккаунт
             User existingUser = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
             if (existingUser != null) {
-                messageSender.sendPersonalMessage(chatId, "✅ Ваш аккаунт уже связан!\n\n" +
-                        "Используйте /games для получения списка предстоящих игр.");
+                messageSender.sendPersonalMessage(chatId, """
+                    ✅ Ваш аккаунт уже связан!
+                    
+                    Используйте /games для получения списка предстоящих игр.""");
                 return;
             }
             
@@ -57,9 +59,12 @@ public class AuthCommandHandler implements CommandHandler {
             // Инициализируем состояние авторизации
             stateManager.setState(chatId, AuthStateManager.AuthState.WAITING_USERNAME);
             
-            messageSender.sendPersonalMessage(chatId, "🔐 <b>Авторизация для привязки аккаунта</b>\n\n" +
-                    "Введите ваш логин (имя пользователя):\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                🔐 <b>Авторизация для привязки аккаунта</b>
+                
+                Введите ваш логин (имя пользователя):
+                
+                💡 Используйте /cancel для отмены.""");
         } catch (Exception e) {
             stateManager.clearState(chatId);
             messageSender.sendPersonalMessage(chatId, "❌ Произошла ошибка при инициализации авторизации. Попробуйте позже.");

@@ -4,11 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.bots.AbsSender;
-import ru.ambryo.gameplannerback.service.telegram.state.AuthStateManager;
-import ru.ambryo.gameplannerback.service.telegram.state.NotificationStateManager;
-import ru.ambryo.gameplannerback.service.telegram.state.RegistrationStateManager;
-import ru.ambryo.gameplannerback.service.telegram.state.TimeSlotMarkingStateManager;
-import ru.ambryo.gameplannerback.service.telegram.state.TimezoneChangeStateManager;
+import ru.ambryo.gameplannerback.service.telegram.state.*;
 import ru.ambryo.gameplannerback.service.telegram.util.TelegramMessageSender;
 
 /**
@@ -55,24 +51,34 @@ public class CancelCommandHandler implements CommandHandler {
         
         if (hasRegistration) {
             registrationStateManager.clearState(chatId);
-            messageSender.sendPersonalMessage(chatId, "✅ Процесс регистрации отменен.\n\n" +
-                    "Используйте /register для начала заново.");
+            messageSender.sendPersonalMessage(chatId, """
+                ✅ Процесс регистрации отменен.
+                
+                Используйте /register для начала заново.""");
         } else if (hasAuth) {
             authStateManager.clearState(chatId);
-            messageSender.sendPersonalMessage(chatId, "✅ Процесс авторизации отменен.\n\n" +
-                    "Используйте /auth для начала заново или /link <token> для привязки через токен.");
+            messageSender.sendPersonalMessage(chatId, """
+                ✅ Процесс авторизации отменен.
+                
+                Используйте /auth для начала заново или /link <token> для привязки через токен.""");
         } else if (hasMarking) {
             timeSlotMarkingStateManager.clearState(chatId);
-            messageSender.sendPersonalMessage(chatId, "✅ Процесс разметки времени отменен.\n\n" +
-                    "Используйте /mark для начала заново.");
+            messageSender.sendPersonalMessage(chatId, """
+                ✅ Процесс разметки времени отменен.
+                
+                Используйте /mark для начала заново.""");
         } else if (hasTimezoneChange) {
             timezoneChangeStateManager.clearState(chatId);
-            messageSender.sendPersonalMessage(chatId, "✅ Процесс смены часового пояса отменен.\n\n" +
-                    "Используйте меню для начала заново.");
+            messageSender.sendPersonalMessage(chatId, """
+                ✅ Процесс смены часового пояса отменен.
+                
+                Используйте меню для начала заново.""");
         } else if (hasNotification) {
             notificationStateManager.clearState(chatId);
-            messageSender.sendPersonalMessage(chatId, "✅ Процесс настройки уведомлений отменен.\n\n" +
-                    "Используйте меню для начала заново.");
+            messageSender.sendPersonalMessage(chatId, """
+                ✅ Процесс настройки уведомлений отменен.
+                
+                Используйте меню для начала заново.""");
         } else {
             messageSender.sendPersonalMessage(chatId, "ℹ️ Нет активного процесса для отмены.");
         }

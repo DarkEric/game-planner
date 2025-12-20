@@ -71,8 +71,10 @@ public class TimeSlotMarkingStateHandler implements StateHandler<TimeSlotMarking
                 userTimezone = ZoneId.of(user.getTimezone());
             } catch (Exception e) {
                 timeSlotMarkingStateManager.clearState(chatId);
-                messageSender.sendPersonalMessage(chatId, "❌ <b>Неверный часовой пояс</b>\n\n" +
-                        "Установите корректный часовой пояс в настройках профиля на веб-сайте.");
+                messageSender.sendPersonalMessage(chatId, """
+                    ❌ <b>Неверный часовой пояс</b>
+                    
+                    Установите корректный часовой пояс в настройках профиля на веб-сайте.""");
                 return;
             }
             
@@ -102,10 +104,13 @@ public class TimeSlotMarkingStateHandler implements StateHandler<TimeSlotMarking
         
         LocalDate localDate = TelegramDateParser.parseDate(dateStr, userTimezone);
         if (localDate == null) {
-            messageSender.sendPersonalMessage(chatId, "❌ <b>Неверный формат даты</b>\n\n" +
-                    "Используйте формат ДД.ММ.ГГГГ (например: 15.01.2025)\n" +
-                    "Или используйте: сегодня, завтра, послезавтра\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                ❌ <b>Неверный формат даты</b>
+                
+                Используйте формат ДД.ММ.ГГГГ (например: 15.01.2025)
+                Или используйте: сегодня, завтра, послезавтра
+                
+                💡 Используйте /cancel для отмены.""");
             return;
         }
         
@@ -126,9 +131,12 @@ public class TimeSlotMarkingStateHandler implements StateHandler<TimeSlotMarking
         
         LocalTime localTime = TelegramDateParser.parseTime(timeStr);
         if (localTime == null) {
-            messageSender.sendPersonalMessage(chatId, "❌ <b>Неверный формат времени</b>\n\n" +
-                    "Используйте формат ЧЧ:ММ (например: 18:00) или ЧЧ (например: 18)\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                ❌ <b>Неверный формат времени</b>
+                
+                Используйте формат ЧЧ:ММ (например: 18:00) или ЧЧ (например: 18)
+                
+                💡 Используйте /cancel для отмены.""");
             return;
         }
         
@@ -150,9 +158,12 @@ public class TimeSlotMarkingStateHandler implements StateHandler<TimeSlotMarking
         
         Integer duration = TelegramDateParser.parseDuration(durationStr);
         if (duration == null) {
-            messageSender.sendPersonalMessage(chatId, "❌ <b>Неверный формат продолжительности</b>\n\n" +
-                    "Введите число от 1 до 24 (количество часов)\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                ❌ <b>Неверный формат продолжительности</b>
+                
+                Введите число от 1 до 24 (количество часов)
+                
+                💡 Используйте /cancel для отмены.""");
             return;
         }
         
@@ -190,4 +201,5 @@ public class TimeSlotMarkingStateHandler implements StateHandler<TimeSlotMarking
         }
     }
 }
+
 

@@ -22,15 +22,14 @@ public class TimeSlotMessageBuilder {
     }
     
     public String buildTimeSlotMarkedMessage(LocalDate localDate, LocalTime localTime, Integer duration, ZoneId userTimezone) {
-        StringBuilder message = new StringBuilder();
-        message.append("✅ <b>Временной слот размечен!</b>\n\n");
-        message.append("📅 <b>Дата:</b> ").append(TelegramTimeFormatter.formatLocalDate(localDate)).append("\n");
-        message.append("🕐 <b>Время:</b> ").append(TelegramTimeFormatter.formatLocalTime(localTime)).append("\n");
-        message.append("⏱️ <b>Продолжительность:</b> ").append(duration).append(" ").append(duration == 1 ? "час" : "часа").append("\n\n");
-        message.append("💡 Используйте /myslots для просмотра всех размеченных слотов.\n");
-        message.append("💡 Повторная разметка того же времени удалит слот.");
+        String message = "✅ <b>Временной слот размечен!</b>\n\n" +
+            "📅 <b>Дата:</b> " + TelegramTimeFormatter.formatLocalDate(localDate) + "\n" +
+            "🕐 <b>Время:</b> " + TelegramTimeFormatter.formatLocalTime(localTime) + "\n" +
+            "⏱️ <b>Продолжительность:</b> " + duration + " " + (duration == 1 ? "час" : "часа") + "\n\n" +
+            "💡 Используйте /myslots для просмотра всех размеченных слотов.\n" +
+            "💡 Повторная разметка того же времени удалит слот.";
         
-        return message.toString();
+        return message;
     }
     
     public String buildMySlotsListMessage(List<TimeSlotDto> slots, String userTimezone) {

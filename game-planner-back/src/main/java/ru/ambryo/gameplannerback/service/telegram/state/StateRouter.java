@@ -5,11 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import ru.ambryo.gameplannerback.service.telegram.exception.TelegramExceptionHandler;
-import ru.ambryo.gameplannerback.service.telegram.state.handler.AuthStateHandler;
-import ru.ambryo.gameplannerback.service.telegram.state.handler.NotificationStateHandler;
-import ru.ambryo.gameplannerback.service.telegram.state.handler.RegistrationStateHandler;
-import ru.ambryo.gameplannerback.service.telegram.state.handler.TimeSlotMarkingStateHandler;
-import ru.ambryo.gameplannerback.service.telegram.state.handler.TimezoneChangeStateHandler;
+import ru.ambryo.gameplannerback.service.telegram.state.handler.*;
 
 /**
  * Роутер для обработки состояний диалогов в Telegram боте
@@ -111,7 +107,6 @@ public class StateRouter {
                 var state = notificationStateManager.getState(chatId);
                 if (state != null && notificationStateHandler.canHandle(chatId, state)) {
                     notificationStateHandler.handle(telegramUserId, chatId, text, state);
-                    return;
                 }
             }
         } catch (Exception e) {
@@ -120,4 +115,5 @@ public class StateRouter {
         }
     }
 }
+
 

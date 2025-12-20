@@ -104,8 +104,7 @@ public class AdminController {
     @GetMapping("/users/me/is-admin")
     public ResponseEntity<Map<String, Boolean>> checkIsAdmin(Authentication authentication) {
         Map<String, Boolean> response = new HashMap<>();
-        if (authentication != null && authentication.getPrincipal() instanceof User) {
-            User user = (User) authentication.getPrincipal();
+        if (authentication != null && authentication.getPrincipal() instanceof User user) {
             response.put("isAdmin", adminService.isAdmin(user));
         } else {
             response.put("isAdmin", false);

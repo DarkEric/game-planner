@@ -3,13 +3,12 @@ package ru.ambryo.gameplannerback.service.telegram.notification;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import ru.ambryo.gameplannerback.dto.GameDto;
 import ru.ambryo.gameplannerback.entity.User;
-import ru.ambryo.gameplannerback.service.telegram.message.GameMessageBuilder;
 import ru.ambryo.gameplannerback.service.telegram.keyboard.GamesMenuKeyboardBuilder;
+import ru.ambryo.gameplannerback.service.telegram.message.GameMessageBuilder;
 
 /**
  * Отправитель уведомлений об играх
@@ -33,7 +32,7 @@ public class GameNotificationSender extends PersonalNotificationSender {
     }
     
     public void sendGameCreatedNotification(GameDto game, User user) {
-        if (!canSendToUser(user)) {
+        if (canSendToUser(user)) {
             return;
         }
         
@@ -56,7 +55,7 @@ public class GameNotificationSender extends PersonalNotificationSender {
     }
     
     public void sendGameCancelledNotification(GameDto game, User user) {
-        if (!canSendToUser(user)) {
+        if (canSendToUser(user)) {
             return;
         }
         
@@ -65,7 +64,7 @@ public class GameNotificationSender extends PersonalNotificationSender {
     }
     
     public void sendGameHeldNotification(GameDto game, User user) {
-        if (!canSendToUser(user)) {
+        if (canSendToUser(user)) {
             return;
         }
         
@@ -74,7 +73,7 @@ public class GameNotificationSender extends PersonalNotificationSender {
     }
     
     public void sendUpcomingGameReminder(GameDto game, User user, int minutesBefore) {
-        if (!canSendToUser(user)) {
+        if (canSendToUser(user)) {
             return;
         }
         
@@ -83,7 +82,7 @@ public class GameNotificationSender extends PersonalNotificationSender {
     }
     
     public void sendGameCompletionReminder(GameDto game, User creator) {
-        if (!canSendToUser(creator)) {
+        if (canSendToUser(creator)) {
             return;
         }
         
@@ -92,7 +91,7 @@ public class GameNotificationSender extends PersonalNotificationSender {
     }
     
     public void sendPlayerRemovedFromGameNotification(GameDto game, User removedPlayer) {
-        if (!canSendToUser(removedPlayer)) {
+        if (canSendToUser(removedPlayer)) {
             return;
         }
         

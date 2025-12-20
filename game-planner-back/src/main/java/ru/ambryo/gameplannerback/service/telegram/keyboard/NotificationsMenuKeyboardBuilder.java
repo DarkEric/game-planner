@@ -79,19 +79,9 @@ public class NotificationsMenuKeyboardBuilder {
             String status = (reminder.getEnabled() != null && reminder.getEnabled()) ? "✅" : "❌";
             
             rows.add(createButtonRow("✏️ " + (i + 1) + ". " + status + " " + displayValue, "notification_reminder_edit_" + i));
-            
-            List<InlineKeyboardButton> controlRow = new ArrayList<>();
-            
-            InlineKeyboardButton toggleButton = new InlineKeyboardButton();
-            toggleButton.setText((reminder.getEnabled() != null && reminder.getEnabled()) ? "❌ Выкл" : "✅ Вкл");
-            toggleButton.setCallbackData("notification_reminder_toggle_" + i);
-            controlRow.add(toggleButton);
-            
-            InlineKeyboardButton deleteButton = new InlineKeyboardButton();
-            deleteButton.setText("🗑️ Удалить");
-            deleteButton.setCallbackData("notification_reminder_delete_" + i);
-            controlRow.add(deleteButton);
-            
+
+            List<InlineKeyboardButton> controlRow = getInlineKeyboardButtons(reminder, i);
+
             rows.add(controlRow);
         }
         
@@ -104,7 +94,22 @@ public class NotificationsMenuKeyboardBuilder {
         keyboard.setKeyboard(rows);
         return keyboard;
     }
-    
+
+    private static List<InlineKeyboardButton> getInlineKeyboardButtons(UpcomingGameReminderDto reminder, int i) {
+        List<InlineKeyboardButton> controlRow = new ArrayList<>();
+
+        InlineKeyboardButton toggleButton = new InlineKeyboardButton();
+        toggleButton.setText((reminder.getEnabled() != null && reminder.getEnabled()) ? "❌ Выкл" : "✅ Вкл");
+        toggleButton.setCallbackData("notification_reminder_toggle_" + i);
+        controlRow.add(toggleButton);
+
+        InlineKeyboardButton deleteButton = new InlineKeyboardButton();
+        deleteButton.setText("🗑️ Удалить");
+        deleteButton.setCallbackData("notification_reminder_delete_" + i);
+        controlRow.add(deleteButton);
+        return controlRow;
+    }
+
     public InlineKeyboardMarkup buildDayOfWeekKeyboard() {
         InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();

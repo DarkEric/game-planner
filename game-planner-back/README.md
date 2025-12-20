@@ -15,7 +15,7 @@ Backend приложение для планирования D&D игр на Spr
 CREATE DATABASE game_planner;
 ```
 
-2. Обновите настройки подключения в `src/main/resources/application.properties`:
+1. Обновите настройки подключения в `src/main/resources/application.properties`:
 ```properties
 spring.datasource.url=jdbc:postgresql://localhost:5432/game_planner
 spring.datasource.username=your_username

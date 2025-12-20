@@ -41,16 +41,14 @@ public class AdminInterceptor implements HandlerInterceptor {
         }
         
         // Проверяем, что principal - это User
-        if (!(authentication.getPrincipal() instanceof User)) {
+        if (!(authentication.getPrincipal() instanceof User user)) {
             logger.warn("Invalid principal type for admin endpoint: {}", requestPath);
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setContentType("application/json");
             response.getWriter().write("{\"error\":\"Forbidden\"}");
             return false;
         }
-        
-        User user = (User) authentication.getPrincipal();
-        
+
         // Проверяем права администратора
         if (!adminService.isAdmin(user)) {
             logger.warn("User '{}' (ID: {}) attempted to access admin endpoint without admin rights: {}", 

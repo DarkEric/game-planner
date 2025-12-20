@@ -24,3 +24,4 @@ public interface StateHandler<T> {
     void handle(Long telegramUserId, String chatId, String text, T state);
 }
 
+

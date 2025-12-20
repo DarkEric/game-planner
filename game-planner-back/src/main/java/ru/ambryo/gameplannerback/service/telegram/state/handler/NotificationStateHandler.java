@@ -80,7 +80,7 @@ public class NotificationStateHandler implements StateHandler<NotificationStateM
                 handleReminderUnitConfirmation(user, chatId, text, data);
             } else if (state == NotificationStateManager.NotificationState.WAITING_CRON_TIME) {
                 handleCronTimeInput(user, chatId, text, data);
-            } else if (state == NotificationStateManager.NotificationState.WAITING_CRON_DAY && data.cronFrequency != null && "monthly".equals(data.cronFrequency)) {
+            } else if (state == NotificationStateManager.NotificationState.WAITING_CRON_DAY && "monthly".equals(data.cronFrequency)) {
                 handleCronDayOfMonthInput(user, chatId, text, data);
             }
         } catch (Exception e) {
@@ -160,9 +160,12 @@ public class NotificationStateHandler implements StateHandler<NotificationStateM
     private void handleCronTimeInput(User user, String chatId, String text, NotificationStateManager.NotificationData data) {
         LocalTime time = TelegramDateParser.parseTime(text.trim());
         if (time == null) {
-            messageSender.sendPersonalMessage(chatId, "❌ <b>Неверный формат времени</b>\n\n" +
-                    "Введите время в формате ЧЧ:ММ (например: 09:00):\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                ❌ <b>Неверный формат времени</b>
+                
+                Введите время в формате ЧЧ:ММ (например: 09:00):
+                
+                💡 Используйте /cancel для отмены.""");
             return;
         }
         
@@ -187,9 +190,12 @@ public class NotificationStateHandler implements StateHandler<NotificationStateM
         try {
             int dayOfMonth = Integer.parseInt(text.trim());
             if (dayOfMonth < 1 || dayOfMonth > 31) {
-                messageSender.sendPersonalMessage(chatId, "❌ <b>Неверный день месяца</b>\n\n" +
-                        "Введите число от 1 до 31:\n\n" +
-                        "💡 Используйте /cancel для отмены.");
+                messageSender.sendPersonalMessage(chatId, """
+                    ❌ <b>Неверный день месяца</b>
+                    
+                    Введите число от 1 до 31:
+                    
+                    💡 Используйте /cancel для отмены.""");
                 return;
             }
             
@@ -202,9 +208,12 @@ public class NotificationStateHandler implements StateHandler<NotificationStateM
                     "Введите время в формате ЧЧ:ММ (например: 09:00):\n\n" +
                     "💡 Используйте /cancel для отмены.");
         } catch (NumberFormatException e) {
-            messageSender.sendPersonalMessage(chatId, "❌ <b>Неверный формат</b>\n\n" +
-                    "Введите число от 1 до 31:\n\n" +
-                    "💡 Используйте /cancel для отмены.");
+            messageSender.sendPersonalMessage(chatId, """
+                ❌ <b>Неверный формат</b>
+                
+                Введите число от 1 до 31:
+                
+                💡 Используйте /cancel для отмены.""");
         }
     }
     
@@ -215,7 +224,6 @@ public class NotificationStateHandler implements StateHandler<NotificationStateM
         return switch (unit) {
             case "days" -> value * 24 * 60;
             case "hours" -> value * 60;
-            case "minutes" -> value;
             default -> value;
         };
     }
@@ -236,4 +244,5 @@ public class NotificationStateHandler implements StateHandler<NotificationStateM
         }
     }
 }
+
 

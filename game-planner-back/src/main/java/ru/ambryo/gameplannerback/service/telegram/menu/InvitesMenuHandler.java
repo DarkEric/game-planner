@@ -52,17 +52,15 @@ public class InvitesMenuHandler implements MenuHandler {
             messageUpdater.answerCallback(callbackQuery.getId(), "❌ Аккаунт не связан. Используйте /link для связывания.");
             return;
         }
-        
-        if (data.equals("menu_invites")) {
-            String message = "🎫 <b>Инвайты</b>\n\nВыберите действие:";
-            var keyboard = keyboardBuilder.build();
-            messageUpdater.updateMessage(chatId, messageId, message, keyboard);
-            
-        } else if (data.equals("menu_invites_create")) {
-            handleCreateInvite(user, chatId, messageId);
-            
-        } else if (data.equals("menu_invites_list")) {
-            handleListInvites(user, chatId, messageId);
+
+        switch (data) {
+            case "menu_invites" -> {
+                String message = "🎫 <b>Инвайты</b>\n\nВыберите действие:";
+                var keyboard = keyboardBuilder.build();
+                messageUpdater.updateMessage(chatId, messageId, message, keyboard);
+            }
+            case "menu_invites_create" -> handleCreateInvite(user, chatId, messageId);
+            case "menu_invites_list" -> handleListInvites(user, chatId, messageId);
         }
     }
     
@@ -88,9 +86,12 @@ public class InvitesMenuHandler implements MenuHandler {
             var keyboard = keyboardBuilder.build();
             
             if (invites.isEmpty()) {
-                message = "📋 <b>Мои инвайт-коды</b>\n\n" +
-                        "У вас пока нет созданных инвайт-кодов.\n\n" +
-                        "Используйте кнопку 'Создать инвайт-код' для создания нового.";
+                message = """
+                    📋 <b>Мои инвайт-коды</b>
+                    
+                    У вас пока нет созданных инвайт-кодов.
+                    
+                    Используйте кнопку 'Создать инвайт-код' для создания нового.""";
             } else {
                 message = messageBuilder.buildMyInvitesListMessage(invites);
             }

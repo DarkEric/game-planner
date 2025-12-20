@@ -1,7 +1,5 @@
 package ru.ambryo.gameplannerback.service.telegram.state;
 
-import java.time.Instant;
-
 /**
  * Интерфейс для управления состояниями диалогов в Telegram боте
  * @param <T> тип состояния (enum)

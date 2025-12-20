@@ -10,7 +10,8 @@ import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.repository.UserRepository;
 
 import java.time.Instant;
-import java.util.*;
+import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class PasswordResetService {

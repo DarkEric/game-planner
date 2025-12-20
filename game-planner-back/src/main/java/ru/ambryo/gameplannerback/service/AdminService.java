@@ -12,7 +12,6 @@ import ru.ambryo.gameplannerback.entity.*;
 import ru.ambryo.gameplannerback.repository.*;
 
 import java.security.SecureRandom;
-import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -145,13 +144,12 @@ public class AdminService {
         if (user.getTelegramSubscribed() != null && user.getTelegramSubscribed() 
                 && user.getTelegramChatId() != null) {
             try {
-                StringBuilder message = new StringBuilder();
-                message.append("🔐 <b>Сброс пароля администратором</b>\n\n");
-                message.append("Ваш пароль был сброшен администратором.\n\n");
-                message.append("Новый пароль: <code>").append(temporaryPassword).append("</code>\n\n");
-                message.append("Рекомендуется изменить пароль после входа в систему.");
+                String message = "🔐 <b>Сброс пароля администратором</b>\n\n" +
+                    "Ваш пароль был сброшен администратором.\n\n" +
+                    "Новый пароль: <code>" + temporaryPassword + "</code>\n\n" +
+                    "Рекомендуется изменить пароль после входа в систему.";
                 
-                telegramNotificationService.sendPersonalMessage(user.getTelegramChatId(), message.toString());
+                telegramNotificationService.sendPersonalMessage(user.getTelegramChatId(), message);
                 sentViaTelegram = true;
                 logger.info("Temporary password sent via Telegram to user: {}", user.getUsername());
             } catch (Exception e) {

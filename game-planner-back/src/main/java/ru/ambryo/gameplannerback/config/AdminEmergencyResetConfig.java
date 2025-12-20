@@ -1,5 +1,6 @@
 package ru.ambryo.gameplannerback.config;
 
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,10 +10,10 @@ import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.repository.UserRepository;
 import ru.ambryo.gameplannerback.service.PasswordResetService;
 
-import jakarta.annotation.PostConstruct;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 
 @Component
@@ -40,7 +41,7 @@ public class AdminEmergencyResetConfig {
             // Найти первого администратора (пользователь с минимальным ID и isAdmin = true)
             List<User> allAdmins = userRepository.findAll().stream()
                     .filter(user -> user.getIsAdmin() != null && user.getIsAdmin())
-                    .sorted((u1, u2) -> Long.compare(u1.getId(), u2.getId()))
+                    .sorted(Comparator.comparingLong(User::getId))
                     .toList();
             
             if (allAdmins.isEmpty()) {
@@ -48,7 +49,7 @@ public class AdminEmergencyResetConfig {
                 return;
             }
             
-            User firstAdmin = allAdmins.get(0);
+            User firstAdmin = allAdmins.getFirst();
             
             // Генерируем токен
             String token = passwordResetService.setResetTokenForUser(firstAdmin, 24); // 24 часа

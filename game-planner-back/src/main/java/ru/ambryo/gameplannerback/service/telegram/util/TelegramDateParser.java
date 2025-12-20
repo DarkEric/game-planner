@@ -25,12 +25,16 @@ public class TelegramDateParser {
         
         // Относительные даты
         LocalDate now = LocalDate.now(userTimezone);
-        if (trimmed.equals("сегодня") || trimmed.equals("today")) {
-            return now;
-        } else if (trimmed.equals("завтра") || trimmed.equals("tomorrow")) {
-            return now.plusDays(1);
-        } else if (trimmed.equals("послезавтра") || trimmed.equals("day after tomorrow")) {
-            return now.plusDays(2);
+        switch (trimmed) {
+            case "сегодня", "today" -> {
+                return now;
+            }
+            case "завтра", "tomorrow" -> {
+                return now.plusDays(1);
+            }
+            case "послезавтра", "day after tomorrow" -> {
+                return now.plusDays(2);
+            }
         }
         
         // Русский формат: DD.MM.YYYY или DD/MM/YYYY

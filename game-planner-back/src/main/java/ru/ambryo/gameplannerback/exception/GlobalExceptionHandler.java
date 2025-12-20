@@ -25,9 +25,8 @@ public class GlobalExceptionHandler {
         error.put("error", "Invalid request format");
         
         Throwable cause = ex.getCause();
-        if (cause instanceof InvalidFormatException) {
-            InvalidFormatException ife = (InvalidFormatException) cause;
-            error.put("field", ife.getPath().get(0).getFieldName());
+        if (cause instanceof InvalidFormatException ife) {
+            error.put("field", ife.getPath().getFirst().getFieldName());
             error.put("value", String.valueOf(ife.getValue()));
             error.put("expectedType", ife.getTargetType().getSimpleName());
             error.put("message", "Cannot parse '" + ife.getValue() + "' as " + ife.getTargetType().getSimpleName());

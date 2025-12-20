@@ -46,8 +46,10 @@ public class MySlotsCommandHandler implements CommandHandler {
             User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
             
             if (user == null) {
-                messageSender.sendPersonalMessage(chatId, "❌ Ваш аккаунт не связан с веб-сайтом.\n\n" +
-                        "Используйте /register для регистрации или /auth для привязки существующего аккаунта.");
+                messageSender.sendPersonalMessage(chatId, """
+                    ❌ Ваш аккаунт не связан с веб-сайтом.
+                    
+                    Используйте /register для регистрации или /auth для привязки существующего аккаунта.""");
                 return;
             }
             
@@ -59,9 +61,12 @@ public class MySlotsCommandHandler implements CommandHandler {
             var slots = player.getAvailableTimes();
             
             if (slots == null || slots.isEmpty()) {
-                messageSender.sendPersonalMessage(chatId, "📅 <b>Мои временные слоты</b>\n\n" +
-                        "У вас пока нет размеченного времени.\n\n" +
-                        "Используйте /mark для разметки свободного времени.");
+                messageSender.sendPersonalMessage(chatId, """
+                    📅 <b>Мои временные слоты</b>
+                    
+                    У вас пока нет размеченного времени.
+                    
+                    Используйте /mark для разметки свободного времени.""");
                 return;
             }
             

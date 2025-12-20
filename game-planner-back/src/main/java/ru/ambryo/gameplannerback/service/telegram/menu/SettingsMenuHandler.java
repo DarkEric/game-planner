@@ -46,48 +46,49 @@ public class SettingsMenuHandler implements MenuHandler {
         String data = callbackQuery.getData();
         User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
         boolean isLinked = user != null;
-        
-        if (data.equals("menu_settings")) {
-            if (!isLinked) {
-                messageUpdater.answerCallback(callbackQuery.getId(), "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                return;
+
+        switch (data) {
+            case "menu_settings" -> {
+                if (!isLinked) {
+                    messageUpdater.answerCallback(callbackQuery.getId(), "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                String message = "⚙️ <b>Настройки</b>\n\nВыберите действие:";
+                var keyboard = keyboardBuilder.build(true);
+                messageUpdater.updateMessage(chatId, messageId, message, keyboard);
+
             }
-            String message = "⚙️ <b>Настройки</b>\n\nВыберите действие:";
-            var keyboard = keyboardBuilder.build(isLinked);
-            messageUpdater.updateMessage(chatId, messageId, message, keyboard);
-            
-        } else if (data.equals("menu_settings_profile")) {
-            handleProfile(user, chatId, messageId);
-            
-        } else if (data.equals("menu_settings_timezone")) {
-            if (!isLinked) {
-                messageUpdater.answerCallback(callbackQuery.getId(), "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                return;
+            case "menu_settings_profile" -> handleProfile(user, chatId, messageId);
+            case "menu_settings_timezone" -> {
+                if (!isLinked) {
+                    messageUpdater.answerCallback(callbackQuery.getId(), "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                handleTimezone(user, chatId, messageId);
             }
-            handleTimezone(user, chatId, messageId);
-            
-        } else if (data.equals("menu_settings_notifications")) {
-            if (!isLinked) {
-                messageUpdater.answerCallback(callbackQuery.getId(), "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                return;
+            case "menu_settings_notifications" -> {
+                if (!isLinked) {
+                    messageUpdater.answerCallback(callbackQuery.getId(), "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                // Обработка menu_settings_notifications будет в NotificationsMenuHandler
+                messageUpdater.answerCallback(callbackQuery.getId(), "ℹ️ Настройки уведомлений обрабатываются отдельным обработчиком");
             }
-            // Обработка menu_settings_notifications будет в NotificationsMenuHandler
-            messageUpdater.answerCallback(callbackQuery.getId(), "ℹ️ Настройки уведомлений обрабатываются отдельным обработчиком");
-            
-        } else if (data.equals("menu_help")) {
-            if (!isLinked || user == null) {
-                messageUpdater.answerCallback(callbackQuery.getId(), "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
-                return;
+            case "menu_help" -> {
+                if (!isLinked) {
+                    messageUpdater.answerCallback(callbackQuery.getId(), "❌ Аккаунт не связан. Зарегистрируйтесь для доступа к функциям.");
+                    return;
+                }
+                // Вызываем help через команду
+                var message = new org.telegram.telegrambots.meta.api.objects.Message();
+                message.setText("/help");
+                helpCommandHandler.handle(message, telegramUserId, chatId);
+
+                // Возвращаемся в главное меню
+                String menuMessage = "📱 <b>Главное меню</b>\n\n✅ Аккаунт связан\n👤 Пользователь: " + TelegramHtmlFormatter.escapeHtml(user.getUsername()) + "\n\nВыберите раздел:";
+                var keyboard = new ru.ambryo.gameplannerback.service.telegram.keyboard.MainMenuKeyboardBuilder().build(true);
+                messageUpdater.updateMessage(chatId, messageId, menuMessage, keyboard);
             }
-            // Вызываем help через команду
-            var message = new org.telegram.telegrambots.meta.api.objects.Message();
-            message.setText("/help");
-            helpCommandHandler.handle(message, telegramUserId, chatId);
-            
-            // Возвращаемся в главное меню
-            String menuMessage = "📱 <b>Главное меню</b>\n\n✅ Аккаунт связан\n👤 Пользователь: " + TelegramHtmlFormatter.escapeHtml(user.getUsername()) + "\n\nВыберите раздел:";
-            var keyboard = new ru.ambryo.gameplannerback.service.telegram.keyboard.MainMenuKeyboardBuilder().build(isLinked);
-            messageUpdater.updateMessage(chatId, messageId, menuMessage, keyboard);
         }
     }
     

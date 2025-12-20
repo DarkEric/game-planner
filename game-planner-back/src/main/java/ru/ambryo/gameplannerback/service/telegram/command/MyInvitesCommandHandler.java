@@ -44,17 +44,22 @@ public class MyInvitesCommandHandler implements CommandHandler {
             User user = userRepository.findByTelegramUserId(telegramUserId).orElse(null);
             
             if (user == null) {
-                messageSender.sendPersonalMessage(chatId, "❌ Ваш аккаунт не связан с веб-сайтом.\n\n" +
-                        "Используйте /register для регистрации или /auth для привязки существующего аккаунта.");
+                messageSender.sendPersonalMessage(chatId, """
+                    ❌ Ваш аккаунт не связан с веб-сайтом.
+                    
+                    Используйте /register для регистрации или /auth для привязки существующего аккаунта.""");
                 return;
             }
             
             var invites = inviteService.getMyInvites(user);
             
             if (invites.isEmpty()) {
-                messageSender.sendPersonalMessage(chatId, "📋 <b>Мои инвайт-коды</b>\n\n" +
-                        "У вас пока нет созданных инвайт-кодов.\n\n" +
-                        "Используйте /invite для создания нового инвайт-кода.");
+                messageSender.sendPersonalMessage(chatId, """
+                    📋 <b>Мои инвайт-коды</b>
+                    
+                    У вас пока нет созданных инвайт-кодов.
+                    
+                    Используйте /invite для создания нового инвайт-кода.""");
                 return;
             }
             
