@@ -2,6 +2,9 @@ package ru.ambryo.gameplannerback.service.telegram.util;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -11,13 +14,15 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 /**
  * Утилита для отправки сообщений в Telegram
  */
+@Component
 public class TelegramMessageSender {
     
     private static final Logger logger = LoggerFactory.getLogger(TelegramMessageSender.class);
     
     private final AbsSender bot;
     
-    public TelegramMessageSender(AbsSender bot) {
+    @Autowired
+    public TelegramMessageSender(@Lazy AbsSender bot) {
         this.bot = bot;
     }
     
