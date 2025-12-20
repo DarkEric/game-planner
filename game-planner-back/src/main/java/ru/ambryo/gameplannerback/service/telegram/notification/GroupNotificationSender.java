@@ -23,9 +23,9 @@ public class GroupNotificationSender extends NotificationSender {
     @Autowired
     public GroupNotificationSender(
             AbsSender bot,
-            @Value("${telegram.chat.id:}") String chatId,
-            @Value("${telegram.thread.id:}") String threadId,
-            @Value("${telegram.enabled:false}") boolean enabled,
+            @Value("${telegram.bot.chat-id:}") String chatId,
+            @Value("${telegram.bot.thread-id:}") String threadId,
+            @Value("${telegram.bot.enabled:false}") boolean enabled,
             GameMessageBuilder messageBuilder) {
         super(bot, chatId, threadId);
         this.enabled = enabled;

@@ -2,6 +2,7 @@ package ru.ambryo.gameplannerback.service.telegram.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -17,6 +18,7 @@ public class TelegramExceptionHandler {
     
     private final TelegramMessageSender messageSender;
     
+    @Autowired
     public TelegramExceptionHandler(AbsSender bot) {
         this.messageSender = new TelegramMessageSender(bot);
     }
@@ -35,12 +37,15 @@ public class TelegramExceptionHandler {
         // Специфичная обработка для разных типов ошибок
         if (exception instanceof TelegramApiException) {
             TelegramApiException telegramException = (TelegramApiException) exception;
-            if (telegramException.getErrorCode() == 400) {
-                userMessage = "❌ Ошибка: Неверный запрос. Проверьте формат данных.";
-            } else if (telegramException.getErrorCode() == 403) {
-                userMessage = "❌ Ошибка: Доступ запрещен. Возможно, бот был заблокирован.";
-            } else if (telegramException.getErrorCode() == 429) {
-                userMessage = "❌ Ошибка: Превышен лимит запросов. Попробуйте позже.";
+            String errorMessage = telegramException.getMessage();
+            if (errorMessage != null) {
+                if (errorMessage.contains("400") || errorMessage.contains("Bad Request")) {
+                    userMessage = "❌ Ошибка: Неверный запрос. Проверьте формат данных.";
+                } else if (errorMessage.contains("403") || errorMessage.contains("Forbidden")) {
+                    userMessage = "❌ Ошибка: Доступ запрещен. Возможно, бот был заблокирован.";
+                } else if (errorMessage.contains("429") || errorMessage.contains("Too Many Requests")) {
+                    userMessage = "❌ Ошибка: Превышен лимит запросов. Попробуйте позже.";
+                }
             }
         }
         

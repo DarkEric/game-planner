@@ -161,6 +161,61 @@ public class NotificationsMenuKeyboardBuilder {
         }
     }
     
+    public InlineKeyboardMarkup buildGameSettingMenu(String callbackPrefix, String currentValue) {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        
+        rows.add(createButtonRow("ALL".equals(currentValue) ? "✓ Все игры" : "Все игры", callbackPrefix + "_ALL"));
+        rows.add(createButtonRow("MY_GAMES".equals(currentValue) ? "✓ Только мои игры" : "Только мои игры", callbackPrefix + "_MY_GAMES"));
+        rows.add(createButtonRow("NONE".equals(currentValue) ? "✓ Не получать" : "Не получать", callbackPrefix + "_NONE"));
+        rows.add(createButtonRow("◀️ Назад", "menu_settings_notifications"));
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
+    public InlineKeyboardMarkup buildReminderUnitMenu() {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        
+        rows.add(createButtonRow("⏱️ Минуты", "notification_reminder_unit_minutes"));
+        rows.add(createButtonRow("🕐 Часы", "notification_reminder_unit_hours"));
+        rows.add(createButtonRow("📅 Дни", "notification_reminder_unit_days"));
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
+    public InlineKeyboardMarkup buildTimeSlotReminderMenu(Boolean enabled) {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        
+        String toggleText = (enabled != null && enabled) ? "❌ Выключить" : "✅ Включить";
+        rows.add(createButtonRow(toggleText, "notification_timeslot_reminder_toggle"));
+        
+        if (enabled != null && enabled) {
+            rows.add(createButtonRow("⚙️ Настроить расписание", "notification_timeslot_reminder_cron"));
+        }
+        
+        rows.add(createButtonRow("◀️ Назад", "menu_settings_notifications"));
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
+    public InlineKeyboardMarkup buildCronFrequencyMenu() {
+        InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+        
+        rows.add(createButtonRow("📅 Ежедневно", "notification_cron_frequency_daily"));
+        rows.add(createButtonRow("📆 Еженедельно", "notification_cron_frequency_weekly"));
+        rows.add(createButtonRow("🗓️ Ежемесячно", "notification_cron_frequency_monthly"));
+        rows.add(createButtonRow("◀️ Назад", "notification_timeslot_reminder"));
+        
+        keyboard.setKeyboard(rows);
+        return keyboard;
+    }
+    
     private List<InlineKeyboardButton> createButtonRow(String text, String callbackData) {
         List<InlineKeyboardButton> row = new ArrayList<>();
         InlineKeyboardButton button = new InlineKeyboardButton();

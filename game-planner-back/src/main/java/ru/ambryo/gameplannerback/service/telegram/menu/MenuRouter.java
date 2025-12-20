@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import ru.ambryo.gameplannerback.service.telegram.exception.TelegramExceptionHandler;
 
 import java.util.List;
 
@@ -17,10 +18,12 @@ public class MenuRouter {
     private static final Logger logger = LoggerFactory.getLogger(MenuRouter.class);
     
     private final List<MenuHandler> handlers;
+    private final TelegramExceptionHandler exceptionHandler;
     
     @Autowired
-    public MenuRouter(List<MenuHandler> handlers) {
+    public MenuRouter(List<MenuHandler> handlers, TelegramExceptionHandler exceptionHandler) {
         this.handlers = handlers;
+        this.exceptionHandler = exceptionHandler;
     }
     
     /**
@@ -40,6 +43,8 @@ public class MenuRouter {
                     return;
                 } catch (Exception e) {
                     logger.error("Error handling menu callback {} with handler {}", data, handler.getClass().getSimpleName(), e);
+                    exceptionHandler.handleException(chatId, e, "❌ Произошла ошибка при обработке меню. Попробуйте позже.");
+                    return;
                 }
             }
         }

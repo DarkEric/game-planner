@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import ru.ambryo.gameplannerback.service.telegram.exception.TelegramExceptionHandler;
 
 import java.util.List;
 
@@ -17,10 +18,12 @@ public class CommandRouter {
     private static final Logger logger = LoggerFactory.getLogger(CommandRouter.class);
     
     private final List<CommandHandler> handlers;
+    private final TelegramExceptionHandler exceptionHandler;
     
     @Autowired
-    public CommandRouter(List<CommandHandler> handlers) {
+    public CommandRouter(List<CommandHandler> handlers, TelegramExceptionHandler exceptionHandler) {
         this.handlers = handlers;
+        this.exceptionHandler = exceptionHandler;
     }
     
     /**
@@ -44,6 +47,8 @@ public class CommandRouter {
                     return;
                 } catch (Exception e) {
                     logger.error("Error handling command {} with handler {}", command, handler.getClass().getSimpleName(), e);
+                    exceptionHandler.handleException(chatId, e, "❌ Произошла ошибка при обработке команды. Попробуйте позже.");
+                    return;
                 }
             }
         }
