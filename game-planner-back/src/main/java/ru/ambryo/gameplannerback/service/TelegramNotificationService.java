@@ -23,7 +23,6 @@ import java.time.ZoneId;
 import java.util.List;
 
 @Service
-@SuppressWarnings("deprecation") // Используется execute() из AbsSender, который помечен как deprecated, но функционально корректен
 public class TelegramNotificationService extends TelegramLongPollingBot {
     
     private static final Logger logger = LoggerFactory.getLogger(TelegramNotificationService.class);
