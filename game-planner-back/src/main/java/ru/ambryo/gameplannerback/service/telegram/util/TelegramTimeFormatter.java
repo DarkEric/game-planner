@@ -1,5 +1,8 @@
 package ru.ambryo.gameplannerback.service.telegram.util;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -9,12 +12,20 @@ import java.time.format.DateTimeFormatter;
 /**
  * Утилита для форматирования времени для Telegram сообщений
  */
+@Component
 public class TelegramTimeFormatter {
     
     private final ZoneId defaultZone;
     
-    public TelegramTimeFormatter(ZoneId defaultZone) {
-        this.defaultZone = defaultZone;
+    public TelegramTimeFormatter(@Value("${telegram.bot.timezone:Europe/Moscow}") String timezone) {
+        ZoneId zone;
+        try {
+            zone = ZoneId.of(timezone);
+        } catch (Exception e) {
+            // Fallback к Europe/Moscow
+            zone = ZoneId.of("Europe/Moscow");
+        }
+        this.defaultZone = zone;
     }
     
     /**
