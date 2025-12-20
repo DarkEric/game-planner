@@ -19,32 +19,32 @@ public class NotificationsMenuKeyboardBuilder {
         InlineKeyboardMarkup keyboard = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         
-        String gameCreatedText = switch (settings.getGameCreated()) {
-            case "ALL" -> "✓ Все игры";
-            case "MY_GAMES" -> "✓ Только мои";
-            case "NONE" -> "✓ Не получать";
-            default -> "Игра создана";
+        String gameCreatedStatus = switch (settings.getGameCreated()) {
+            case "ALL" -> "Все игры";
+            case "MY_GAMES" -> "Только мои";
+            case "NONE" -> "Не получать";
+            default -> "Не настроено";
         };
-        rows.add(createButtonRow("🎮 " + gameCreatedText, "notification_set_gameCreated"));
+        rows.add(createButtonRow("🎮 Игра создана: " + gameCreatedStatus, "notification_set_gameCreated"));
         
-        String gameCancelledText = switch (settings.getGameCancelled()) {
-            case "ALL" -> "✓ Все игры";
-            case "MY_GAMES" -> "✓ Только мои";
-            case "NONE" -> "✓ Не получать";
-            default -> "Игра отменена";
+        String gameCancelledStatus = switch (settings.getGameCancelled()) {
+            case "ALL" -> "Все игры";
+            case "MY_GAMES" -> "Только мои";
+            case "NONE" -> "Не получать";
+            default -> "Не настроено";
         };
-        rows.add(createButtonRow("❌ " + gameCancelledText, "notification_set_gameCancelled"));
+        rows.add(createButtonRow("❌ Игра отменена: " + gameCancelledStatus, "notification_set_gameCancelled"));
         
-        String gameHeldText = switch (settings.getGameHeld()) {
-            case "ALL" -> "✓ Все игры";
-            case "MY_GAMES" -> "✓ Только мои";
-            case "NONE" -> "✓ Не получать";
-            default -> "Игра проведена";
+        String gameHeldStatus = switch (settings.getGameHeld()) {
+            case "ALL" -> "Все игры";
+            case "MY_GAMES" -> "Только мои";
+            case "NONE" -> "Не получать";
+            default -> "Не настроено";
         };
-        rows.add(createButtonRow("✅ " + gameHeldText, "notification_set_gameHeld"));
+        rows.add(createButtonRow("✅ Игра проведена: " + gameHeldStatus, "notification_set_gameHeld"));
         
-        String removedText = "ALL".equals(settings.getGameRemovedFromGame()) ? "✓ Получать" : "✓ Не получать";
-        rows.add(createButtonRow("🚫 " + removedText, "notification_set_gameRemovedFromGame"));
+        String removedStatus = "ALL".equals(settings.getGameRemovedFromGame()) ? "Получать" : "Не получать";
+        rows.add(createButtonRow("🚫 Исключили из игры: " + removedStatus, "notification_set_gameRemovedFromGame"));
         
         List<UpcomingGameReminderDto> reminders = settings.getUpcomingGameReminders();
         if (reminders == null) {
@@ -55,13 +55,13 @@ public class NotificationsMenuKeyboardBuilder {
                 .count();
         rows.add(createButtonRow("⏰ Напоминания (" + activeCount + "/" + reminders.size() + ")", "notification_reminders"));
         
-        String timeSlotText = (settings.getTimeSlotReminderEnabled() != null && settings.getTimeSlotReminderEnabled()) 
-                ? "✓ Включено" : "Выключено";
-        rows.add(createButtonRow("📅 " + timeSlotText, "notification_timeslot_reminder"));
+        String timeSlotStatus = (settings.getTimeSlotReminderEnabled() != null && settings.getTimeSlotReminderEnabled()) 
+                ? "Включено" : "Выключено";
+        rows.add(createButtonRow("📅 Напоминание о разметке: " + timeSlotStatus, "notification_timeslot_reminder"));
         
-        String completionText = (settings.getGameCompletionReminderEnabled() != null && settings.getGameCompletionReminderEnabled()) 
-                ? "✓ Включено" : "Выключено";
-        rows.add(createButtonRow("📝 " + completionText, "notification_set_gameCompletionReminder"));
+        String completionStatus = (settings.getGameCompletionReminderEnabled() != null && settings.getGameCompletionReminderEnabled()) 
+                ? "Включено" : "Выключено";
+        rows.add(createButtonRow("📝 Напоминание о завершении: " + completionStatus, "notification_set_gameCompletionReminder"));
         
         rows.add(createButtonRow("◀️ Назад", "menu_settings"));
         

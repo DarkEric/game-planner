@@ -13,6 +13,8 @@ import ru.ambryo.gameplannerback.service.telegram.config.TelegramBotProperties;
 import ru.ambryo.gameplannerback.service.telegram.message.GameMessageBuilder;
 import ru.ambryo.gameplannerback.service.telegram.util.TelegramMessageSender;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 
 /**
@@ -56,10 +58,13 @@ public class GamesCommandHandler implements CommandHandler {
                 return;
             }
             
-            List<GameDto> upcomingGames = gameService.getUpcomingGamesForUser(user.getId());
+            // Получаем все предстоящие игры (не только те, на которые записан пользователь)
+            Instant now = Instant.now();
+            Instant endDate = now.plus(60, ChronoUnit.DAYS); // Игры на 60 дней вперед
+            List<GameDto> upcomingGames = gameService.getGamesBetween(now, endDate);
             
             if (upcomingGames.isEmpty()) {
-                messageSender.sendPersonalMessage(chatId, "📅 <b>Предстоящие игры</b>\n\nУ вас пока нет запланированных игр.");
+                messageSender.sendPersonalMessage(chatId, "📅 <b>Предстоящие игры</b>\n\nНет запланированных игр.");
                 return;
             }
             

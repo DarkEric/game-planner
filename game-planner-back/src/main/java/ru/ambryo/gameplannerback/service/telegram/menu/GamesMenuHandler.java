@@ -11,6 +11,8 @@ import ru.ambryo.gameplannerback.service.telegram.config.TelegramBotProperties;
 import ru.ambryo.gameplannerback.service.telegram.keyboard.GamesMenuKeyboardBuilder;
 import ru.ambryo.gameplannerback.service.telegram.message.GameMessageBuilder;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -94,13 +96,16 @@ public class GamesMenuHandler implements MenuHandler {
                 return;
             }
             
-            List<GameDto> upcomingGames = gameService.getUpcomingGamesForUser(user.getId());
+            // Получаем все предстоящие игры (не только те, на которые записан пользователь)
+            Instant now = Instant.now();
+            Instant endDate = now.plus(60, ChronoUnit.DAYS); // Игры на 60 дней вперед
+            List<GameDto> upcomingGames = gameService.getGamesBetween(now, endDate);
             
             String message;
             var keyboard = keyboardBuilder.buildGamesMenu();
             
             if (upcomingGames.isEmpty()) {
-                message = "📅 <b>Предстоящие игры</b>\n\nУ вас пока нет запланированных игр.";
+                message = "📅 <b>Предстоящие игры</b>\n\nНет запланированных игр.";
             } else {
                 List<GameDto> sortedGames = upcomingGames.stream()
                     .sorted(Comparator.comparing(GameDto::getStartTime))
