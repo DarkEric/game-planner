@@ -1,6 +1,7 @@
 package ru.ambryo.gameplannerback.service.telegram.command;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.bots.AbsSender;
@@ -18,7 +19,7 @@ public class StartCommandHandler implements CommandHandler {
     private final TelegramMessageSender messageSender;
     
     @Autowired
-    public StartCommandHandler(UserRepository userRepository, AbsSender bot) {
+    public StartCommandHandler(UserRepository userRepository, @Lazy AbsSender bot) {
         this.userRepository = userRepository;
         this.messageSender = new TelegramMessageSender(bot);
     }

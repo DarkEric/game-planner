@@ -3,6 +3,7 @@ package ru.ambryo.gameplannerback.service.telegram.exception;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.bots.AbsSender;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -19,7 +20,7 @@ public class TelegramExceptionHandler {
     private final TelegramMessageSender messageSender;
     
     @Autowired
-    public TelegramExceptionHandler(AbsSender bot) {
+    public TelegramExceptionHandler(@Lazy AbsSender bot) {
         this.messageSender = new TelegramMessageSender(bot);
     }
     

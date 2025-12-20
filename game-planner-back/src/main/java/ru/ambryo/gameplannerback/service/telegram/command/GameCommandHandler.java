@@ -1,6 +1,7 @@
 package ru.ambryo.gameplannerback.service.telegram.command;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -32,7 +33,7 @@ public class GameCommandHandler implements CommandHandler {
             GameService gameService,
             GameMessageBuilder messageBuilder,
             GamesMenuKeyboardBuilder keyboardBuilder,
-            AbsSender bot) {
+            @Lazy AbsSender bot) {
         this.userRepository = userRepository;
         this.gameService = gameService;
         this.messageBuilder = messageBuilder;
