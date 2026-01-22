@@ -44,6 +44,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/**").permitAll()
                 .requestMatchers("/api/invites/*").permitAll() // Публичный доступ к проверке инвайта
+                .requestMatchers("/api/admin/users/me/is-admin").authenticated() // Публичный endpoint для проверки прав администратора
+                .requestMatchers("/api/admin/**").hasRole("ADMIN") // Все админ-эндпоинты требуют роль ADMIN
+                .requestMatchers("/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").hasRole("ADMIN") // OpenAPI/Swagger endpoints - только для администраторов
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

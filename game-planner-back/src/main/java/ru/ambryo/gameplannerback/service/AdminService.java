@@ -133,10 +133,28 @@ public class AdminService {
         
         // Генерация временного пароля
         String temporaryPassword = generateTemporaryPassword();
+        logger.info("Generated temporary password for user {} (ID: {}), length: {}", 
+                user.getUsername(), userId, temporaryPassword.length());
+        
+        // Кодирование пароля
+        String encodedPassword = passwordEncoder.encode(temporaryPassword);
+        logger.debug("Password encoded successfully for user: {}", user.getUsername());
         
         // Установка нового пароля
-        user.setPassword(passwordEncoder.encode(temporaryPassword));
-        userRepository.save(user);
+        user.setPassword(encodedPassword);
+        User savedUser = userRepository.save(user);
+        
+        // Проверка, что пароль сохранился правильно
+        User verifyUser = userRepository.findById(userId).orElse(null);
+        if (verifyUser != null) {
+            boolean passwordMatches = passwordEncoder.matches(temporaryPassword, verifyUser.getPassword());
+            logger.info("Password verification after save for user {} (ID: {}): {}", 
+                    user.getUsername(), userId, passwordMatches ? "SUCCESS" : "FAILED");
+            if (!passwordMatches) {
+                logger.error("CRITICAL: Password verification failed after save for user {} (ID: {})", 
+                        user.getUsername(), userId);
+            }
+        }
         
         boolean sentViaTelegram = false;
         
@@ -166,23 +184,30 @@ public class AdminService {
         } else {
             response.setMessage("Новый пароль сгенерирован");
             response.setTemporaryPassword(temporaryPassword);
+            logger.info("Temporary password returned in response for user: {} (ID: {}), password length: {}", 
+                    user.getUsername(), userId, temporaryPassword != null ? temporaryPassword.length() : 0);
         }
         
         return response;
     }
     
     /**
-     * Генерирует безопасный временный пароль (8-12 символов, только a-zA-Z0-9)
+     * Генерирует безопасный временный пароль (12 символов, только a-zA-Z0-9)
+     * Фиксированная длина для избежания проблем с передачей
      */
     private String generateTemporaryPassword() {
         SecureRandom random = new SecureRandom();
-        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-        int length = 8 + random.nextInt(5); // 8-12 символов
-        StringBuilder password = new StringBuilder();
+        // Используем только безопасные символы, которые точно передаются через JSON
+        // Исключаем похожие символы: 0/O, 1/I/l для избежания путаницы
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+        int length = 12; // Фиксированная длина для удобства
+        StringBuilder password = new StringBuilder(length);
         for (int i = 0; i < length; i++) {
             password.append(chars.charAt(random.nextInt(chars.length())));
         }
-        return password.toString();
+        String generatedPassword = password.toString();
+        logger.debug("Generated temporary password: {} (length: {})", generatedPassword, generatedPassword.length());
+        return generatedPassword;
     }
     
     /**
