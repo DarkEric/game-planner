@@ -6,20 +6,11 @@
 
 # Локальная разработка
 :80 {
-    # Проксирование API запросов на бэкенд
+    # Проксирование всех API запросов на бэкенд (включая Swagger UI и OpenAPI под /api)
     handle /api/* {
         reverse_proxy backend:8080
     }
 
-    # Проксирование Swagger UI и OpenAPI на бэкенд
-    handle /swagger-ui* {
-        reverse_proxy backend:8080
-    }
-
-    handle /api-docs* {
-        reverse_proxy backend:8080
-    }
-    
     # Статические файлы фронтенда
     handle {
         reverse_proxy frontend:80

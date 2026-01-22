@@ -5,25 +5,8 @@
 
 # Production с автоматическим HTTPS
 {$DOMAIN:localhost} {
-    # Проксирование API запросов на бэкенд
+    # Проксирование всех API запросов на бэкенд (включая Swagger UI и OpenAPI)
     handle /api/* {
-        reverse_proxy backend:8080 {
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-        }
-    }
-
-    # Проксирование Swagger UI и OpenAPI на бэкенд
-    handle /swagger-ui* {
-        reverse_proxy backend:8080 {
-            header_up X-Real-IP {remote_host}
-            header_up X-Forwarded-For {remote_host}
-            header_up X-Forwarded-Proto {scheme}
-        }
-    }
-
-    handle /api-docs* {
         reverse_proxy backend:8080 {
             header_up X-Real-IP {remote_host}
             header_up X-Forwarded-For {remote_host}
