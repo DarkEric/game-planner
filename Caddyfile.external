@@ -11,6 +11,15 @@ game-planner.localhost {
         reverse_proxy localhost:8080  # Используйте значение BACKEND_PORT из .env
     }
 
+    # Проксирование Swagger UI и OpenAPI на бэкенд
+    handle /swagger-ui* {
+        reverse_proxy localhost:8080
+    }
+
+    handle /api-docs* {
+        reverse_proxy localhost:8080
+    }
+
     # Статические файлы фронтенда
     handle {
         reverse_proxy localhost:3000  # Используйте значение FRONTEND_PORT из .env
