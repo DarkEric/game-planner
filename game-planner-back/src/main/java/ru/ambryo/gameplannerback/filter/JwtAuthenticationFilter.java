@@ -4,6 +4,8 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
@@ -23,6 +25,8 @@ import java.util.List;
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+    
     @Autowired
     private JwtUtil jwtUtil;
     
@@ -36,6 +40,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         final String authHeader = request.getHeader("Authorization");
         
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            // Логируем только для запросов к защищенным эндпоинтам
+            String requestPath = request.getRequestURI();
+            if (requestPath.startsWith("/api-docs") || requestPath.startsWith("/swagger-ui") || requestPath.startsWith("/api/admin")) {
+                logger.warn("Unauthenticated request to protected endpoint: {}", requestPath);
+            }
             chain.doFilter(request, response);
             return;
         }
@@ -53,6 +62,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     authorities.add(new SimpleGrantedAuthority("ROLE_USER"));
                     if (user.getIsAdmin() != null && user.getIsAdmin()) {
                         authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
+                        logger.debug("User {} (ID: {}) has admin role, added ROLE_ADMIN authority", 
+                                user.getUsername(), user.getId());
+                    } else {
+                        logger.debug("User {} (ID: {}) is not admin (isAdmin: {})", 
+                                user.getUsername(), user.getId(), user.getIsAdmin());
                     }
                     
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
@@ -60,6 +74,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     );
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+                    
+                    logger.debug("Authentication set for user {} with authorities: {}", 
+                            user.getUsername(), authorities.stream()
+                                    .map(GrantedAuthority::getAuthority)
+                                    .toList());
                 }
             }
         } catch (Exception e) {
