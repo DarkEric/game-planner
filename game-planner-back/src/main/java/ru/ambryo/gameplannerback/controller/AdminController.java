@@ -1,5 +1,11 @@
 package ru.ambryo.gameplannerback.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -16,6 +22,8 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/admin")
+@Tag(name = "Администрирование", description = "API для управления пользователями и системой (требует права администратора)")
+@SecurityRequirement(name = "Bearer Authentication")
 public class AdminController {
     
     @Autowired
@@ -24,10 +32,15 @@ public class AdminController {
     @Autowired
     private AdminService adminService;
     
-    /**
-     * Получить список всех пользователей
-     * Требует прав администратора
-     */
+    @Operation(
+        summary = "Получить список всех пользователей",
+        description = "Возвращает список всех пользователей системы с их данными"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Список пользователей успешно получен"),
+        @ApiResponse(responseCode = "403", description = "Недостаточно прав (требуется роль администратора)"),
+        @ApiResponse(responseCode = "500", description = "Внутренняя ошибка сервера")
+    })
     @GetMapping("/users")
     public ResponseEntity<java.util.List<AdminUserDto>> getAllUsers() {
         try {
@@ -38,12 +51,18 @@ public class AdminController {
         }
     }
     
-    /**
-     * Сброс пароля пользователя
-     * Требует прав администратора
-     */
+    @Operation(
+        summary = "Сброс пароля пользователя",
+        description = "Генерирует новый временный пароль для указанного пользователя. Пароль отправляется в Telegram, если аккаунт привязан."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Пароль успешно сброшен"),
+        @ApiResponse(responseCode = "400", description = "Пользователь не найден"),
+        @ApiResponse(responseCode = "403", description = "Недостаточно прав (требуется роль администратора)")
+    })
     @PostMapping("/users/{userId}/reset-password")
     public ResponseEntity<ResetPasswordResponse> resetUserPassword(
+            @Parameter(description = "ID пользователя", required = true)
             @PathVariable Long userId) {
         try {
             ResetPasswordResponse response = adminService.resetUserPassword(userId);
@@ -56,12 +75,19 @@ public class AdminController {
         }
     }
     
-    /**
-     * Назначить права администратора пользователю
-     * Требует прав администратора (проверяется через AdminInterceptor)
-     */
+    @Operation(
+        summary = "Назначить права администратора",
+        description = "Назначает права администратора указанному пользователю"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Права администратора успешно назначены"),
+        @ApiResponse(responseCode = "400", description = "Пользователь не найден или уже является администратором"),
+        @ApiResponse(responseCode = "403", description = "Недостаточно прав (требуется роль администратора)")
+    })
     @PostMapping("/users/{userId}/grant-admin")
-    public ResponseEntity<Map<String, String>> grantAdminRights(@PathVariable Long userId) {
+    public ResponseEntity<Map<String, String>> grantAdminRights(
+            @Parameter(description = "ID пользователя", required = true)
+            @PathVariable Long userId) {
         try {
             adminService.grantAdminRights(userId);
             Map<String, String> response = new HashMap<>();
@@ -75,12 +101,18 @@ public class AdminController {
         }
     }
     
-    /**
-     * Отозвать права администратора у пользователя
-     * Требует прав администратора
-     */
+    @Operation(
+        summary = "Отозвать права администратора",
+        description = "Отзывает права администратора у указанного пользователя. Нельзя отозвать права у самого себя или последнего администратора."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Права администратора успешно отозваны"),
+        @ApiResponse(responseCode = "400", description = "Пользователь не найден, не является администратором, или это последний администратор"),
+        @ApiResponse(responseCode = "403", description = "Недостаточно прав (требуется роль администратора)")
+    })
     @PostMapping("/users/{userId}/revoke-admin")
     public ResponseEntity<Map<String, String>> revokeAdminRights(
+            @Parameter(description = "ID пользователя", required = true)
             @PathVariable Long userId,
             Authentication authentication) {
         try {
@@ -97,10 +129,13 @@ public class AdminController {
         }
     }
     
-    /**
-     * Проверить, является ли текущий пользователь администратором
-     * Публичный endpoint (для проверки отображения админ-панели)
-     */
+    @Operation(
+        summary = "Проверить права администратора",
+        description = "Проверяет, является ли текущий авторизованный пользователь администратором. Публичный endpoint."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Результат проверки прав администратора")
+    })
     @GetMapping("/users/me/is-admin")
     public ResponseEntity<Map<String, Boolean>> checkIsAdmin(Authentication authentication) {
         Map<String, Boolean> response = new HashMap<>();
@@ -112,10 +147,15 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
     
-    /**
-     * Ручной запуск очистки устаревших данных
-     * Требует прав администратора (проверяется через AdminInterceptor)
-     */
+    @Operation(
+        summary = "Запустить очистку данных",
+        description = "Вручную запускает очистку устаревших данных (игры, временные слоты и т.д.)"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Очистка успешно выполнена"),
+        @ApiResponse(responseCode = "500", description = "Ошибка при выполнении очистки"),
+        @ApiResponse(responseCode = "403", description = "Недостаточно прав (требуется роль администратора)")
+    })
     @PostMapping("/cleanup")
     public ResponseEntity<Map<String, String>> triggerCleanup() {
         try {
@@ -135,21 +175,31 @@ public class AdminController {
         }
     }
     
-    /**
-     * Получить информацию о конфигурации очистки
-     */
+    @Operation(
+        summary = "Получить информацию о конфигурации очистки",
+        description = "Возвращает информацию о настройках автоматической очистки данных"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Информация о конфигурации очистки")
+    })
     @GetMapping("/cleanup/info")
     public ResponseEntity<Map<String, Object>> getCleanupInfo() {
         Map<String, Object> info = cleanupService.getCleanupInfo();
         return ResponseEntity.ok(info);
     }
     
-    /**
-     * Удалить пользователя
-     * Требует прав администратора и подтверждения паролем
-     */
+    @Operation(
+        summary = "Удалить пользователя",
+        description = "Удаляет пользователя из системы. Требует подтверждения паролем администратора. Нельзя удалить самого себя или последнего администратора."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Пользователь успешно удален"),
+        @ApiResponse(responseCode = "400", description = "Неверный пароль или пользователь не может быть удален"),
+        @ApiResponse(responseCode = "403", description = "Недостаточно прав (требуется роль администратора)")
+    })
     @DeleteMapping("/users/{userId}")
     public ResponseEntity<Map<String, String>> deleteUser(
+            @Parameter(description = "ID пользователя для удаления", required = true)
             @PathVariable Long userId,
             @RequestBody DeleteUserRequest request,
             Authentication authentication) {

@@ -1,5 +1,11 @@
 package ru.ambryo.gameplannerback.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,15 +24,27 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/players")
+@Tag(name = "Игроки", description = "API для управления профилями игроков и временными слотами")
+@SecurityRequirement(name = "Bearer Authentication")
 public class PlayerController {
 
     private static final Logger log = LoggerFactory.getLogger(PlayerController.class);
     @Autowired
     private UserService userService;
     
+    @Operation(
+        summary = "Получить список всех игроков",
+        description = "Возвращает список всех игроков с их временными слотами в указанном диапазоне дат"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Список игроков успешно получен"),
+        @ApiResponse(responseCode = "400", description = "Неверный формат даты")
+    })
     @GetMapping
     public ResponseEntity<List<PlayerDto>> getAllPlayers(
+            @Parameter(description = "Начальная дата в формате ISO-8601")
             @RequestParam(required = false) String startDate,
+            @Parameter(description = "Конечная дата в формате ISO-8601")
             @RequestParam(required = false) String endDate) {
         try {
             java.time.Instant start = startDate != null ? java.time.Instant.parse(startDate) : null;
@@ -40,10 +58,21 @@ public class PlayerController {
         }
     }
     
+    @Operation(
+        summary = "Получить текущего игрока",
+        description = "Возвращает информацию о текущем авторизованном игроке с временными слотами"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Информация об игроке успешно получена"),
+        @ApiResponse(responseCode = "401", description = "Требуется авторизация"),
+        @ApiResponse(responseCode = "404", description = "Пользователь не найден")
+    })
     @GetMapping("/me")
     public ResponseEntity<PlayerDto> getCurrentPlayer(
             Authentication authentication,
+            @Parameter(description = "Начальная дата в формате ISO-8601")
             @RequestParam(required = false) String startDate,
+            @Parameter(description = "Конечная дата в формате ISO-8601")
             @RequestParam(required = false) String endDate) {
         try {
             log.info("getCurrentPlayer {}", authentication);
@@ -62,6 +91,15 @@ public class PlayerController {
         }
     }
     
+    @Operation(
+        summary = "Обновить профиль игрока",
+        description = "Обновляет информацию о текущем игроке (имя, цвет, часовой пояс)"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Профиль успешно обновлен"),
+        @ApiResponse(responseCode = "400", description = "Неверные данные запроса"),
+        @ApiResponse(responseCode = "401", description = "Требуется авторизация")
+    })
     @PutMapping("/me")
     public ResponseEntity<PlayerDto> updateCurrentPlayer(
             @RequestBody CreatePlayerRequest request,
@@ -81,6 +119,15 @@ public class PlayerController {
         }
     }
     
+    @Operation(
+        summary = "Переключить временной слот",
+        description = "Добавляет или удаляет временной слот для текущего игрока. Если слот существует - удаляет, если нет - добавляет."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Временной слот успешно переключен"),
+        @ApiResponse(responseCode = "400", description = "Неверные данные запроса"),
+        @ApiResponse(responseCode = "401", description = "Требуется авторизация")
+    })
     @PostMapping(value = "/me/time-slots/toggle", consumes = "application/json", produces = "application/json")
     public ResponseEntity<PlayerDto> toggleTimeSlot(
             @RequestBody ToggleTimeSlotRequest request,
@@ -111,6 +158,15 @@ public class PlayerController {
         }
     }
     
+    @Operation(
+        summary = "Переключить несколько временных слотов",
+        description = "Массовое добавление/удаление временных слотов для текущего игрока"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Временные слоты успешно переключены"),
+        @ApiResponse(responseCode = "400", description = "Неверные данные запроса"),
+        @ApiResponse(responseCode = "401", description = "Требуется авторизация")
+    })
     @PostMapping("/me/time-slots/toggle-batch")
     public ResponseEntity<PlayerDto> toggleTimeSlots(
             @RequestBody ToggleTimeSlotsRequest request,
