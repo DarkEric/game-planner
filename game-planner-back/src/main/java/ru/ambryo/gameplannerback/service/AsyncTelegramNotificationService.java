@@ -2,6 +2,7 @@ package ru.ambryo.gameplannerback.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import ru.ambryo.gameplannerback.dto.GameDto;
@@ -17,7 +18,7 @@ public class AsyncTelegramNotificationService {
 
     private final TelegramNotificationService telegramNotificationService;
 
-    public AsyncTelegramNotificationService(TelegramNotificationService telegramNotificationService) {
+    public AsyncTelegramNotificationService(@Lazy TelegramNotificationService telegramNotificationService) {
         this.telegramNotificationService = telegramNotificationService;
     }
 
