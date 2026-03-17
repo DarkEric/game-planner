@@ -52,6 +52,8 @@ public class GameNotificationSender extends PersonalNotificationSender {
             bot.execute(sendMessage);
         } catch (org.telegram.telegrambots.meta.exceptions.TelegramApiException e) {
             logger.error("Failed to send personal game created notification to user {}", user.getId(), e);
+        } catch (Exception e) {
+            logger.error("Unexpected error while sending personal game created notification to user {}", user.getId(), e);
         }
     }
     

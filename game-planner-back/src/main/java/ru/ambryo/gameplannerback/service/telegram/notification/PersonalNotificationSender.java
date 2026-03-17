@@ -28,7 +28,9 @@ public abstract class PersonalNotificationSender {
             sendMessage.setParseMode("HTML");
             bot.execute(sendMessage);
         } catch (org.telegram.telegrambots.meta.exceptions.TelegramApiException e) {
-            // Логирование должно быть в подклассах
+            logger.error("Failed to send personal message to chat {}", chatId, e);
+        } catch (Exception e) {
+            logger.error("Unexpected error while sending personal message to chat {}", chatId, e);
         }
     }
     

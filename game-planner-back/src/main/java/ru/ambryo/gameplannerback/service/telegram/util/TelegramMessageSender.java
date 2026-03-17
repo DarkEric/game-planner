@@ -40,6 +40,8 @@ public class TelegramMessageSender {
             bot.execute(sendMessage);
         } catch (TelegramApiException e) {
             logger.error("Failed to send personal message to chat {}", chatId, e);
+        } catch (Exception e) {
+            logger.error("Unexpected error while sending personal message to chat {}", chatId, e);
         }
     }
     
@@ -59,6 +61,8 @@ public class TelegramMessageSender {
             bot.execute(sendMessage);
         } catch (TelegramApiException e) {
             logger.error("Failed to send message with keyboard to chat {}", chatId, e);
+        } catch (Exception e) {
+            logger.error("Unexpected error while sending message with keyboard to chat {}", chatId, e);
         }
     }
     
@@ -80,6 +84,8 @@ public class TelegramMessageSender {
             bot.execute(editMessage);
         } catch (TelegramApiException e) {
             logger.error("Failed to update menu message in chat {}", chatId, e);
+        } catch (Exception e) {
+            logger.error("Unexpected error while updating menu message in chat {}", chatId, e);
         }
     }
     
@@ -108,6 +114,8 @@ public class TelegramMessageSender {
             bot.execute(sendMessage);
         } catch (TelegramApiException e) {
             logger.error("Failed to send group message to chat {}", chatId, e);
+        } catch (Exception e) {
+            logger.error("Unexpected error while sending group message to chat {}", chatId, e);
         }
     }
 }

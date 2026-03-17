@@ -30,7 +30,7 @@ public class AdminService {
     private PasswordResetService passwordResetService;
     
     @Autowired
-    private TelegramNotificationService telegramNotificationService;
+    private AsyncTelegramNotificationService asyncTelegramNotificationService;
     
     @Autowired
     private CampaignPlayerRepository campaignPlayerRepository;
@@ -158,21 +158,16 @@ public class AdminService {
         
         boolean sentViaTelegram = false;
         
-        // Попытка отправить через Telegram
         if (user.getTelegramSubscribed() != null && user.getTelegramSubscribed() 
                 && user.getTelegramChatId() != null) {
-            try {
-                String message = "🔐 <b>Сброс пароля администратором</b>\n\n" +
-                    "Ваш пароль был сброшен администратором.\n\n" +
-                    "Новый пароль: <code>" + temporaryPassword + "</code>\n\n" +
-                    "Рекомендуется изменить пароль после входа в систему.";
-                
-                telegramNotificationService.sendPersonalMessage(user.getTelegramChatId(), message);
-                sentViaTelegram = true;
-                logger.info("Temporary password sent via Telegram to user: {}", user.getUsername());
-            } catch (Exception e) {
-                logger.error("Failed to send temporary password via Telegram to user: {}", user.getUsername(), e);
-            }
+            String message = "🔐 <b>Сброс пароля администратором</b>\n\n" +
+                "Ваш пароль был сброшен администратором.\n\n" +
+                "Новый пароль: <code>" + temporaryPassword + "</code>\n\n" +
+                "Рекомендуется изменить пароль после входа в систему.";
+            
+            asyncTelegramNotificationService.sendPersonalMessageAsync(user.getTelegramChatId(), message);
+            sentViaTelegram = true;
+            logger.info("Temporary password send scheduled via Telegram to user: {}", user.getUsername());
         }
         
         ResetPasswordResponse response = new ResetPasswordResponse();

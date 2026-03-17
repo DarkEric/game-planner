@@ -15,7 +15,12 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.ambryo.gameplannerback.dto.GameDto;
+import ru.ambryo.gameplannerback.entity.Game;
+import ru.ambryo.gameplannerback.entity.GameNotification;
 import ru.ambryo.gameplannerback.entity.User;
+import ru.ambryo.gameplannerback.entity.UserNotificationSettings;
+import ru.ambryo.gameplannerback.repository.GameNotificationRepository;
+import ru.ambryo.gameplannerback.repository.UserNotificationSettingsRepository;
 import ru.ambryo.gameplannerback.repository.UserRepository;
 
 import java.time.Instant;
@@ -83,6 +88,12 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     
     @Autowired
     private ru.ambryo.gameplannerback.service.telegram.util.TelegramMessageSender messageSender;
+
+    @Autowired
+    private UserNotificationSettingsRepository settingsRepository;
+
+    @Autowired
+    private GameNotificationRepository gameNotificationRepository;
     
     // Старые системы состояний, enum'ы и Maps удалены - теперь используется StateManager классы
     // Старые константы удалены - теперь используется TelegramBotProperties
@@ -322,6 +333,96 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     
     public void sendGameHeldPersonalNotification(GameDto game, User user) {
         gameNotificationSender.sendGameHeldNotification(game, user);
+    }
+
+    public void sendPersonalGameCreatedNotifications(GameDto gameDto, Game game, List<User> allUsers) {
+        for (User user : allUsers) {
+            if (user.getTelegramSubscribed() == null || !user.getTelegramSubscribed()) {
+                continue;
+            }
+
+            UserNotificationSettings settings = settingsRepository.findByUserId(user.getId()).orElse(null);
+            if (settings == null) {
+                continue;
+            }
+
+            String setting = settings.getGameCreated();
+            boolean shouldNotify = false;
+
+            if ("ALL".equals(setting)) {
+                shouldNotify = true;
+            } else if ("MY_GAMES".equals(setting)) {
+                boolean isParticipant = game.getParticipants().stream()
+                        .anyMatch(p -> p.getId().equals(user.getId()));
+                boolean isCreator = game.getCreator().getId().equals(user.getId());
+                shouldNotify = isParticipant || isCreator;
+            }
+
+            if (shouldNotify) {
+                GameNotification existing = gameNotificationRepository.findPersonalNotification(
+                        game, "GAME_CREATED", user).orElse(null);
+
+                if (existing == null) {
+                    gameNotificationSender.sendGameCreatedNotification(gameDto, user);
+
+                    GameNotification notification = new GameNotification(game, "GAME_CREATED", user);
+                    gameNotificationRepository.save(notification);
+                }
+            }
+        }
+    }
+
+    public void sendPersonalGameCancelledNotifications(GameDto gameDto, Game game) {
+        for (User participant : game.getParticipants()) {
+            if (participant.getTelegramSubscribed() == null || !participant.getTelegramSubscribed()) {
+                continue;
+            }
+
+            UserNotificationSettings settings = settingsRepository.findByUserId(participant.getId()).orElse(null);
+            if (settings == null) {
+                continue;
+            }
+
+            String setting = settings.getGameCancelled();
+            boolean shouldNotify = "ALL".equals(setting) || "MY_GAMES".equals(setting);
+
+            if (shouldNotify) {
+                GameNotification existing = gameNotificationRepository.findPersonalNotification(
+                        game, "GAME_CANCELLED", participant).orElse(null);
+
+                if (existing == null) {
+                    gameNotificationSender.sendGameCancelledNotification(gameDto, participant);
+                }
+            }
+        }
+    }
+
+    public void sendPersonalGameHeldNotifications(GameDto gameDto, Game game) {
+        for (User participant : game.getParticipants()) {
+            if (participant.getTelegramSubscribed() == null || !participant.getTelegramSubscribed()) {
+                continue;
+            }
+
+            UserNotificationSettings settings = settingsRepository.findByUserId(participant.getId()).orElse(null);
+            if (settings == null) {
+                continue;
+            }
+
+            String setting = settings.getGameHeld();
+            boolean shouldNotify = "ALL".equals(setting) || "MY_GAMES".equals(setting);
+
+            if (shouldNotify) {
+                GameNotification existing = gameNotificationRepository.findPersonalNotification(
+                        game, "GAME_HELD", participant).orElse(null);
+
+                if (existing == null) {
+                    gameNotificationSender.sendGameHeldNotification(gameDto, participant);
+
+                    GameNotification notification = new GameNotification(game, "GAME_HELD", participant);
+                    gameNotificationRepository.save(notification);
+                }
+            }
+        }
     }
     
     public void sendPlayerRemovedFromGameNotification(GameDto game, User removedPlayer) {

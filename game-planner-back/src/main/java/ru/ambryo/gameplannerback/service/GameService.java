@@ -29,6 +29,9 @@ public class GameService {
     @Autowired
     @Lazy
     private TelegramNotificationService telegramNotificationService;
+
+    @Autowired
+    private AsyncTelegramNotificationService asyncTelegramNotificationService;
     
     @Autowired
     private UserNotificationSettingsRepository settingsRepository;
@@ -88,22 +91,13 @@ public class GameService {
         game = gameRepository.save(game);
         
         GameDto gameDto = convertToDto(game);
-        
-        // Отправляем общее уведомление в Telegram
-        try {
-            telegramNotificationService.sendGameCreatedNotification(gameDto);
-        } catch (Exception e) {
-            // Логируем ошибку, но не прерываем создание игры
-            System.err.println("Failed to send Telegram notification: " + e.getMessage());
-        }
-        
-        // Отправляем персональные уведомления
-        try {
-            sendPersonalGameCreatedNotifications(gameDto, game);
-        } catch (Exception e) {
-            System.err.println("Failed to send personal notifications: " + e.getMessage());
-        }
-        
+
+        asyncTelegramNotificationService.sendGameCreatedNotificationsAsync(
+                gameDto,
+                game,
+                userRepository.findAll()
+        );
+
         return gameDto;
     }
     
@@ -157,22 +151,13 @@ public class GameService {
         
         // Сохраняем DTO до удаления для отправки уведомления
         GameDto gameDto = convertToDto(game);
-        
-        // Отправляем общее уведомление об отмене в Telegram
-        try {
-            telegramNotificationService.sendGameCancelledNotification(gameDto, cancellationReason);
-        } catch (Exception e) {
-            // Логируем ошибку, но не прерываем удаление игры
-            System.err.println("Failed to send Telegram cancellation notification: " + e.getMessage());
-        }
-        
-        // Отправляем персональные уведомления об отмене
-        try {
-            sendPersonalGameCancelledNotifications(gameDto, game);
-        } catch (Exception e) {
-            System.err.println("Failed to send personal cancellation notifications: " + e.getMessage());
-        }
-        
+
+        asyncTelegramNotificationService.sendGameCancelledNotificationsAsync(
+                gameDto,
+                game,
+                cancellationReason
+        );
+
         // Удаляем игру после отправки всех уведомлений
         gameRepository.delete(game);
     }
@@ -289,19 +274,14 @@ public class GameService {
         
         game = gameRepository.save(game);
         GameDto gameDto = convertToDto(game);
-        
-        // Отправляем уведомление удаленному игроку
-        try {
-            if (removedPlayer.getTelegramSubscribed() != null && removedPlayer.getTelegramSubscribed()) {
-                UserNotificationSettings settings = settingsRepository.findByUserId(removedPlayer.getId()).orElse(null);
-                if (settings != null && "ALL".equals(settings.getGameRemovedFromGame())) {
-                    telegramNotificationService.sendPlayerRemovedFromGameNotification(gameDto, removedPlayer);
-                }
+
+        if (removedPlayer.getTelegramSubscribed() != null && removedPlayer.getTelegramSubscribed()) {
+            UserNotificationSettings settings = settingsRepository.findByUserId(removedPlayer.getId()).orElse(null);
+            if (settings != null && "ALL".equals(settings.getGameRemovedFromGame())) {
+                asyncTelegramNotificationService.sendPlayerRemovedNotificationAsync(gameDto, removedPlayer);
             }
-        } catch (Exception e) {
-            System.err.println("Failed to send removed from game notification: " + e.getMessage());
         }
-        
+
         return gameDto;
     }
     
@@ -319,21 +299,9 @@ public class GameService {
         game = gameRepository.save(game);
         
         GameDto gameDto = convertToDto(game);
-        
-        // Отправляем общее уведомление в Telegram
-        try {
-            telegramNotificationService.sendGameHeldNotification(gameDto);
-        } catch (Exception e) {
-            System.err.println("Failed to send Telegram notification: " + e.getMessage());
-        }
-        
-        // Отправляем персональные уведомления о проведении
-        try {
-            sendPersonalGameHeldNotifications(gameDto, game);
-        } catch (Exception e) {
-            System.err.println("Failed to send personal held notifications: " + e.getMessage());
-        }
-        
+
+        asyncTelegramNotificationService.sendGameHeldNotificationsAsync(gameDto, game);
+
         return gameDto;
     }
 
@@ -360,7 +328,7 @@ public class GameService {
         );
     }
     
-    private void sendPersonalGameCreatedNotifications(GameDto gameDto, Game game) {
+    void sendPersonalGameCreatedNotifications(GameDto gameDto, Game game) {
         List<User> allUsers = userRepository.findAll();
         
         for (User user : allUsers) {
@@ -402,7 +370,7 @@ public class GameService {
         }
     }
     
-    private void sendPersonalGameCancelledNotifications(GameDto gameDto, Game game) {
+    void sendPersonalGameCancelledNotifications(GameDto gameDto, Game game) {
         // Отправляем уведомления участникам игры
         for (User participant : game.getParticipants()) {
             if (participant.getTelegramSubscribed() == null || !participant.getTelegramSubscribed()) {
@@ -430,7 +398,7 @@ public class GameService {
         }
     }
     
-    private void sendPersonalGameHeldNotifications(GameDto gameDto, Game game) {
+    void sendPersonalGameHeldNotifications(GameDto gameDto, Game game) {
         // Отправляем уведомления участникам игры
         for (User participant : game.getParticipants()) {
             if (participant.getTelegramSubscribed() == null || !participant.getTelegramSubscribed()) {
