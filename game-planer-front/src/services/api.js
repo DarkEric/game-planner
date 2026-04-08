@@ -1,6 +1,6 @@
 import { getUserTimezone } from '../utils/dateUtils'
 import { parseFromServer, formatForServer } from '../utils/timezoneUtils'
-import { utcDateFromMoscowWallClock } from '../utils/moscowWallTime'
+import { utcDateFromZonedWallClock } from '../utils/zonedWallTime'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -410,26 +410,27 @@ export const playerApi = {
   },
 
   /**
-   * Массовый toggle слотов: время задаётся как «настенные часы» в Europe/Moscow.
+   * Массовый toggle слотов: время — настенные часы в часовом поясе профиля
+   * (getLastSetUserTimezone / иначе часовой пояс браузера), не МСК.
    * @param {Array<{ year: number, month: number, day: number, hour: number, minute?: number, duration: number } | { year: number, month: number, day: number, wholeDay: true }>} slots
    */
   async toggleTimeSlotsMoscowBatch(slots) {
-    const userTz = getUserTimezoneForAPI()
+    const wallTz = getLastSetUserTimezone() || getUserTimezoneForAPI()
     const slotsData = slots.map(s => {
       if (s.wholeDay) {
-        const start = utcDateFromMoscowWallClock(s.year, s.month - 1, s.day, 0, 0, 0)
+        const start = utcDateFromZonedWallClock(s.year, s.month - 1, s.day, 0, 0, 0, wallTz)
         return {
           start: start.toISOString(),
           duration: 24
         }
       }
-      const start = utcDateFromMoscowWallClock(
+      const start = utcDateFromZonedWallClock(
         s.year,
         s.month - 1,
         s.day,
         s.hour,
         s.minute ?? 0,
-        0
+        wallTz
       )
       return {
         start: start.toISOString(),

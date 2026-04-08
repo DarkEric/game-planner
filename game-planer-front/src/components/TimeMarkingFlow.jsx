@@ -5,6 +5,7 @@ import './TimeMarkingFlow.css'
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const MARKING_DAYS = 28
+const DURATION_HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i + 1)
 
 function pad(n) {
   return String(n).padStart(2, '0')
@@ -210,15 +211,24 @@ const TimeMarkingFlow = ({ onClose, onSaved }) => {
                             }}
                           />
                         </label>
-                        <label>
+                        <label className="time-marking-duration-label">
                           {t('timeMarkingDurationHours')}
-                          <input
-                            type="number"
-                            min={1}
-                            max={24}
+                          <select
+                            className="time-marking-duration-select"
                             value={cfg.duration}
-                            onChange={e => updateConfig(key, { duration: Math.min(24, Math.max(1, parseInt(e.target.value, 10) || 4)) })}
-                          />
+                            onChange={e =>
+                              updateConfig(key, {
+                                duration: Math.min(24, Math.max(1, parseInt(e.target.value, 10) || 4))
+                              })
+                            }
+                            aria-label={t('timeMarkingDurationHours')}
+                          >
+                            {DURATION_HOUR_OPTIONS.map(h => (
+                              <option key={h} value={h}>
+                                {h}
+                              </option>
+                            ))}
+                          </select>
                         </label>
                       </div>
                     )}

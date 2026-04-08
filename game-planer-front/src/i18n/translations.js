@@ -28,7 +28,8 @@ export const translations = {
     timeMarkingToggleHint: 'Повторное сохранение того же интервала снимет слот (как в боте).',
     timeMarkingStep1: 'Выберите дни',
     timeMarkingStep2: 'Время по дням',
-    timeMarkingMoscowNote: 'По умолчанию начало 19:00 по Москве (МСК).',
+    timeMarkingMoscowNote:
+      'Время начала — в вашем часовом поясе из профиля (если не задан — как в браузере). По умолчанию 19:00.',
     timeMarkingNext: 'Далее',
     timeMarkingBack: 'Назад',
     timeMarkingSave: 'Сохранить',
@@ -168,7 +169,8 @@ export const translations = {
     timeMarkingToggleHint: 'Saving the same slot again removes it (same as the bot).',
     timeMarkingStep1: 'Choose days',
     timeMarkingStep2: 'Time per day',
-    timeMarkingMoscowNote: 'Default start is 19:00 Moscow (MSK).',
+    timeMarkingMoscowNote:
+      'Start time is in your profile timezone (browser timezone if unset). Default 19:00.',
     timeMarkingNext: 'Next',
     timeMarkingBack: 'Back',
     timeMarkingSave: 'Save',

@@ -26,6 +26,8 @@
   overflow: auto;
   padding: 1rem 1.1rem 1.25rem;
   box-sizing: border-box;
+  /* Нативные time/date на Android — тёмная тема диалога */
+  color-scheme: dark;
 }
 
 @media (min-width: 600px) {
@@ -204,8 +206,7 @@
   color: #999;
 }
 
-.time-marking-inputs input[type="time"],
-.time-marking-inputs input[type="number"] {
+.time-marking-inputs input[type="time"] {
   padding: 0.45rem 0.5rem;
   border-radius: 6px;
   border: 1px solid #444;
@@ -213,6 +214,28 @@
   color: #fff;
   font-size: 1rem;
   min-height: 44px;
+  color-scheme: dark;
+}
+
+.time-marking-duration-label {
+  flex: 1;
+  min-width: min(100%, 7.5rem);
+}
+
+.time-marking-duration-select {
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 1rem;
+  min-height: 44px;
+  width: 100%;
+  max-width: 8rem;
+  box-sizing: border-box;
+  font-family: inherit;
+  color-scheme: dark;
+  cursor: pointer;
 }
 
 .time-marking-actions {

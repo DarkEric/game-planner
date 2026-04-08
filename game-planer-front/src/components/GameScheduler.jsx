@@ -15,6 +15,8 @@ function isSameBestSlot(a, b) {
   return a.date.getTime() === b.date.getTime() && a.hour === b.hour && a.count === b.count
 }
 
+const DURATION_HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i + 1)
+
 const GameScheduler = ({ players, onSchedule, onClose }) => {
   const { t, language } = useLanguage()
   const [viewMonth, setViewMonth] = useState(() => {
@@ -317,24 +319,22 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
               </div>
               <div className="scheduler-field">
                 <label htmlFor="scheduler-duration">{t('schedulerDuration')}</label>
-                <input
+                <select
                   id="scheduler-duration"
-                  type="number"
-                  min={1}
-                  max={24}
-                  step={1}
                   value={durationHours}
                   onChange={(e) => {
-                    const v = parseInt(e.target.value, 10)
-                    if (!Number.isNaN(v)) {
-                      setDurationHours(Math.min(24, Math.max(1, v)))
-                    } else {
-                      setDurationHours(1)
-                    }
+                    setDurationHours(Math.min(24, Math.max(1, parseInt(e.target.value, 10) || 4)))
                     setSelectedSlot(null)
                   }}
-                  className="scheduler-input"
-                />
+                  className="scheduler-input scheduler-select"
+                  aria-label={t('schedulerDuration')}
+                >
+                  {DURATION_HOUR_OPTIONS.map((h) => (
+                    <option key={h} value={h}>
+                      {h}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
