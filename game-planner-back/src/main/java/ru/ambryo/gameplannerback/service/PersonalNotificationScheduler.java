@@ -256,7 +256,7 @@ public class PersonalNotificationScheduler {
         }
     }
     
-    @Value("${telegram.notifications.group.time-slot-reminder-cron:}")
+    @Value("${telegram.notifications.group.time-slot-reminder-cron:0 0 0 * * ?}")
     private String groupTimeSlotReminderCron;
     
     /**

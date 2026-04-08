@@ -1,30 +1,42 @@
+import { useLanguage } from '../i18n/LanguageContext'
 import './TabNavigation.css'
 
 const TabNavigation = ({ activeTab, onTabChange, isAdmin = false }) => {
-    const tabs = [
-        { id: 'calendar', label: 'Календарь игр', icon: '📅' },
-        { id: 'campaigns', label: 'Кампании', icon: '📚' },
-        { id: 'profile', label: 'Личный кабинет', icon: '👤' }
-    ]
+  const { t } = useLanguage()
+  const tabs = [
+    { id: 'games', label: t('tabGames'), shortLabel: t('tabGames'), icon: '🎮', aria: t('tabGamesAria') },
+    { id: 'calendar', label: t('tabCalendar'), shortLabel: t('tabCalendar'), icon: '📅', aria: t('tabCalendarAria') },
+    { id: 'campaigns', label: t('tabCampaigns'), shortLabel: t('tabCampaigns'), icon: '📚', aria: t('tabCampaignsAria') },
+    { id: 'profile', label: t('tabProfile'), shortLabel: t('tabProfile'), icon: '👤', aria: t('tabProfileAria') }
+  ]
 
-    if (isAdmin) {
-        tabs.push({ id: 'admin', label: 'Админ-панель', icon: '⚙️' })
-    }
+  if (isAdmin) {
+    tabs.push({
+      id: 'admin',
+      label: t('tabAdmin'),
+      shortLabel: t('tabAdmin'),
+      icon: '⚙️',
+      aria: t('tabAdminAria')
+    })
+  }
 
-    return (
-        <nav className="tab-navigation">
-            {tabs.map(tab => (
-                <button
-                    key={tab.id}
-                    className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
-                    onClick={() => onTabChange(tab.id)}
-                >
-                    <span className="tab-icon">{tab.icon}</span>
-                    <span className="tab-label">{tab.label}</span>
-                </button>
-            ))}
-        </nav>
-    )
+  return (
+    <nav className="tab-navigation" aria-label={t('tabNavAria')}>
+      {tabs.map(tab => (
+        <button
+          key={tab.id}
+          type="button"
+          className={`tab-button ${activeTab === tab.id ? 'active' : ''}`}
+          onClick={() => onTabChange(tab.id)}
+          aria-label={tab.aria}
+          title={tab.label}
+        >
+          <span className="tab-icon" aria-hidden>{tab.icon}</span>
+          <span className="tab-label">{tab.label}</span>
+        </button>
+      ))}
+    </nav>
+  )
 }
 
 export default TabNavigation

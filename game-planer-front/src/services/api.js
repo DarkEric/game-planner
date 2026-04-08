@@ -1,5 +1,6 @@
 import { getUserTimezone } from '../utils/dateUtils'
 import { parseFromServer, formatForServer } from '../utils/timezoneUtils'
+import { utcDateFromMoscowWallClock } from '../utils/moscowWallTime'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -9,6 +10,9 @@ let currentUserTimezone = null
 export const setUserTimezone = (timezone) => {
   currentUserTimezone = timezone
 }
+
+/** @returns {string|null} последний TZ из профиля (если setUserTimezone вызывали) */
+export const getLastSetUserTimezone = () => currentUserTimezone
 
 export const getUserTimezoneForAPI = () => {
   // ВАЖНО: Всегда используем timezone браузера для корректной работы Date объектов
@@ -400,6 +404,56 @@ export const playerApi = {
       timezone: data.timezone,
       availableTimes: (data.availableTimes || []).map(ts => ({
         start: parseFromServer(ts.start, userTz), // Парсим из UTC
+        duration: ts.duration || 1
+      }))
+    }
+  },
+
+  /**
+   * Массовый toggle слотов: время задаётся как «настенные часы» в Europe/Moscow.
+   * @param {Array<{ year: number, month: number, day: number, hour: number, minute?: number, duration: number } | { year: number, month: number, day: number, wholeDay: true }>} slots
+   */
+  async toggleTimeSlotsMoscowBatch(slots) {
+    const userTz = getUserTimezoneForAPI()
+    const slotsData = slots.map(s => {
+      if (s.wholeDay) {
+        const start = utcDateFromMoscowWallClock(s.year, s.month - 1, s.day, 0, 0, 0)
+        return {
+          start: start.toISOString(),
+          duration: 24
+        }
+      }
+      const start = utcDateFromMoscowWallClock(
+        s.year,
+        s.month - 1,
+        s.day,
+        s.hour,
+        s.minute ?? 0,
+        0
+      )
+      return {
+        start: start.toISOString(),
+        duration: s.duration
+      }
+    })
+
+    const response = await fetch(`${API_BASE_URL}/players/me/time-slots/toggle-batch`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ slots: slotsData })
+    })
+    if (!response.ok) {
+      handleAuthError(response)
+      throw new Error('Failed to toggle time slots')
+    }
+    const data = await response.json()
+    return {
+      id: data.id,
+      name: data.name,
+      color: data.color,
+      timezone: data.timezone,
+      availableTimes: (data.availableTimes || []).map(ts => ({
+        start: parseFromServer(ts.start, userTz),
         duration: ts.duration || 1
       }))
     }

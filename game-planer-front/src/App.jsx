@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import Login from './components/Login'
 import Register from './components/Register'
 import PasswordResetRequest from './components/PasswordResetRequest'
@@ -8,12 +8,15 @@ import GameDetails from './components/GameDetails'
 import LanguageSwitcher from './components/LanguageSwitcher'
 import TabNavigation from './components/TabNavigation'
 import CalendarTab from './components/CalendarTab'
+import UpcomingGamesTab from './components/UpcomingGamesTab'
+import TimeMarkingFlow from './components/TimeMarkingFlow'
 import ProfileTab from './components/ProfileTab'
 import CampaignTab from './components/CampaignTab'
 import AdminPanel from './components/AdminPanel'
-import { playerApi, authApi, adminApi, setUserTimezone } from './services/api'
+import { playerApi, authApi, adminApi } from './services/api'
 import { gameApi } from './services/gameApi'
 import { useLanguage } from './i18n/LanguageContext'
+import { getMergedGamesFetchRange } from './utils/gamesDateRange'
 import './App.css'
 
 function App() {
@@ -26,7 +29,6 @@ function App() {
   const [daysToShow, setDaysToShow] = useState(14)
   const [showPasswordReset, setShowPasswordReset] = useState(false)
   const [showPasswordResetConfirm, setShowPasswordResetConfirm] = useState(false)
-  // Инициализируем с сегодняшней датой (без времени)
   const [currentStartDate, setCurrentStartDate] = useState(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -35,26 +37,27 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showGameScheduler, setShowGameScheduler] = useState(false)
+  const [showTimeMarking, setShowTimeMarking] = useState(false)
   const [games, setGames] = useState([])
   const [selectedGame, setSelectedGame] = useState(null)
-  const [activeTab, setActiveTab] = useState('calendar')
+  const [activeTab, setActiveTab] = useState('games')
   const [isAdmin, setIsAdmin] = useState(false)
 
-  // Вычисление количества дней на основе ширины экрана
+  const fetchRange = useMemo(
+    () => getMergedGamesFetchRange(currentStartDate, daysToShow),
+    [currentStartDate, daysToShow]
+  )
+
   useEffect(() => {
     const calculateDaysToShow = () => {
-      // Теперь у нас нет левой панели, только отступы приложения
-      // Отступы приложения (2rem = 32px) + колонка часов (80px) + ширина одной колонки дня (160px)
       const appPadding = 32
       const hoursColumnWidth = 80
       const dayColumnWidth = 160
-      const reservedSpace = 20 // Минимальный запас для прокрутки
+      const reservedSpace = 20
 
       const availableWidth = window.innerWidth - appPadding - hoursColumnWidth - reservedSpace
       const calculatedDays = Math.floor(availableWidth / dayColumnWidth)
 
-      // Минимум 7 дней, максимум 90 дней (больше места = больше дней)
-      // На FullHD (1920px) теперь будет ~22 дня, на 2K (2560px) ~30 дней
       const days = Math.max(7, Math.min(90, calculatedDays))
       setDaysToShow(days)
     }
@@ -65,7 +68,6 @@ function App() {
     return () => window.removeEventListener('resize', calculateDaysToShow)
   }, [])
 
-  // Проверка аутентификации при монтировании
   useEffect(() => {
     if (authApi.isAuthenticated()) {
       setIsAuthenticated(true)
@@ -76,7 +78,32 @@ function App() {
     }
   }, [])
 
-  // Проверка прав администратора
+  useEffect(() => {
+    if (!isAuthenticated || loading) return
+    const params = new URLSearchParams(window.location.search)
+    const gid = params.get('gameId')
+    if (!gid) return
+    const id = parseInt(gid, 10)
+    if (!Number.isFinite(id) || id <= 0) return
+
+    let cancelled = false
+    gameApi
+      .getGameById(id)
+      .then(game => {
+        if (cancelled) return
+        setSelectedGame(game)
+        const path = window.location.pathname || '/'
+        window.history.replaceState({}, document.title, path)
+      })
+      .catch(() => {
+        if (!cancelled) setError(t('errorOpenGame'))
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isAuthenticated, loading, t])
+
   const checkAdminStatus = async () => {
     try {
       const response = await adminApi.isAdmin()
@@ -87,58 +114,44 @@ function App() {
     }
   }
 
-  // Перезагружаем игры и данные игроков при изменении даты или количества дней
   useEffect(() => {
     if (isAuthenticated && !loading) {
       const loadGamesAndPlayers = async () => {
         try {
-          // Вычисляем диапазон дат с запасом
-          const startDate = new Date(currentStartDate)
-          startDate.setDate(startDate.getDate() - 1)
-          const endDate = new Date(currentStartDate)
-          endDate.setDate(endDate.getDate() + daysToShow + 1)
+          const { start, end } = fetchRange
 
-          // Загружаем игры и обновляем данные игроков
           const [gamesData, current, all] = await Promise.all([
-            gameApi.getGames(startDate, endDate),
-            playerApi.getCurrentPlayer(startDate, endDate),
-            playerApi.getAllPlayers(startDate, endDate)
+            gameApi.getGames(start, end),
+            playerApi.getCurrentPlayer(start, end),
+            playerApi.getAllPlayers(start, end)
           ])
-          
+
           setGames(gamesData)
           setCurrentPlayer(current)
           setAllPlayers(all)
         } catch (err) {
           console.error('Failed to load games and players:', err)
-          setError('Не удалось загрузить данные. Проверьте подключение к серверу.')
+          setError(t('errorLoadData'))
         }
       }
       loadGamesAndPlayers()
     }
-  }, [currentStartDate, daysToShow, isAuthenticated, loading])
+  }, [currentStartDate, daysToShow, isAuthenticated, loading, fetchRange, t])
 
   const handleLogin = async (username, password) => {
-    try {
-      const response = await authApi.login(username, password)
-      setUser(response)
-      setIsAuthenticated(true)
-      await checkAdminStatus()
-      await loadData()
-    } catch (err) {
-      throw err
-    }
+    const response = await authApi.login(username, password)
+    setUser(response)
+    setIsAuthenticated(true)
+    await checkAdminStatus()
+    await loadData()
   }
 
   const handleRegister = async (username, password, email, inviteCode, name) => {
-    try {
-      const response = await authApi.register(username, password, email, inviteCode, name)
-      setUser(response)
-      setIsAuthenticated(true)
-      await checkAdminStatus()
-      await loadData()
-    } catch (err) {
-      throw err
-    }
+    const response = await authApi.register(username, password, email, inviteCode, name)
+    setUser(response)
+    setIsAuthenticated(true)
+    await checkAdminStatus()
+    await loadData()
   }
 
   const handleLogout = () => {
@@ -154,24 +167,19 @@ function App() {
       setLoading(true)
       setError(null)
 
-      // Вычисляем диапазон дат для фильтрации (текущая неделя + 1 день назад и вперед для запаса)
-      const startDate = new Date(currentStartDate)
-      startDate.setDate(startDate.getDate() - 1)
-      const endDate = new Date(currentStartDate)
-      endDate.setDate(endDate.getDate() + daysToShow + 1)
+      const { start, end } = getMergedGamesFetchRange(currentStartDate, daysToShow)
 
-      // Загружаем текущего пользователя, всех игроков и игры с фильтрацией
       const [current, all, gamesData] = await Promise.all([
-        playerApi.getCurrentPlayer(startDate, endDate),
-        playerApi.getAllPlayers(startDate, endDate),
-        gameApi.getGames(startDate, endDate)
+        playerApi.getCurrentPlayer(start, end),
+        playerApi.getAllPlayers(start, end),
+        gameApi.getGames(start, end)
       ])
       setCurrentPlayer(current)
       setAllPlayers(all)
       setGames(gamesData)
     } catch (err) {
       console.error('Failed to load data:', err)
-      setError('Не удалось загрузить данные. Проверьте подключение к серверу.')
+      setError(t('errorLoadData'))
     } finally {
       setLoading(false)
     }
@@ -200,27 +208,12 @@ function App() {
       setError(null)
       const updatedPlayer = await playerApi.updateCurrentPlayer(name, color, timezone)
       setCurrentPlayer(updatedPlayer)
-      // Обновляем в списке всех игроков
       setAllPlayers(allPlayers.map(p =>
         p.id === updatedPlayer.id ? updatedPlayer : p
       ))
     } catch (err) {
       console.error('Failed to update profile:', err)
-      setError('Не удалось обновить профиль. Проверьте подключение к серверу.')
-    }
-  }
-
-  const handleTimezoneChange = async (timezone) => {
-    if (!currentPlayer) return
-
-    try {
-      setError(null)
-      // Обновляем timezone в API сразу
-      setUserTimezone(timezone)
-      await handleUpdateProfile(currentPlayer.name, currentPlayer.color, timezone)
-    } catch (err) {
-      console.error('Failed to update timezone:', err)
-      setError('Не удалось обновить часовой пояс.')
+      setError(t('errorUpdateProfile'))
     }
   }
 
@@ -228,8 +221,6 @@ function App() {
     try {
       setError(null)
 
-      // Создаем "наивную" дату с компонентами из date и указанным часом
-      // Эти компоненты будут интерпретированы как время в timezone пользователя
       const slotDate = new Date(
         date.getFullYear(),
         date.getMonth(),
@@ -240,29 +231,15 @@ function App() {
         0
       )
 
-      console.log('handleTimeSlotClick:', {
-        date: date.toString(),
-        hour,
-        slotDate: slotDate.toString(),
-        components: {
-          year: slotDate.getFullYear(),
-          month: slotDate.getMonth() + 1,
-          day: slotDate.getDate(),
-          hour: slotDate.getHours()
-        }
-      })
-
-      // Отправляем запрос на сервер для текущего пользователя
       const updatedPlayer = await playerApi.toggleTimeSlot(slotDate, 1)
 
-      // Обновляем локальное состояние
       setCurrentPlayer(updatedPlayer)
       setAllPlayers(allPlayers.map(p =>
         p.id === updatedPlayer.id ? updatedPlayer : p
       ))
     } catch (err) {
       console.error('Failed to toggle time slot:', err)
-      setError('Не удалось сохранить изменение времени. Проверьте подключение к серверу.')
+      setError(t('errorToggleSlot'))
     }
   }
 
@@ -272,31 +249,37 @@ function App() {
     try {
       setError(null)
 
-      // Отправляем запрос на сервер для массового переключения
-      // duration можно настроить (по умолчанию 1 час)
       const updatedPlayer = await playerApi.toggleTimeSlots(slots, duration)
 
-      // Обновляем локальное состояние
       setCurrentPlayer(updatedPlayer)
       setAllPlayers(allPlayers.map(p =>
         p.id === updatedPlayer.id ? updatedPlayer : p
       ))
     } catch (err) {
       console.error('Failed to toggle time slots:', err)
-      setError('Не удалось сохранить изменения времени. Проверьте подключение к серверу.')
+      setError(t('errorToggleSlot'))
     }
   }
+
+  const handleTimeMarkingSaved = useCallback((updatedPlayer) => {
+    setCurrentPlayer(updatedPlayer)
+    setAllPlayers(prev =>
+      prev.map(p => (p.id === updatedPlayer.id ? updatedPlayer : p))
+    )
+  }, [])
 
   const handleScheduleGame = async (startTime, endTime, title, description, participantIds, autoAddPlayers, campaignId, maxParticipants) => {
     try {
       setError(null)
-      // Передаем campaignId прямо при создании игры
       const game = await gameApi.createGame(startTime, endTime, title, description, participantIds, autoAddPlayers, maxParticipants, campaignId)
-      setGames([...games, game])
+      setGames(prev => {
+        if (prev.some(g => g.id === game.id)) return prev
+        return [...prev, game]
+      })
       setShowGameScheduler(false)
     } catch (err) {
       console.error('Failed to schedule game:', err)
-      setError('Не удалось запланировать игру. Проверьте подключение к серверу.')
+      setError(t('errorScheduleGame'))
     }
   }
 
@@ -308,7 +291,7 @@ function App() {
       setSelectedGame(null)
     } catch (err) {
       console.error('Failed to delete game:', err)
-      setError('Не удалось удалить игру.')
+      setError(t('errorDeleteGame'))
     }
   }
 
@@ -318,16 +301,14 @@ function App() {
       const updatedGame = await gameApi.joinGame(gameId)
       setGames(games.map(g => g.id === gameId ? updatedGame : g))
       setSelectedGame(updatedGame)
-      // Перезагружаем данные игроков для обновления доступности
       await loadData()
     } catch (err) {
       console.error('Failed to join game:', err)
-      // Проверяем, связана ли ошибка с лимитом участников
       const errorMessage = err.message || ''
       if (errorMessage.includes('full') || errorMessage.includes('maximum') || errorMessage.includes('participants')) {
-        setError('Игра уже заполнена. Достигнуто максимальное количество участников.')
+        setError(t('errorJoinGame'))
       } else {
-        setError('Не удалось записаться на игру.')
+        setError(t('errorJoinGame'))
       }
     }
   }
@@ -338,11 +319,10 @@ function App() {
       const updatedGame = await gameApi.leaveGame(gameId)
       setGames(games.map(g => g.id === gameId ? updatedGame : g))
       setSelectedGame(updatedGame)
-      // Перезагружаем данные игроков для обновления доступности
       await loadData()
     } catch (err) {
       console.error('Failed to leave game:', err)
-      setError('Не удалось покинуть игру.')
+      setError(t('errorLeaveGame'))
     }
   }
 
@@ -404,87 +384,51 @@ function App() {
     )
   }
 
+  /** На вкладке «Игры» запланировать игру уже в нижней панели — в шапке только для «Календарь». */
+  const showScheduleInHeader = activeTab === 'calendar'
+
   return (
     <div className="app-container">
       <header className="app-header">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <div>
+        <div className="app-header-inner">
+          <div className="app-header-titles">
             <h1>🎲 {t('appTitle')}</h1>
             <p className="app-subtitle">
               {t('appSubtitle')}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div className="app-header-actions">
             <LanguageSwitcher />
-            {activeTab === 'calendar' && (
+            {showScheduleInHeader && (
               <button
+                type="button"
+                className="app-header-btn app-header-btn-primary"
                 onClick={() => setShowGameScheduler(true)}
-                style={{
-                  padding: '0.5rem 1rem',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'linear-gradient(135deg, #646cff, #5a5fd7)',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  boxShadow: '0 2px 8px rgba(100, 108, 255, 0.3)',
-                  transition: 'all 0.3s ease'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'translateY(-2px)'
-                  e.target.style.boxShadow = '0 4px 12px rgba(100, 108, 255, 0.4)'
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'translateY(0)'
-                  e.target.style.boxShadow = '0 2px 8px rgba(100, 108, 255, 0.3)'
-                }}
               >
                 🎲 {t('scheduleGame')}
               </button>
             )}
             {user && (
-              <span style={{ color: '#aaa', fontSize: '0.9rem' }}>
+              <span className="app-header-user">
                 {user.username}
               </span>
             )}
             <button
+              type="button"
+              className="app-header-btn app-header-btn-ghost"
               onClick={handleLogout}
-              style={{
-                padding: '0.5rem 1rem',
-                borderRadius: '6px',
-                border: '1px solid #555',
-                background: 'transparent',
-                color: '#fff',
-                cursor: 'pointer',
-                fontSize: '0.9rem'
-              }}
             >
               {t('logout')}
             </button>
           </div>
         </div>
         {error && (
-          <div style={{
-            marginTop: '1rem',
-            padding: '0.75rem',
-            backgroundColor: '#ff6b6b',
-            color: '#fff',
-            borderRadius: '6px',
-            fontSize: '0.9rem'
-          }}>
+          <div className="app-error-banner">
             {error}
             <button
+              type="button"
+              className="app-error-dismiss"
               onClick={() => setError(null)}
-              style={{
-                marginLeft: '1rem',
-                background: 'none',
-                border: '1px solid #fff',
-                color: '#fff',
-                padding: '0.25rem 0.5rem',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
             >
               ×
             </button>
@@ -494,6 +438,13 @@ function App() {
 
       <div className="app-content">
         <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} isAdmin={isAdmin} />
+
+        {activeTab === 'games' && (
+          <UpcomingGamesTab
+            games={games}
+            onSelectGame={setSelectedGame}
+          />
+        )}
 
         {activeTab === 'calendar' && (
           <CalendarTab
@@ -531,11 +482,37 @@ function App() {
         )}
       </div>
 
+      {activeTab === 'games' && (
+        <div className="app-home-bottom-actions" role="toolbar" aria-label={t('tabNavAria')}>
+          <button
+            type="button"
+            className="app-home-bottom-btn secondary"
+            onClick={() => setShowTimeMarking(true)}
+          >
+            📅 {t('markTime')}
+          </button>
+          <button
+            type="button"
+            className="app-home-bottom-btn primary"
+            onClick={() => setShowGameScheduler(true)}
+          >
+            🎲 {t('scheduleGame')}
+          </button>
+        </div>
+      )}
+
       {showGameScheduler && (
         <GameScheduler
           players={allPlayers}
           onSchedule={handleScheduleGame}
           onClose={() => setShowGameScheduler(false)}
+        />
+      )}
+
+      {showTimeMarking && (
+        <TimeMarkingFlow
+          onClose={() => setShowTimeMarking(false)}
+          onSaved={handleTimeMarkingSaved}
         />
       )}
 

@@ -1,13 +1,33 @@
 import { useState, useMemo, useEffect } from 'react'
 import { useLanguage } from '../i18n/LanguageContext'
 import { campaignApi } from '../services/campaignApi'
+import { localTimeInputValueForMoscowWall } from '../utils/moscowDefaults'
 import './GameScheduler.css'
+
+function stripTime(d) {
+  const x = new Date(d)
+  x.setHours(0, 0, 0, 0)
+  return x
+}
+
+function isSameBestSlot(a, b) {
+  if (!a || !b) return false
+  return a.date.getTime() === b.date.getTime() && a.hour === b.hour && a.count === b.count
+}
 
 const GameScheduler = ({ players, onSchedule, onClose }) => {
   const { t, language } = useLanguage()
-  const [selectedDate, setSelectedDate] = useState(new Date())
-  const [startTime, setStartTime] = useState('')
-  const [endTime, setEndTime] = useState('')
+  const [viewMonth, setViewMonth] = useState(() => {
+    const d = new Date()
+    d.setDate(1)
+    d.setHours(12, 0, 0, 0)
+    return d
+  })
+  const [selectedDay, setSelectedDay] = useState(() => stripTime(new Date()))
+  const [gameTime, setGameTime] = useState(() =>
+    localTimeInputValueForMoscowWall(stripTime(new Date()))
+  )
+  const [durationHours, setDurationHours] = useState(4)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [autoAddPlayers, setAutoAddPlayers] = useState(true)
@@ -19,6 +39,7 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
   useEffect(() => {
     loadCampaigns()
   }, [])
+
   const loadCampaigns = async () => {
     try {
       const data = await campaignApi.getUserCampaigns()
@@ -28,45 +49,36 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
     }
   }
 
-  // Генерируем календарь на текущий месяц
   const calendarDays = useMemo(() => {
-    const year = selectedDate.getFullYear()
-    const month = selectedDate.getMonth()
+    const year = viewMonth.getFullYear()
+    const month = viewMonth.getMonth()
     const firstDay = new Date(year, month, 1)
     const lastDay = new Date(year, month + 1, 0)
     const daysInMonth = lastDay.getDate()
     const startDayOfWeek = firstDay.getDay()
 
     const days = []
-
-    // Добавляем пустые ячейки для выравнивания
     for (let i = 0; i < (startDayOfWeek === 0 ? 6 : startDayOfWeek - 1); i++) {
       days.push(null)
     }
-
-    // Добавляем дни месяца
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day))
     }
-
     return days
-  }, [selectedDate])
+  }, [viewMonth])
 
-  // Вычисляем лучшие временные слоты
   const bestSlots = useMemo(() => {
     const slots = []
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    // Проверяем следующие 30 дней
     for (let dayOffset = 0; dayOffset < 30; dayOffset++) {
       const date = new Date(today)
       date.setDate(today.getDate() + dayOffset)
 
-      // Проверяем каждый час
       for (let hour = 0; hour < 24; hour++) {
-        const availablePlayers = players.filter(player => {
-          return player.availableTimes.some(timeSlot => {
+        const availablePlayers = players.filter(player =>
+          player.availableTimes.some(timeSlot => {
             const slotDate = new Date(timeSlot.start)
             const slotEnd = new Date(slotDate)
             slotEnd.setHours(slotDate.getHours() + (timeSlot.duration || 1))
@@ -80,7 +92,7 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
               slotDate.toDateString() === date.toDateString()
             )
           })
-        })
+        )
 
         if (availablePlayers.length >= 2) {
           slots.push({
@@ -93,7 +105,6 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
       }
     }
 
-    // Объединяем последовательные слоты
     const mergedSlots = []
     const sortedSlots = slots.sort((a, b) => {
       const dateCompare = a.date.getTime() - b.date.getTime()
@@ -138,60 +149,56 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
       month: 'long',
       weekday: 'short'
     })
-    const startTime = `${slot.hour.toString().padStart(2, '0')}:00`
-    const endTime = `${slot.endHour.toString().padStart(2, '0')}:00`
+    const startStr = `${slot.hour.toString().padStart(2, '0')}:00`
+    const endStr = `${slot.endHour.toString().padStart(2, '0')}:00`
 
     if (slot.duration > 1) {
-      return `${dateStr}, ${startTime} - ${endTime}`
+      return `${dateStr}, ${startStr} – ${endStr}`
     }
-    return `${dateStr}, ${startTime}`
+    return `${dateStr}, ${startStr}`
   }
 
   const handleSlotSelect = (slot) => {
     setSelectedSlot(slot)
+    setSelectedDay(stripTime(slot.date))
+    setGameTime(`${slot.hour.toString().padStart(2, '0')}:00`)
+    setDurationHours(Math.max(1, Math.min(24, slot.duration || 1)))
+  }
 
-    // Устанавливаем дату и время
-    const start = new Date(slot.date)
-    start.setHours(slot.hour, 0, 0, 0)
-    const end = new Date(start)
-    end.setHours(slot.endHour, 0, 0, 0)
+  const handlePickDay = (day) => {
+    if (!day) return
+    const stripped = stripTime(day)
+    setSelectedDay(stripped)
+    setSelectedSlot(null)
+    setGameTime(localTimeInputValueForMoscowWall(stripped))
+  }
 
-    // Форматируем для datetime-local input (нужно локальное время, не UTC)
-    // Формат: YYYY-MM-DDTHH:mm
-    const formatForInput = (date) => {
-      const year = date.getFullYear()
-      const month = String(date.getMonth() + 1).padStart(2, '0')
-      const day = String(date.getDate()).padStart(2, '0')
-      const hours = String(date.getHours()).padStart(2, '0')
-      const minutes = String(date.getMinutes()).padStart(2, '0')
-      return `${year}-${month}-${day}T${hours}:${minutes}`
-    }
+  const buildStartEnd = () => {
+    if (!selectedDay) return { start: null, end: null }
+    const parts = gameTime.split(':')
+    const h = parseInt(parts[0], 10)
+    const m = parseInt(parts[1] || '0', 10)
+    if (Number.isNaN(h) || Number.isNaN(m)) return { start: null, end: null }
 
-    setStartTime(formatForInput(start))
-    setEndTime(formatForInput(end))
+    const start = new Date(selectedDay)
+    start.setHours(h, m, 0, 0)
+    const dh = Math.max(1, Math.min(24, Number(durationHours) || 1))
+    const end = new Date(start.getTime() + dh * 60 * 60 * 1000)
+    return { start, end }
   }
 
   const handleSchedule = () => {
-    if (!startTime || !endTime) return
+    const { start, end } = buildStartEnd()
+    if (!start || !end || start >= end) return
 
-    // datetime-local input возвращает строку в формате "YYYY-MM-DDTHH:mm"
-    // new Date() интерпретирует это как локальное время браузера
-    const start = new Date(startTime)
-    const end = new Date(endTime)
-
-    // Получаем ID участников из выбранного слота
-    // Если слот выбран из топ-10, используем игроков из слота
-    // Если время выбрано вручную, находим доступных игроков на это время
     let participantIds = []
 
     if (selectedSlot) {
       participantIds = selectedSlot.availablePlayers.map(p => p.id)
     } else {
-      // Находим игроков, доступных на выбранное время
       const gameDurationHours = (end - start) / (1000 * 60 * 60)
 
       participantIds = players.filter(player => {
-        // Проверяем, доступен ли игрок на всё время игры
         for (let hourOffset = 0; hourOffset < gameDurationHours; hourOffset++) {
           const checkTime = new Date(start)
           checkTime.setHours(start.getHours() + hourOffset)
@@ -222,182 +229,173 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
   }
 
   const changeMonth = (offset) => {
-    const newDate = new Date(selectedDate)
-    newDate.setMonth(newDate.getMonth() + offset)
-    setSelectedDate(newDate)
+    const newDate = new Date(viewMonth)
+    newDate.setMonth(viewMonth.getMonth() + offset)
+    setViewMonth(newDate)
   }
 
-  const isScheduleDisabled = !startTime || !endTime || new Date(startTime) >= new Date(endTime)
+  const { start: computedStart, end: computedEnd } = buildStartEnd()
+  const isScheduleDisabled =
+    !selectedDay ||
+    !computedStart ||
+    !computedEnd ||
+    computedStart >= computedEnd
+
+  const todayStrip = stripTime(new Date())
 
   return (
     <div className="game-scheduler-overlay" onClick={onClose}>
       <div className="game-scheduler-modal" onClick={(e) => e.stopPropagation()}>
         <div className="game-scheduler-header">
           <h2>🎲 {t('scheduleGameTitle')}</h2>
-          <button className="close-button" onClick={onClose}>×</button>
+          <button type="button" className="close-button" onClick={onClose} aria-label={t('close')}>×</button>
         </div>
 
         <div className="game-scheduler-content">
           <div className="calendar-section">
             <h3>{t('selectDateTime')}</h3>
 
-            <div style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <button
-                  onClick={() => changeMonth(-1)}
-                  style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}
-                >
+            <div className="scheduler-calendar-wrap">
+              <div className="scheduler-month-nav">
+                <button type="button" className="scheduler-month-btn" onClick={() => changeMonth(-1)} aria-label={t('previous')}>
                   ‹
                 </button>
-                <span style={{ color: '#fff', fontSize: '1.1rem' }}>
-                  {selectedDate.toLocaleDateString(language === 'en' ? 'en-US' : 'ru-RU', { month: 'long', year: 'numeric' })}
+                <span className="scheduler-month-label">
+                  {viewMonth.toLocaleDateString(language === 'en' ? 'en-US' : 'ru-RU', { month: 'long', year: 'numeric' })}
                 </span>
-                <button
-                  onClick={() => changeMonth(1)}
-                  style={{ background: 'none', border: 'none', color: '#fff', fontSize: '1.5rem', cursor: 'pointer' }}
-                >
+                <button type="button" className="scheduler-month-btn" onClick={() => changeMonth(1)} aria-label={t('next')}>
                   ›
                 </button>
               </div>
 
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(7, 1fr)',
-                gap: '0.5rem',
-                marginBottom: '0.5rem'
-              }}>
+              <div className="scheduler-weekday-row">
                 {[t('mon'), t('tue'), t('wed'), t('thu'), t('fri'), t('sat'), t('sun')].map(day => (
-                  <div key={day} style={{ textAlign: 'center', color: '#aaa', fontSize: '0.85rem' }}>
-                    {day}
-                  </div>
+                  <div key={day} className="scheduler-weekday-cell">{day}</div>
                 ))}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.5rem' }}>
-                {calendarDays.map((day, index) => (
-                  <div
-                    key={index}
-                    style={{
-                      padding: '0.75rem',
-                      textAlign: 'center',
-                      background: day ? '#2a2a2a' : 'transparent',
-                      color: day ? '#fff' : 'transparent',
-                      borderRadius: '6px',
-                      cursor: day ? 'pointer' : 'default',
-                      border: day && day.toDateString() === new Date().toDateString() ? '2px solid #646cff' : 'none'
-                    }}
-                  >
-                    {day ? day.getDate() : ''}
-                  </div>
-                ))}
+              <div className="scheduler-day-grid">
+                {calendarDays.map((day, index) => {
+                  const isToday = day && stripTime(day).getTime() === todayStrip.getTime()
+                  const isSelected =
+                    day &&
+                    selectedDay &&
+                    stripTime(day).getTime() === selectedDay.getTime()
+
+                  return (
+                    <div key={index} className="scheduler-day-cell">
+                      {day ? (
+                        <button
+                          type="button"
+                          className={`scheduler-day-btn${isSelected ? ' selected' : ''}${isToday ? ' today' : ''}`}
+                          onClick={() => handlePickDay(day)}
+                        >
+                          {day.getDate()}
+                        </button>
+                      ) : (
+                        <span className="scheduler-day-empty" />
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             </div>
 
-            <div className="time-inputs">
-              <div className="time-input-group">
-                <label>{t('start')}</label>
+            <div className="scheduler-datetime-row">
+              <div className="scheduler-field">
+                <label htmlFor="scheduler-game-time">{t('schedulerGameTime')}</label>
                 <input
-                  type="datetime-local"
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
+                  id="scheduler-game-time"
+                  type="time"
+                  value={gameTime}
+                  onChange={(e) => {
+                    setGameTime(e.target.value)
+                    setSelectedSlot(null)
+                  }}
+                  className="scheduler-input scheduler-input-time"
                 />
               </div>
-              <div className="time-input-group">
-                <label>{t('end')}</label>
+              <div className="scheduler-field">
+                <label htmlFor="scheduler-duration">{t('schedulerDuration')}</label>
                 <input
-                  type="datetime-local"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
+                  id="scheduler-duration"
+                  type="number"
+                  min={1}
+                  max={24}
+                  step={1}
+                  value={durationHours}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10)
+                    if (!Number.isNaN(v)) {
+                      setDurationHours(Math.min(24, Math.max(1, v)))
+                    } else {
+                      setDurationHours(1)
+                    }
+                    setSelectedSlot(null)
+                  }}
+                  className="scheduler-input"
                 />
               </div>
             </div>
 
             <div className="game-info-inputs">
-              <div className="time-input-group">
-                <label>{t('gameTitleOptional')}</label>
+              <div className="scheduler-field">
+                <label htmlFor="scheduler-title">{t('gameTitleOptional')}</label>
                 <input
+                  id="scheduler-title"
                   type="text"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder={t('gameTitlePlaceholder')}
                   maxLength="255"
+                  className="scheduler-input"
                 />
               </div>
-              <div className="time-input-group">
-                <label>{t('descriptionOptional')}</label>
+              <div className="scheduler-field">
+                <label htmlFor="scheduler-desc">{t('descriptionOptional')}</label>
                 <textarea
+                  id="scheduler-desc"
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder={t('descriptionPlaceholder')}
                   maxLength="1000"
-                  rows="3"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    background: '#2a2a2a',
-                    border: '1px solid #444',
-                    borderRadius: '6px',
-                    color: '#fff',
-                    fontSize: '1rem',
-                    resize: 'vertical',
-                    fontFamily: 'inherit'
-                  }}
+                  rows={3}
+                  className="scheduler-textarea"
                 />
               </div>
-              <div className="time-input-group">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+              <div className="scheduler-field scheduler-checkbox-row">
+                <label className="scheduler-checkbox-label">
                   <input
                     type="checkbox"
                     checked={autoAddPlayers}
                     onChange={(e) => setAutoAddPlayers(e.target.checked)}
-                    style={{
-                      width: '1.2rem',
-                      height: '1.2rem',
-                      cursor: 'pointer'
-                    }}
                   />
-                  <span>Автоматически добавить доступных игроков</span>
+                  <span>{t('autoAddPlayersLabel')}</span>
                 </label>
               </div>
-              <div className="time-input-group">
-                <label>Максимальное количество участников (опционально)</label>
+              <div className="scheduler-field">
+                <label htmlFor="scheduler-max-p">{t('maxParticipantsLabel')}</label>
                 <input
+                  id="scheduler-max-p"
                   type="number"
                   value={maxParticipants}
                   onChange={(e) => setMaxParticipants(e.target.value)}
-                  placeholder="Без ограничений"
-                  min="1"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    background: '#2a2a2a',
-                    border: '1px solid #444',
-                    borderRadius: '6px',
-                    color: '#fff',
-                    fontSize: '1rem'
-                  }}
+                  placeholder={t('maxParticipantsPlaceholder')}
+                  min={1}
+                  className="scheduler-input"
                 />
-                <span style={{ fontSize: '0.85rem', color: '#aaa', marginTop: '0.25rem', display: 'block' }}>
-                  Создатель игры не учитывается в этом лимите
-                </span>
+                <span className="scheduler-field-hint">{t('maxParticipantsHint')}</span>
               </div>
               {campaigns.length > 0 && (
-                <div className="time-input-group">
-                  <label>📚 Кампания (опционально)</label>
+                <div className="scheduler-field">
+                  <label htmlFor="scheduler-campaign">{t('campaignOptional')}</label>
                   <select
+                    id="scheduler-campaign"
                     value={selectedCampaignId}
                     onChange={(e) => setSelectedCampaignId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '0.75rem',
-                      background: '#2a2a2a',
-                      border: '1px solid #444',
-                      borderRadius: '6px',
-                      color: '#fff',
-                      fontSize: '1rem'
-                    }}
+                    className="scheduler-input scheduler-select"
                   >
-                    <option value="">Не привязана к кампании</option>
+                    <option value="">{t('campaignNone')}</option>
                     {campaigns.map(campaign => (
                       <option key={campaign.id} value={campaign.id}>
                         {campaign.name}
@@ -414,9 +412,10 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
             {bestSlots.length > 0 ? (
               <div className="best-slots-list">
                 {bestSlots.map((slot, index) => (
-                  <div
+                  <button
+                    type="button"
                     key={index}
-                    className={`best-slot-item ${selectedSlot === slot ? 'selected' : ''}`}
+                    className={`best-slot-item${isSameBestSlot(selectedSlot, slot) ? ' selected' : ''}`}
                     onClick={() => handleSlotSelect(slot)}
                   >
                     <div className="best-slot-header">
@@ -438,7 +437,7 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
                         </span>
                       ))}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             ) : (
@@ -450,10 +449,11 @@ const GameScheduler = ({ players, onSchedule, onClose }) => {
         </div>
 
         <div className="game-scheduler-actions">
-          <button className="cancel-button" onClick={onClose}>
+          <button type="button" className="cancel-button" onClick={onClose}>
             {t('cancel')}
           </button>
           <button
+            type="button"
             className="schedule-button"
             onClick={handleSchedule}
             disabled={isScheduleDisabled}

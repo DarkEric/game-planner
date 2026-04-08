@@ -1,19 +1,23 @@
-version: '3.8'
+# Локальная тестовая / dev-среда: отдельные порты, чтобы не конфликтовать с prod-стеком на :80 и :5432
+# Запуск: docker compose -f docker-compose.dev.yml up -d --build
+# UI: http://localhost:8888  |  API: http://localhost:8080/api  |  Postgres (хост): localhost:5433
+
+name: game-planner-dev
 
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: game-planner-db
+    container_name: game-planner-db-dev
     environment:
       POSTGRES_DB: game_planner
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_dev_data:/var/lib/postgresql/data
     networks:
-      - game-planner-network
+      - game-planner-dev
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -24,14 +28,14 @@ services:
     build:
       context: ./game-planner-back
       dockerfile: Dockerfile
-    container_name: game-planner-backend
+    container_name: game-planner-backend-dev
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/game_planner
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      JWT_SECRET: your-secret-key-change-this-in-production-min-256-bits
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost}
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-this-in-production-min-256-bits}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost,http://127.0.0.1,http://localhost:8888}
       CLEANUP_ENABLED: ${CLEANUP_ENABLED:-true}
       CLEANUP_RETENTION_DAYS: ${CLEANUP_RETENTION_DAYS:-15}
       CLEANUP_CRON: ${CLEANUP_CRON:-0 0 3 * * ?}
@@ -40,7 +44,7 @@ services:
       TELEGRAM_BOT_CHAT_ID: ${TELEGRAM_BOT_CHAT_ID:-}
       TELEGRAM_BOT_THREAD_ID: ${TELEGRAM_BOT_THREAD_ID:-}
       TELEGRAM_BOT_TIMEZONE: ${TELEGRAM_BOT_TIMEZONE:-Europe/Moscow}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8888}
       TELEGRAM_NOTIFICATIONS_SCHEDULED_ENABLED: ${TELEGRAM_NOTIFICATIONS_SCHEDULED_ENABLED:-true}
       TELEGRAM_NOTIFICATIONS_CHECK_INTERVAL: ${TELEGRAM_NOTIFICATIONS_CHECK_INTERVAL:-60000}
       TELEGRAM_GROUP_TIME_SLOT_REMINDER_ENABLED: ${TELEGRAM_GROUP_TIME_SLOT_REMINDER_ENABLED:-false}
@@ -51,42 +55,41 @@ services:
       postgres:
         condition: service_healthy
     networks:
-      - game-planner-network
+      - game-planner-dev
     restart: unless-stopped
 
   frontend:
     build:
       context: ./game-planer-front
       dockerfile: Dockerfile
-    container_name: game-planner-frontend
+    container_name: game-planner-frontend-dev
     depends_on:
       - backend
     networks:
-      - game-planner-network
+      - game-planner-dev
     restart: unless-stopped
 
   caddy:
     image: caddy:2-alpine
-    container_name: game-planner-caddy
+    container_name: game-planner-caddy-dev
     ports:
-      - "80:80"
-      - "443:443"
+      - "8888:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
+      - caddy_dev_data:/data
+      - caddy_dev_config:/config
     depends_on:
       - frontend
       - backend
     networks:
-      - game-planner-network
+      - game-planner-dev
     restart: unless-stopped
 
 volumes:
-  postgres_data:
-  caddy_data:
-  caddy_config:
+  postgres_dev_data:
+  caddy_dev_data:
+  caddy_dev_config:
 
 networks:
-  game-planner-network:
+  game-planner-dev:
     driver: bridge

@@ -1,0 +1,258 @@
+.time-marking-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 1200;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+
+@media (min-width: 600px) {
+  .time-marking-overlay {
+    align-items: center;
+    padding: 1rem;
+  }
+}
+
+.time-marking-modal {
+  background: #1e1e24;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 32rem;
+  max-height: min(92vh, 720px);
+  overflow: auto;
+  padding: 1rem 1.1rem 1.25rem;
+  box-sizing: border-box;
+}
+
+@media (min-width: 600px) {
+  .time-marking-modal {
+    border-radius: 16px;
+  }
+}
+
+.time-marking-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.time-marking-header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #fff;
+}
+
+.time-marking-close {
+  background: transparent;
+  border: none;
+  color: #aaa;
+  font-size: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.time-marking-hint {
+  font-size: 0.85rem;
+  color: #888;
+  margin: 0 0 1rem;
+}
+
+.time-marking-subtitle {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  color: #ccc;
+}
+
+.time-marking-moscow-note {
+  font-size: 0.8rem;
+  color: #7a7a8c;
+  margin: -0.25rem 0 0.75rem;
+}
+
+.time-marking-day-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-bottom: 1rem;
+}
+
+@media (min-width: 380px) {
+  .time-marking-day-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+}
+
+.time-marking-day-chip {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.1rem;
+  padding: 0.35rem 0.2rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(40, 40, 48, 0.9);
+  font-size: 0.72rem;
+  cursor: pointer;
+  user-select: none;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.time-marking-day-chip:hover {
+  border-color: rgba(100, 108, 255, 0.45);
+}
+
+.time-marking-day-chip.selected {
+  border-color: #646cff;
+  background: rgba(100, 108, 255, 0.2);
+}
+
+/* Чекбокс не рвёт сетку: остаётся в потоке для a11y, но компактно */
+.time-marking-day-chip input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  accent-color: #646cff;
+}
+
+.time-marking-day-chip-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  line-height: 1.15;
+  pointer-events: none;
+}
+
+.time-marking-day-num {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.time-marking-day-meta {
+  font-size: 0.65rem;
+  color: #9a9aa8;
+  text-transform: capitalize;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.time-marking-bulk {
+  margin-bottom: 0.75rem;
+}
+
+.time-marking-day-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.time-marking-day-row {
+  padding: 0.75rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(30, 30, 36, 0.6);
+}
+
+.time-marking-day-row-title {
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 0.5rem;
+}
+
+.time-marking-whole-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #ccc;
+  margin-bottom: 0.5rem;
+  cursor: pointer;
+}
+
+.time-marking-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.time-marking-inputs label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.time-marking-inputs input[type="time"],
+.time-marking-inputs input[type="number"] {
+  padding: 0.45rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 1rem;
+  min-height: 44px;
+}
+
+.time-marking-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.time-marking-btn {
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  min-height: 44px;
+}
+
+.time-marking-btn.primary {
+  background: linear-gradient(135deg, #646cff, #5a5fd7);
+  color: #fff;
+}
+
+.time-marking-btn.primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.time-marking-btn.secondary {
+  background: transparent;
+  color: #ccc;
+  border: 1px solid #555;
+}
+
+.time-marking-error {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  background: rgba(255, 80, 80, 0.15);
+  color: #ffb4b4;
+  font-size: 0.9rem;
+}

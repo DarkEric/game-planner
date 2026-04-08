@@ -1,5 +1,6 @@
 .tab-navigation {
     display: flex;
+    flex-wrap: nowrap;
     gap: 0.5rem;
     padding: 0.5rem;
     background: rgba(30, 30, 30, 0.8);
@@ -7,10 +8,14 @@
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     margin-bottom: 1rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
 }
 
 .tab-button {
-    flex: 1;
+    flex: 1 0 auto;
+    min-width: 3rem;
     display: flex;
     align-items: center;
     justify-content: center;
