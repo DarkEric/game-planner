@@ -31,12 +31,14 @@ final class TelegramSocksProxySupport {
                 if (getRequestorType() != Authenticator.RequestorType.PROXY) {
                     return null;
                 }
+                // OpenJDK передаёт "SOCKS5" (см. SocksSocketImpl.authenticate), не "socks"
                 String protocol = getRequestingProtocol();
-                if (protocol != null) {
-                    if (protocol.equalsIgnoreCase("http") || protocol.equalsIgnoreCase("https")) {
+                if (protocol != null && !protocol.isBlank()) {
+                    String pl = protocol.toLowerCase();
+                    if (pl.equals("http") || pl.equals("https")) {
                         return null;
                     }
-                    if (!protocol.equalsIgnoreCase("socks")) {
+                    if (!pl.contains("sock")) {
                         return null;
                     }
                 }
