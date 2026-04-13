@@ -1,14 +1,18 @@
 package ru.ambryo.gameplannerback.config;
 
 import java.net.Authenticator;
-import java.net.InetAddress;
 import java.net.PasswordAuthentication;
-import java.net.UnknownHostException;
 
 /**
  * SOCKS5 с логином/паролем: библиотека telegrambots открывает {@link java.net.Socket}
  * через {@link java.net.Proxy.Type#SOCKS}; для авторизации JDK использует
  * {@link Authenticator#setDefault(Authenticator)} (действует на весь процесс JVM).
+ * <p>
+ * Для SOCKS5 JDK вызывает {@code getPasswordAuthentication()} с {@link Authenticator.RequestorType#PROXY},
+ * при этом {@link #getRequestingHost()}/{@link #getRequestingPort()} часто относятся к
+ * <b>целевому</b> хосту (например {@code api.telegram.org:443}), а не к {@code host:port} прокси.
+ * Сравнивать их с настройками прокси нельзя — иначе возвращается {@code null} и получается
+ * {@code SOCKS : authentication failed}.
  */
 final class TelegramSocksProxySupport {
 
@@ -19,8 +23,6 @@ final class TelegramSocksProxySupport {
         if (username == null || username.isBlank()) {
             return;
         }
-        final String host = proxyHost.trim();
-        final int port = proxyPort;
         final String user = username.trim();
         final char[] passChars = password != null ? password.toCharArray() : new char[0];
         Authenticator.setDefault(new Authenticator() {
@@ -29,32 +31,17 @@ final class TelegramSocksProxySupport {
                 if (getRequestorType() != Authenticator.RequestorType.PROXY) {
                     return null;
                 }
-                if (getRequestingPort() != port) {
-                    return null;
-                }
-                String requestingHost = getRequestingHost();
-                if (!hostsMatch(host, requestingHost)) {
-                    return null;
+                String protocol = getRequestingProtocol();
+                if (protocol != null) {
+                    if (protocol.equalsIgnoreCase("http") || protocol.equalsIgnoreCase("https")) {
+                        return null;
+                    }
+                    if (!protocol.equalsIgnoreCase("socks")) {
+                        return null;
+                    }
                 }
                 return new PasswordAuthentication(user, passChars);
             }
         });
-    }
-
-    private static boolean hostsMatch(String configuredHost, String requestingHost) {
-        if (requestingHost == null) {
-            return false;
-        }
-        String req = requestingHost.trim();
-        if (configuredHost.equalsIgnoreCase(req)) {
-            return true;
-        }
-        try {
-            InetAddress configured = InetAddress.getByName(configuredHost);
-            InetAddress actual = InetAddress.getByName(req);
-            return configured.equals(actual);
-        } catch (UnknownHostException e) {
-            return false;
-        }
     }
 }
