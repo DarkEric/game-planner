@@ -8,11 +8,11 @@ import java.net.PasswordAuthentication;
  * через {@link java.net.Proxy.Type#SOCKS}; для авторизации JDK использует
  * {@link Authenticator#setDefault(Authenticator)} (действует на весь процесс JVM).
  * <p>
- * Для SOCKS5 JDK вызывает {@code getPasswordAuthentication()} с {@link Authenticator.RequestorType#PROXY},
- * при этом {@link #getRequestingHost()}/{@link #getRequestingPort()} часто относятся к
- * <b>целевому</b> хосту (например {@code api.telegram.org:443}), а не к {@code host:port} прокси.
- * Сравнивать их с настройками прокси нельзя — иначе возвращается {@code null} и получается
- * {@code SOCKS : authentication failed}.
+ * В {@code java.net.SocksSocketImpl} вызывается overload {@code requestPasswordAuthentication}
+ * без {@code RequestorType};
+ * после {@code reset()} в {@link Authenticator} тип остаётся {@link Authenticator.RequestorType#SERVER},
+ * не {@code PROXY}. Нельзя требовать только {@code PROXY}. Хост/порт в запросе — часто
+ * целевой сервер ({@code api.telegram.org:443}), а не прокси.
  */
 final class TelegramSocksProxySupport {
 
@@ -28,19 +28,22 @@ final class TelegramSocksProxySupport {
         Authenticator.setDefault(new Authenticator() {
             @Override
             protected PasswordAuthentication getPasswordAuthentication() {
-                if (getRequestorType() != Authenticator.RequestorType.PROXY) {
-                    return null;
-                }
-                // OpenJDK передаёт "SOCKS5" (см. SocksSocketImpl.authenticate), не "socks"
                 String protocol = getRequestingProtocol();
+                String prompt = getRequestingPrompt();
+                boolean socks = false;
                 if (protocol != null && !protocol.isBlank()) {
                     String pl = protocol.toLowerCase();
-                    if (pl.equals("http") || pl.equals("https")) {
+                    if (pl.contains("sock")) {
+                        socks = true;
+                    } else if (pl.equals("http") || pl.equals("https")) {
                         return null;
                     }
-                    if (!pl.contains("sock")) {
-                        return null;
-                    }
+                }
+                if (!socks && prompt != null && prompt.toLowerCase().contains("sock")) {
+                    socks = true;
+                }
+                if (!socks) {
+                    return null;
                 }
                 return new PasswordAuthentication(user, passChars);
             }
