@@ -2,7 +2,7 @@ package ru.ambryo.gameplannerback.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Lazy;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import ru.ambryo.gameplannerback.dto.GameDto;
@@ -16,22 +16,28 @@ public class AsyncTelegramNotificationService {
 
     private static final Logger logger = LoggerFactory.getLogger(AsyncTelegramNotificationService.class);
 
-    private final TelegramNotificationService telegramNotificationService;
+    /** Без {@code @Lazy} на боте — иначе CGLIB-прокси конфликтует с final-методами {@code DefaultAbsSender}. */
+    private final ObjectProvider<TelegramNotificationService> telegramNotificationService;
 
-    public AsyncTelegramNotificationService(@Lazy TelegramNotificationService telegramNotificationService) {
+    public AsyncTelegramNotificationService(
+            ObjectProvider<TelegramNotificationService> telegramNotificationService) {
         this.telegramNotificationService = telegramNotificationService;
+    }
+
+    private TelegramNotificationService telegram() {
+        return telegramNotificationService.getObject();
     }
 
     @Async
     public void sendGameCreatedNotificationsAsync(GameDto gameDto, Game game, List<User> allUsers) {
         try {
-            telegramNotificationService.sendGameCreatedNotification(gameDto);
+            telegram().sendGameCreatedNotification(gameDto);
         } catch (Exception e) {
             logger.error("Failed to send Telegram game created notification", e);
         }
 
         try {
-            telegramNotificationService.sendPersonalGameCreatedNotifications(gameDto, game, allUsers);
+            telegram().sendPersonalGameCreatedNotifications(gameDto, game, allUsers);
         } catch (Exception e) {
             logger.error("Failed to send personal game created notifications", e);
         }
@@ -40,13 +46,13 @@ public class AsyncTelegramNotificationService {
     @Async
     public void sendGameCancelledNotificationsAsync(GameDto gameDto, Game game, String cancellationReason) {
         try {
-            telegramNotificationService.sendGameCancelledNotification(gameDto, cancellationReason);
+            telegram().sendGameCancelledNotification(gameDto, cancellationReason);
         } catch (Exception e) {
             logger.error("Failed to send Telegram game cancelled notification", e);
         }
 
         try {
-            telegramNotificationService.sendPersonalGameCancelledNotifications(gameDto, game);
+            telegram().sendPersonalGameCancelledNotifications(gameDto, game);
         } catch (Exception e) {
             logger.error("Failed to send personal game cancelled notifications", e);
         }
@@ -55,13 +61,13 @@ public class AsyncTelegramNotificationService {
     @Async
     public void sendGameHeldNotificationsAsync(GameDto gameDto, Game game) {
         try {
-            telegramNotificationService.sendGameHeldNotification(gameDto);
+            telegram().sendGameHeldNotification(gameDto);
         } catch (Exception e) {
             logger.error("Failed to send Telegram game held notification", e);
         }
 
         try {
-            telegramNotificationService.sendPersonalGameHeldNotifications(gameDto, game);
+            telegram().sendPersonalGameHeldNotifications(gameDto, game);
         } catch (Exception e) {
             logger.error("Failed to send personal game held notifications", e);
         }
@@ -70,7 +76,7 @@ public class AsyncTelegramNotificationService {
     @Async
     public void sendPlayerRemovedNotificationAsync(GameDto gameDto, User removedPlayer) {
         try {
-            telegramNotificationService.sendPlayerRemovedFromGameNotification(gameDto, removedPlayer);
+            telegram().sendPlayerRemovedFromGameNotification(gameDto, removedPlayer);
         } catch (Exception e) {
             logger.error("Failed to send player removed from game notification", e);
         }
@@ -79,7 +85,7 @@ public class AsyncTelegramNotificationService {
     @Async
     public void sendPersonalMessageAsync(String chatId, String message) {
         try {
-            telegramNotificationService.sendPersonalMessage(chatId, message);
+            telegram().sendPersonalMessage(chatId, message);
         } catch (Exception e) {
             logger.error("Failed to send personal message via Telegram", e);
         }
