@@ -47,33 +47,13 @@ spring.datasource.password=your_password
   ```
 - `DELETE /api/players/{id}` - Удалить игрока
 
-### Временные слоты
+### Временные слоты (текущий игрок, JWT)
 
-- `POST /api/players/{id}/time-slots/toggle` - Переключить временной слот (добавить/удалить)
-  ```json
-  {
-    "start": "2024-12-15T10:00:00",
-    "duration": 1
-  }
-  ```
-  Возвращает обновленного игрока со всеми временными слотами.
+- `POST /api/players/me/time-slots/add-batch` — добавить слоты (тело `{ "slots": [ { "start": "...", "duration": 1 } ] }`).
+- `POST /api/players/me/time-slots/remove-batch` — удалить слоты (то же тело).
+- `DELETE /api/players/me/time-slots` — удалить все слоты текущего игрока.
 
-- `POST /api/players/{id}/time-slots/toggle-batch` - Переключить несколько временных слотов (для массового выбора)
-  ```json
-  {
-    "slots": [
-      {
-        "start": "2024-12-15T10:00:00",
-        "duration": 1
-      },
-      {
-        "start": "2024-12-15T11:00:00",
-        "duration": 1
-      }
-    ]
-  }
-  ```
-  Возвращает обновленного игрока со всеми временными слотами.
+Также: `POST /api/players/{playerId}/time-slots` — добавить один слот; `DELETE /api/players/{playerId}/time-slots?start=...` — удалить по времени начала.
 
 ## Структура проекта
 

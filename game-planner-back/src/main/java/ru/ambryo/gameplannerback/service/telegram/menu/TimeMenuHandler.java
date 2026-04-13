@@ -92,15 +92,14 @@ public class TimeMenuHandler implements MenuHandler {
             return;
         }
         
-        // Инициализируем состояние разметки времени
-        stateManager.setState(chatId, TimeSlotMarkingStateManager.TimeSlotMarkingState.WAITING_DATE);
         stateManager.setData(chatId, new TimeSlotMarkingStateManager.TimeSlotMarkingData());
-        
+        stateManager.setState(chatId, TimeSlotMarkingStateManager.TimeSlotMarkingState.WAITING_CLEAR_BEFORE_ADD);
+
         String message = """
             📅 <b>Разметка свободного времени</b>
             
-            Введите дату в формате ДД.ММ.ГГГГ (например: 15.01.2025)
-            Или используйте: сегодня, завтра, послезавтра
+            Удалить <b>все</b> другие размеченные слоты перед добавлением нового интервала?
+            Ответьте: <b>да</b> или <b>нет</b> (также: д/н, yes/no).
             
             💡 Используйте /cancel для отмены.""";
         

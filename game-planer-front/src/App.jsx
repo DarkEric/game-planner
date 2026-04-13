@@ -217,46 +217,26 @@ function App() {
     }
   }
 
-  const handleTimeSlotClick = async (date, hour) => {
-    try {
-      setError(null)
-
-      const slotDate = new Date(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate(),
-        hour,
-        0,
-        0,
-        0
-      )
-
-      const updatedPlayer = await playerApi.toggleTimeSlot(slotDate, 1)
-
-      setCurrentPlayer(updatedPlayer)
-      setAllPlayers(allPlayers.map(p =>
-        p.id === updatedPlayer.id ? updatedPlayer : p
-      ))
-    } catch (err) {
-      console.error('Failed to toggle time slot:', err)
-      setError(t('errorToggleSlot'))
-    }
-  }
-
-  const handleTimeSlotsSelect = async (slots, duration = 1) => {
+  const handleTimeSlotsSelect = async (slots, options = {}) => {
     if (!slots || slots.length === 0) return
 
+    const mode = options.mode === 'remove' ? 'remove' : 'add'
+    const duration = options.duration ?? 1
+
     try {
       setError(null)
 
-      const updatedPlayer = await playerApi.toggleTimeSlots(slots, duration)
+      const updatedPlayer =
+        mode === 'remove'
+          ? await playerApi.removeTimeSlots(slots, duration)
+          : await playerApi.addTimeSlots(slots, duration)
 
       setCurrentPlayer(updatedPlayer)
       setAllPlayers(allPlayers.map(p =>
         p.id === updatedPlayer.id ? updatedPlayer : p
       ))
     } catch (err) {
-      console.error('Failed to toggle time slots:', err)
+      console.error('Failed to update time slots:', err)
       setError(t('errorToggleSlot'))
     }
   }
@@ -455,7 +435,6 @@ function App() {
             games={games}
             dates={dates}
             hours={hours}
-            onTimeSlotClick={handleTimeSlotClick}
             onTimeSlotsSelect={handleTimeSlotsSelect}
             onEventClick={(event) => {
               if (event.game) {

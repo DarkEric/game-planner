@@ -50,7 +50,7 @@ public class TimeSlotController {
             }
             
             Integer duration = request.getDuration() != null ? request.getDuration() : 1;
-            userService.toggleTimeSlot(user, request.getStart(), duration);
+            userService.addTimeSlot(user, request.getStart(), duration);
             
             // Возвращаем созданный слот
             TimeSlotDto timeSlot = new TimeSlotDto(null, request.getStart(), duration);
@@ -85,7 +85,7 @@ public class TimeSlotController {
             }
             
             Instant startInstant = Instant.parse(start);
-            userService.toggleTimeSlot(user, startInstant, 1);
+            userService.removeTimeSlot(user, startInstant, 1);
             return ResponseEntity.noContent().build();
         } catch (Exception e) {
             return ResponseEntity.notFound().build();

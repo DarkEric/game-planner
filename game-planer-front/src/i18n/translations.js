@@ -25,7 +25,11 @@ export const translations = {
     tabNavAria: 'Основные разделы',
     upcomingGamesEmpty: 'Нет запланированных игр в ближайшие дни.',
     timeMarkingTitle: 'Разметить время',
-    timeMarkingToggleHint: 'Повторное сохранение того же интервала снимет слот (как в боте).',
+    timeMarkingHint:
+      'На календаре: протяните выделение, начиная с пустой ячейки, чтобы добавить часы; начиная с уже отмеченной — чтобы убрать.',
+    timeMarkingClearOthersQuestion: 'Удалить все другие размеченные слоты перед добавлением?',
+    timeMarkingClearOthersYes: 'Да, очистить всё и оставить только выбранное ниже',
+    timeMarkingClearOthersNo: 'Нет, только добавить к текущей разметке',
     timeMarkingStep1: 'Выберите дни',
     timeMarkingStep2: 'Время по дням',
     timeMarkingMoscowNote:
@@ -44,7 +48,8 @@ export const translations = {
     previous: 'Предыдущие',
     today: 'Сегодня',
     next: 'Следующие',
-    clickToMark: 'Кликайте по ячейкам времени или протяните мышь, чтобы отметить свою доступность',
+    clickToMark:
+      'Кликните или протяните мышь по часам: начало жеста на пустой ячейке — добавить выделенные часы, на уже отмеченной — убрать',
     availablePlayers: 'Доступно игроков',
     available: 'Доступны',
     gameParticipants: 'Участники',
@@ -166,7 +171,11 @@ export const translations = {
     tabNavAria: 'Main sections',
     upcomingGamesEmpty: 'No scheduled games in the coming period.',
     timeMarkingTitle: 'Mark availability',
-    timeMarkingToggleHint: 'Saving the same slot again removes it (same as the bot).',
+    timeMarkingHint:
+      'On the calendar: drag starting from an empty cell to add hours; starting from an already marked cell to remove them.',
+    timeMarkingClearOthersQuestion: 'Remove all other marked slots before adding these?',
+    timeMarkingClearOthersYes: 'Yes, clear everything and keep only what you set below',
+    timeMarkingClearOthersNo: 'No, only add to my current availability',
     timeMarkingStep1: 'Choose days',
     timeMarkingStep2: 'Time per day',
     timeMarkingMoscowNote:
@@ -185,7 +194,8 @@ export const translations = {
     previous: 'Previous',
     today: 'Today',
     next: 'Next',
-    clickToMark: 'Click on time cells or drag to mark your availability',
+    clickToMark:
+      'Click or drag across hours: start on an empty cell to add the selection, on a marked cell to remove it',
     availablePlayers: 'Available players',
     available: 'Available',
     gameParticipants: 'Participants',

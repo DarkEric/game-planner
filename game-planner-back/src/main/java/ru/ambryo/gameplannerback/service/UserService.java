@@ -11,6 +11,7 @@ import ru.ambryo.gameplannerback.repository.TimeSlotRepository;
 import ru.ambryo.gameplannerback.repository.UserRepository;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -77,41 +78,83 @@ public class UserService {
         return convertToDtoWithFilter(managedUser, startDate, endDate);
     }
     
-    @Transactional
-    public PlayerDto toggleTimeSlot(User user, Instant start, Integer duration) {
-        // Перезагружаем пользователя в активной транзакции
-        User managedUser = userRepository.findById(user.getId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        // Ищем существующий слот (сравниваем по времени с точностью до часа)
-        TimeSlot existingSlot = managedUser.getAvailableTimes().stream()
+    private TimeSlot findSlotInSameHourBucket(User managedUser, Instant start) {
+        return managedUser.getAvailableTimes().stream()
                 .filter(ts -> {
                     Instant slotStart = ts.getStart();
-                    // Сравниваем с точностью до часа (3600 секунд)
                     long startEpochHour = start.getEpochSecond() / 3600;
                     long slotStartEpochHour = slotStart.getEpochSecond() / 3600;
                     return startEpochHour == slotStartEpochHour;
                 })
                 .findFirst()
                 .orElse(null);
-        
-        if (existingSlot != null) {
-            // Удаляем существующий слот
-            // Сохраняем ID перед удалением из коллекции
-            Long slotIdToDelete = existingSlot.getId();
-            // Удаляем из коллекции
-            managedUser.getAvailableTimes().remove(existingSlot);
-            // Удаляем из БД напрямую
-            timeSlotRepository.deleteById(slotIdToDelete);
-        } else {
-            // Создаем новый слот
-            TimeSlot newSlot = new TimeSlot(start, duration, managedUser);
-            // Сохраняем в БД
-            timeSlotRepository.save(newSlot);
-            // Добавляем в коллекцию
-            managedUser.getAvailableTimes().add(newSlot);
+    }
+
+    private void deleteAllSlotsFromUser(User managedUser) {
+        List<TimeSlot> copy = new ArrayList<>(managedUser.getAvailableTimes());
+        for (TimeSlot ts : copy) {
+            Long id = ts.getId();
+            managedUser.getAvailableTimes().remove(ts);
+            if (id != null) {
+                timeSlotRepository.deleteById(id);
+            }
         }
-        // Возвращаем DTO сразу, чтобы избежать повторной загрузки
+    }
+
+    private void addSlotOnManagedUser(User managedUser, Instant start, Integer duration) {
+        if (findSlotInSameHourBucket(managedUser, start) != null) {
+            return;
+        }
+        TimeSlot newSlot = new TimeSlot(start, duration, managedUser);
+        timeSlotRepository.save(newSlot);
+        managedUser.getAvailableTimes().add(newSlot);
+    }
+
+    private void removeSlotOnManagedUser(User managedUser, Instant start) {
+        TimeSlot existing = findSlotInSameHourBucket(managedUser, start);
+        if (existing == null) {
+            return;
+        }
+        Long slotIdToDelete = existing.getId();
+        managedUser.getAvailableTimes().remove(existing);
+        timeSlotRepository.deleteById(slotIdToDelete);
+    }
+
+    @Transactional
+    public PlayerDto addTimeSlot(User user, Instant start, Integer duration) {
+        User managedUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        addSlotOnManagedUser(managedUser, start, duration);
+        return convertToDto(managedUser);
+    }
+
+    @Transactional
+    public PlayerDto removeTimeSlot(User user, Instant start, Integer duration) {
+        User managedUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        removeSlotOnManagedUser(managedUser, start);
+        return convertToDto(managedUser);
+    }
+
+    @Transactional
+    public PlayerDto clearAllTimeSlots(User user) {
+        User managedUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        deleteAllSlotsFromUser(managedUser);
+        return convertToDto(managedUser);
+    }
+
+    /**
+     * Атомарно: при необходимости очистить все слоты, затем добавить один (разметка из Telegram).
+     */
+    @Transactional
+    public PlayerDto addTimeSlotClearingAllIfRequested(User user, Instant start, Integer duration, boolean clearAllFirst) {
+        User managedUser = userRepository.findById(user.getId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        if (clearAllFirst) {
+            deleteAllSlotsFromUser(managedUser);
+        }
+        addSlotOnManagedUser(managedUser, start, duration);
         return convertToDto(managedUser);
     }
     

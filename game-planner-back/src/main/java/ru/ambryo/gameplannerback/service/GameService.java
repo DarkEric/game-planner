@@ -214,7 +214,7 @@ public class GameService {
                     });
             
             if (!slotExists) {
-                userService.toggleTimeSlot(managedUser, slotStart, 1);
+                userService.addTimeSlot(managedUser, slotStart, 1);
             }
         }
         

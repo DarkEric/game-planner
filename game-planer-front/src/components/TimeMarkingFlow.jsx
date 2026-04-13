@@ -39,6 +39,7 @@ const TimeMarkingFlow = ({ onClose, onSaved }) => {
   const [step, setStep] = useState(1)
   const [selectedKeys, setSelectedKeys] = useState(() => new Set())
   const [dayConfigs, setDayConfigs] = useState({})
+  const [clearAllBeforeSave, setClearAllBeforeSave] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
 
@@ -113,7 +114,10 @@ const TimeMarkingFlow = ({ onClose, onSaved }) => {
           })
         }
       }
-      const updated = await playerApi.toggleTimeSlotsMoscowBatch(slots)
+      if (clearAllBeforeSave) {
+        await playerApi.clearAllTimeSlots()
+      }
+      const updated = await playerApi.addTimeSlotsWallClockBatch(slots)
       onSaved(updated)
       onClose()
     } catch (e) {
@@ -132,11 +136,32 @@ const TimeMarkingFlow = ({ onClose, onSaved }) => {
           <button type="button" className="time-marking-close" onClick={onClose} aria-label={t('close')}>×</button>
         </div>
 
-        <p className="time-marking-hint">{t('timeMarkingToggleHint')}</p>
+        <p className="time-marking-hint">{t('timeMarkingHint')}</p>
 
         {step === 1 && (
           <div className="time-marking-step">
             <h3 className="time-marking-subtitle">{t('timeMarkingStep1')}</h3>
+            <fieldset className="time-marking-clear-fieldset">
+              <legend className="time-marking-clear-legend">{t('timeMarkingClearOthersQuestion')}</legend>
+              <label className="time-marking-clear-option">
+                <input
+                  type="radio"
+                  name="clearAllBeforeSave"
+                  checked={!clearAllBeforeSave}
+                  onChange={() => setClearAllBeforeSave(false)}
+                />
+                {t('timeMarkingClearOthersNo')}
+              </label>
+              <label className="time-marking-clear-option">
+                <input
+                  type="radio"
+                  name="clearAllBeforeSave"
+                  checked={clearAllBeforeSave}
+                  onChange={() => setClearAllBeforeSave(true)}
+                />
+                {t('timeMarkingClearOthersYes')}
+              </label>
+            </fieldset>
             <div className="time-marking-day-grid">
               {dayOptions.map(({ key, date }) => (
                 <label

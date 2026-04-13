@@ -19,6 +19,8 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.util.Locale;
+import java.util.Set;
 
 /**
  * Обработчик состояний разметки времени
@@ -80,6 +82,9 @@ public class TimeSlotMarkingStateHandler implements StateHandler<TimeSlotMarking
             }
             
             switch (state) {
+                case WAITING_CLEAR_BEFORE_ADD:
+                    handleClearBeforeAddChoice(chatId, text.trim(), data);
+                    break;
                 case WAITING_DATE:
                     handleDateInput(chatId, text.trim(), data, userTimezone);
                     break;
@@ -97,6 +102,47 @@ public class TimeSlotMarkingStateHandler implements StateHandler<TimeSlotMarking
         }
     }
     
+    private static final Set<String> YES_ANSWERS = Set.of("да", "д", "yes", "y", "+", "1", "true");
+    private static final Set<String> NO_ANSWERS = Set.of("нет", "н", "no", "n", "-", "0", "false");
+
+    /**
+     * @return true = очистить все слоты перед добавлением, false = только добавить, null = не распознано
+     */
+    private Boolean parseYesNo(String raw) {
+        if (raw == null) {
+            return null;
+        }
+        String t = raw.trim().toLowerCase(Locale.ROOT);
+        if (t.isEmpty()) {
+            return null;
+        }
+        if (YES_ANSWERS.contains(t)) {
+            return true;
+        }
+        if (NO_ANSWERS.contains(t)) {
+            return false;
+        }
+        return null;
+    }
+
+    private void handleClearBeforeAddChoice(String chatId, String text, TimeSlotMarkingStateManager.TimeSlotMarkingData data) {
+        Boolean choice = parseYesNo(text);
+        if (choice == null) {
+            messageSender.sendPersonalMessage(chatId, """
+                    ❌ Не понял ответ. Введите <b>да</b> или <b>нет</b> (д/н, yes/no).
+                    
+                    💡 Используйте /cancel для отмены.""");
+            return;
+        }
+        data.clearAllBeforeAdd = choice;
+        timeSlotMarkingStateManager.setState(chatId, TimeSlotMarkingStateManager.TimeSlotMarkingState.WAITING_DATE);
+        messageSender.sendPersonalMessage(chatId, """
+                Введите дату в формате ДД.ММ.ГГГГ (например: 15.01.2025)
+                Или используйте: сегодня, завтра, послезавтра
+                
+                💡 Используйте /cancel для отмены.""");
+    }
+
     private void handleDateInput(String chatId, String dateStr, TimeSlotMarkingStateManager.TimeSlotMarkingData data, ZoneId userTimezone) {
         if (dateStr.isEmpty()) {
             messageSender.sendPersonalMessage(chatId, "❌ Дата не может быть пустой. Введите дату:");
@@ -182,10 +228,13 @@ public class TimeSlotMarkingStateHandler implements StateHandler<TimeSlotMarking
         Instant startInstant = TelegramDateParser.convertToUTC(localDate, localTime, userTimezone);
         data.startInstant = startInstant;
         
-        // Вызываем UserService.toggleTimeSlot для создания/удаления слота
         try {
-            userService.toggleTimeSlot(user, startInstant, duration);
-            
+            userService.addTimeSlotClearingAllIfRequested(
+                    user,
+                    startInstant,
+                    duration,
+                    Boolean.TRUE.equals(data.clearAllBeforeAdd));
+
             // Успешная разметка
             timeSlotMarkingStateManager.clearState(chatId);
             
@@ -196,7 +245,7 @@ public class TimeSlotMarkingStateHandler implements StateHandler<TimeSlotMarking
             logger.info("Time slot marked via Telegram for user: {}, chatId: {}, start: {}, duration: {}", 
                     user.getUsername(), chatId, startInstant, duration);
         } catch (Exception e) {
-            logger.error("Error toggling time slot via Telegram", e);
+            logger.error("Error saving time slot via Telegram", e);
             timeSlotMarkingStateManager.clearState(chatId);
             messageSender.sendPersonalMessage(chatId, "❌ Ошибка при сохранении временного слота. Попробуйте позже.");
         }

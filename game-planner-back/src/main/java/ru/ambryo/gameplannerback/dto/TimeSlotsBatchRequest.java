@@ -3,51 +3,50 @@ package ru.ambryo.gameplannerback.dto;
 import java.time.Instant;
 import java.util.List;
 
-public class ToggleTimeSlotsRequest {
-    private List<TimeSlotRequest> slots;
-    
-    public ToggleTimeSlotsRequest() {
+public class TimeSlotsBatchRequest {
+    private List<TimeSlotItem> slots;
+
+    public TimeSlotsBatchRequest() {
     }
-    
-    public ToggleTimeSlotsRequest(List<TimeSlotRequest> slots) {
+
+    public TimeSlotsBatchRequest(List<TimeSlotItem> slots) {
         this.slots = slots;
     }
-    
-    public List<TimeSlotRequest> getSlots() {
+
+    public List<TimeSlotItem> getSlots() {
         return slots;
     }
-    
-    public void setSlots(List<TimeSlotRequest> slots) {
+
+    public void setSlots(List<TimeSlotItem> slots) {
         this.slots = slots;
     }
-    
-    public static class TimeSlotRequest {
-        private Instant start; // UTC время
+
+    public static class TimeSlotItem {
+        private Instant start;
         private Integer duration;
-        
-        public TimeSlotRequest() {
+
+        public TimeSlotItem() {
         }
-        
-        public TimeSlotRequest(Instant start, Integer duration) {
+
+        public TimeSlotItem(Instant start, Integer duration) {
             this.start = start;
             this.duration = duration;
         }
-        
+
         public Instant getStart() {
             return start;
         }
-        
+
         public void setStart(Instant start) {
             this.start = start;
         }
-        
+
         public Integer getDuration() {
             return duration;
         }
-        
+
         public void setDuration(Integer duration) {
             this.duration = duration;
         }
     }
 }
-

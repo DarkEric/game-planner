@@ -331,43 +331,39 @@ export const playerApi = {
     }
   },
 
-  // Переключить временной слот (добавить/удалить) для текущего пользователя
-  async toggleTimeSlot(start, duration = 1) {
-    const userTimezone = getUserTimezoneForAPI()
-    
-    const response = await fetch(`${API_BASE_URL}/players/me/time-slots/toggle`, {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        start: formatForServer(start, userTimezone), // Конвертируем в UTC
-        duration: duration
-      })
-    })
-    if (!response.ok) {
-      handleAuthError(response)
-      throw new Error('Failed to toggle time slot')
-    }
-    const data = await response.json()
+  mapPlayerTimeSlotsResponse(data) {
+    const userTz = data.timezone || getUserTimezoneForAPI()
     return {
       id: data.id,
       name: data.name,
       color: data.color,
       timezone: data.timezone,
       availableTimes: (data.availableTimes || []).map(ts => ({
-        start: parseFromServer(ts.start, userTimezone), // Парсим из UTC
+        start: parseFromServer(ts.start, userTz),
         duration: ts.duration || 1
       }))
     }
   },
 
-  // Переключить несколько временных слотов (для drag selection)
-  async toggleTimeSlots(slots, duration = 1) {
+  async clearAllTimeSlots() {
+    const response = await fetch(`${API_BASE_URL}/players/me/time-slots`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    })
+    if (!response.ok) {
+      handleAuthError(response)
+      throw new Error('Failed to clear time slots')
+    }
+    const data = await response.json()
+    return this.mapPlayerTimeSlotsResponse(data)
+  },
+
+  // Добавить несколько временных слотов (календарь / мастер)
+  async addTimeSlots(slots, duration = 1) {
     const userTimezone = getUserTimezoneForAPI()
-    
+
     const slotsData = slots.map(slot => {
       const date = slot.date instanceof Date ? slot.date : new Date(slot.date)
-      
-      // Создаем "наивную" дату с компонентами
       const slotDate = new Date(
         date.getFullYear(),
         date.getMonth(),
@@ -377,44 +373,64 @@ export const playerApi = {
         0,
         0
       )
-      
       return {
-        start: formatForServer(slotDate, userTimezone), // Конвертируем в UTC
+        start: formatForServer(slotDate, userTimezone),
         duration: slot.duration || duration
       }
     })
-    
-    const response = await fetch(`${API_BASE_URL}/players/me/time-slots/toggle-batch`, {
+
+    const response = await fetch(`${API_BASE_URL}/players/me/time-slots/add-batch`, {
       method: 'POST',
       headers: getAuthHeaders(),
-      body: JSON.stringify({
-        slots: slotsData
-      })
+      body: JSON.stringify({ slots: slotsData })
     })
     if (!response.ok) {
       handleAuthError(response)
-      throw new Error('Failed to toggle time slots')
+      throw new Error('Failed to add time slots')
     }
     const data = await response.json()
-    const userTz = getUserTimezoneForAPI()
-    return {
-      id: data.id,
-      name: data.name,
-      color: data.color,
-      timezone: data.timezone,
-      availableTimes: (data.availableTimes || []).map(ts => ({
-        start: parseFromServer(ts.start, userTz), // Парсим из UTC
-        duration: ts.duration || 1
-      }))
+    return this.mapPlayerTimeSlotsResponse(data)
+  },
+
+  async removeTimeSlots(slots, duration = 1) {
+    const userTimezone = getUserTimezoneForAPI()
+
+    const slotsData = slots.map(slot => {
+      const date = slot.date instanceof Date ? slot.date : new Date(slot.date)
+      const slotDate = new Date(
+        date.getFullYear(),
+        date.getMonth(),
+        date.getDate(),
+        slot.hour,
+        0,
+        0,
+        0
+      )
+      return {
+        start: formatForServer(slotDate, userTimezone),
+        duration: slot.duration || duration
+      }
+    })
+
+    const response = await fetch(`${API_BASE_URL}/players/me/time-slots/remove-batch`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ slots: slotsData })
+    })
+    if (!response.ok) {
+      handleAuthError(response)
+      throw new Error('Failed to remove time slots')
     }
+    const data = await response.json()
+    return this.mapPlayerTimeSlotsResponse(data)
   },
 
   /**
-   * Массовый toggle слотов: время — настенные часы в часовом поясе профиля
-   * (getLastSetUserTimezone / иначе часовой пояс браузера), не МСК.
+   * Массовое добавление слотов: настенные часы в часовом поясе профиля
+   * (getLastSetUserTimezone / иначе часовой пояс браузера).
    * @param {Array<{ year: number, month: number, day: number, hour: number, minute?: number, duration: number } | { year: number, month: number, day: number, wholeDay: true }>} slots
    */
-  async toggleTimeSlotsMoscowBatch(slots) {
+  async addTimeSlotsWallClockBatch(slots) {
     const wallTz = getLastSetUserTimezone() || getUserTimezoneForAPI()
     const slotsData = slots.map(s => {
       if (s.wholeDay) {
@@ -438,26 +454,17 @@ export const playerApi = {
       }
     })
 
-    const response = await fetch(`${API_BASE_URL}/players/me/time-slots/toggle-batch`, {
+    const response = await fetch(`${API_BASE_URL}/players/me/time-slots/add-batch`, {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify({ slots: slotsData })
     })
     if (!response.ok) {
       handleAuthError(response)
-      throw new Error('Failed to toggle time slots')
+      throw new Error('Failed to add time slots')
     }
     const data = await response.json()
-    return {
-      id: data.id,
-      name: data.name,
-      color: data.color,
-      timezone: data.timezone,
-      availableTimes: (data.availableTimes || []).map(ts => ({
-        start: parseFromServer(ts.start, userTz),
-        duration: ts.duration || 1
-      }))
-    }
+    return this.mapPlayerTimeSlotsResponse(data)
   }
 }
 

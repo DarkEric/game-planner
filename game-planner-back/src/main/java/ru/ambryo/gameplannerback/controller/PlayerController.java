@@ -15,8 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import ru.ambryo.gameplannerback.dto.CreatePlayerRequest;
 import ru.ambryo.gameplannerback.dto.PlayerDto;
-import ru.ambryo.gameplannerback.dto.ToggleTimeSlotRequest;
-import ru.ambryo.gameplannerback.dto.ToggleTimeSlotsRequest;
+import ru.ambryo.gameplannerback.dto.TimeSlotsBatchRequest;
 import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.service.UserService;
 
@@ -120,65 +119,80 @@ public class PlayerController {
     }
     
     @Operation(
-        summary = "Переключить временной слот",
-        description = "Добавляет или удаляет временной слот для текущего игрока. Если слот существует - удаляет, если нет - добавляет."
+        summary = "Добавить несколько временных слотов",
+        description = "Массовое добавление слотов; уже занятые часы пропускаются"
     )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Временной слот успешно переключен"),
+        @ApiResponse(responseCode = "200", description = "Слоты обработаны"),
         @ApiResponse(responseCode = "400", description = "Неверные данные запроса"),
         @ApiResponse(responseCode = "401", description = "Требуется авторизация")
     })
-    @PostMapping(value = "/me/time-slots/toggle", consumes = "application/json", produces = "application/json")
-    public ResponseEntity<PlayerDto> toggleTimeSlot(
-            @RequestBody ToggleTimeSlotRequest request,
+    @PostMapping(value = "/me/time-slots/add-batch", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<PlayerDto> addTimeSlotsBatch(
+            @RequestBody TimeSlotsBatchRequest request,
             Authentication authentication) {
         try {
-            log.info("toggleTimeSlot request: {}", request);
-            log.info("toggleTimeSlot start: {}, duration: {}", 
-                request != null ? request.getStart() : null, 
-                request != null ? request.getDuration() : null);
-            
             User user = (User) authentication.getPrincipal();
-            if (request == null || request.getStart() == null) {
-                log.warn("toggleTimeSlot: invalid request - request or start is null");
+            if (request == null || request.getSlots() == null) {
                 return ResponseEntity.badRequest().build();
             }
-            
-            Integer duration = request.getDuration() != null ? request.getDuration() : 1;
-            log.info("toggleTimeSlot: user={}, start={}, duration={}", 
-                user.getId(), request.getStart(), duration);
-            
-            PlayerDto updatedPlayer = userService.toggleTimeSlot(user, request.getStart(), duration);
-            
-            log.info("toggleTimeSlot: success");
-            return ResponseEntity.ok(updatedPlayer);
-        } catch (Exception e) {
-            log.error("toggleTimeSlot: error", e);
+            for (TimeSlotsBatchRequest.TimeSlotItem slot : request.getSlots()) {
+                if (slot == null || slot.getStart() == null) {
+                    continue;
+                }
+                Integer d = slot.getDuration() != null ? slot.getDuration() : 1;
+                userService.addTimeSlot(user, slot.getStart(), d);
+            }
+            return ResponseEntity.ok(userService.getUserAsPlayer(user));
+        } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }
     }
-    
+
     @Operation(
-        summary = "Переключить несколько временных слотов",
-        description = "Массовое добавление/удаление временных слотов для текущего игрока"
+        summary = "Удалить несколько временных слотов",
+        description = "Массовое удаление слотов по началу часа"
     )
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Временные слоты успешно переключены"),
+        @ApiResponse(responseCode = "200", description = "Слоты обработаны"),
         @ApiResponse(responseCode = "400", description = "Неверные данные запроса"),
         @ApiResponse(responseCode = "401", description = "Требуется авторизация")
     })
-    @PostMapping("/me/time-slots/toggle-batch")
-    public ResponseEntity<PlayerDto> toggleTimeSlots(
-            @RequestBody ToggleTimeSlotsRequest request,
+    @PostMapping(value = "/me/time-slots/remove-batch", consumes = "application/json", produces = "application/json")
+    public ResponseEntity<PlayerDto> removeTimeSlotsBatch(
+            @RequestBody TimeSlotsBatchRequest request,
             Authentication authentication) {
         try {
             User user = (User) authentication.getPrincipal();
-            // Обрабатываем каждый слот
-            for (ToggleTimeSlotsRequest.TimeSlotRequest slot : request.getSlots()) {
-                userService.toggleTimeSlot(user, slot.getStart(), slot.getDuration());
+            if (request == null || request.getSlots() == null) {
+                return ResponseEntity.badRequest().build();
             }
-            PlayerDto updatedPlayer = userService.getUserAsPlayer(user);
-            return ResponseEntity.ok(updatedPlayer);
+            for (TimeSlotsBatchRequest.TimeSlotItem slot : request.getSlots()) {
+                if (slot == null || slot.getStart() == null) {
+                    continue;
+                }
+                Integer d = slot.getDuration() != null ? slot.getDuration() : 1;
+                userService.removeTimeSlot(user, slot.getStart(), d);
+            }
+            return ResponseEntity.ok(userService.getUserAsPlayer(user));
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
+        }
+    }
+
+    @Operation(
+        summary = "Удалить все временные слоты",
+        description = "Очищает всю разметку доступности текущего игрока"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Слоты очищены"),
+        @ApiResponse(responseCode = "401", description = "Требуется авторизация")
+    })
+    @DeleteMapping(value = "/me/time-slots", produces = "application/json")
+    public ResponseEntity<PlayerDto> clearAllTimeSlots(Authentication authentication) {
+        try {
+            User user = (User) authentication.getPrincipal();
+            return ResponseEntity.ok(userService.clearAllTimeSlots(user));
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).build();
         }

@@ -414,9 +414,14 @@ const CalendarTimeline = ({
       }
     }
     
+    const removeMode =
+      Boolean(selectedPlayerId) &&
+      Boolean(dragStart) &&
+      isTimeSlotSelected(dragStart.date, dragStart.hour)
+
     // Если есть обработчик для массового выбора, используем его
     if (onTimeSlotsSelect && selectedSlots.length > 0) {
-      onTimeSlotsSelect(selectedSlots)
+      onTimeSlotsSelect(selectedSlots, { mode: removeMode ? 'remove' : 'add' })
     } else if (onTimeSlotClick && selectedSlots.length === 1) {
       // Если только одна ячейка, используем обычный обработчик
       onTimeSlotClick(selectedSlots[0].date, selectedSlots[0].hour)
@@ -425,7 +430,7 @@ const CalendarTimeline = ({
     setIsDragging(false)
     setDragStart(null)
     setDragEnd(null)
-  }, [isDragging, dragStart, dragEnd, dates, hours, onTimeSlotsSelect, onTimeSlotClick, selectedPlayerId])
+  }, [isDragging, dragStart, dragEnd, dates, hours, onTimeSlotsSelect, onTimeSlotClick, selectedPlayerId, isTimeSlotSelected])
 
   useEffect(() => {
     if (isDragging) {

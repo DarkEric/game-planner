@@ -19,6 +19,8 @@ public class TimeSlotMarkingStateManager extends AbstractStateManager<TimeSlotMa
         public Instant dateInstant;  // Парсированная дата (начало дня в UTC)
         public Instant startInstant;  // Финальный Instant для слота (в UTC)
         public Integer duration;  // Продолжительность в часах
+        /** null — ещё не ответили; true — очистить все слоты перед добавлением */
+        public Boolean clearAllBeforeAdd;
     }
     
     // Хранение данных разметки времени: chatId -> TimeSlotMarkingData
@@ -27,6 +29,7 @@ public class TimeSlotMarkingStateManager extends AbstractStateManager<TimeSlotMa
     private static final long TIME_SLOT_MARKING_STATE_TIMEOUT_SECONDS = 300; // 5 минут таймаут состояния
     
     public enum TimeSlotMarkingState {
+        WAITING_CLEAR_BEFORE_ADD,
         WAITING_DATE,
         WAITING_TIME,
         WAITING_DURATION

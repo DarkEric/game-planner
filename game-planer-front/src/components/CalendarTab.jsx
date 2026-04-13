@@ -9,7 +9,6 @@ const CalendarTab = ({
     games,
     dates,
     hours,
-    onTimeSlotClick,
     onTimeSlotsSelect,
     onEventClick,
     onDateChange
@@ -40,7 +39,6 @@ const CalendarTab = ({
                         game: game
                     }
                 })}
-                onTimeSlotClick={onTimeSlotClick}
                 onTimeSlotsSelect={onTimeSlotsSelect}
                 onEventClick={onEventClick}
                 showAvailabilityOverlap={true}

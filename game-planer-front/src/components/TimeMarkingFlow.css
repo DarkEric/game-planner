@@ -73,6 +73,33 @@
   color: #ccc;
 }
 
+.time-marking-clear-fieldset {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.time-marking-clear-legend {
+  font-size: 0.85rem;
+  color: #bbb;
+  padding: 0 0.35rem;
+}
+
+.time-marking-clear-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.82rem;
+  color: #ccc;
+  margin-top: 0.45rem;
+  cursor: pointer;
+}
+
+.time-marking-clear-option input {
+  margin-top: 0.2rem;
+}
+
 .time-marking-moscow-note {
   font-size: 0.8rem;
   color: #7a7a8c;
