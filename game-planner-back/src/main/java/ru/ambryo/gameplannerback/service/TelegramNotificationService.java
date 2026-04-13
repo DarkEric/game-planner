@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
@@ -31,12 +32,18 @@ import java.util.List;
 public class TelegramNotificationService extends TelegramLongPollingBot {
     
     private static final Logger logger = LoggerFactory.getLogger(TelegramNotificationService.class);
+
+    private final String configuredBotToken;
+    
+    public TelegramNotificationService(
+            @Autowired(required = false) DefaultBotOptions telegramBotOptions,
+            @Value("${telegram.bot.token:}") String botToken) {
+        super(telegramBotOptions != null ? telegramBotOptions : new DefaultBotOptions(), botToken);
+        this.configuredBotToken = botToken;
+    }
     
     @Value("${telegram.bot.enabled:false}")
     private boolean enabled;
-    
-    @Value("${telegram.bot.token:}")
-    private String botToken;
     
     @Value("${telegram.bot.chat-id:}")
     private String chatId;
@@ -49,6 +56,10 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     
     @Value("${telegram.bot.timezone:Europe/Moscow}")
     private String timezoneId;
+
+    /** Только для лога: при непустом значении включён {@link java.net.Authenticator} для SOCKS5. */
+    @Value("${telegram.bot.proxy.username:}")
+    private String proxyAuthUsername;
     
     @Autowired
     private UserRepository userRepository;
@@ -134,14 +145,9 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         return "GamePlannerBot";
     }
     
-    @Override
-    public String getBotToken() {
-        return botToken;
-    }
-    
     @PostConstruct
     public void registerBotCommands() {
-        if (!enabled || botToken == null || botToken.isEmpty()) {
+        if (!enabled || configuredBotToken == null || configuredBotToken.isEmpty()) {
             logger.debug("Telegram bot disabled or token not set, skipping command registration");
             return;
         }
@@ -270,6 +276,15 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
         logger.info("Thread ID: {}", threadId != null && !threadId.trim().isEmpty() ? threadId : "NOT SET");
         logger.info("Frontend URL: {}", frontendUrl);
         logger.info("Timezone: {} ({})", timezoneId, getTimezoneName());
+        DefaultBotOptions opts = getOptions();
+        if (opts.getProxyType() != DefaultBotOptions.ProxyType.NO_PROXY) {
+            logger.info("Proxy: {} {}:{}", opts.getProxyType(), opts.getProxyHost(), opts.getProxyPort());
+            if (proxyAuthUsername != null && !proxyAuthUsername.isBlank()) {
+                logger.info("Proxy auth: enabled (user: {})", proxyAuthUsername);
+            }
+        } else {
+            logger.info("Proxy: none");
+        }
         logger.info("==================================");
     }
     
