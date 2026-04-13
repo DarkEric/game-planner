@@ -213,11 +213,19 @@ Game Planner supports sending notifications to Telegram when new games are creat
 TELEGRAM_BOT_ENABLED=true
 TELEGRAM_BOT_TOKEN=your_token
 TELEGRAM_BOT_CHAT_ID=your_chat_id
+TELEGRAM_BOT_THREAD_ID=
+TELEGRAM_BOT_TIMEZONE=Europe/Moscow
 FRONTEND_URL=http://localhost:5173
+# Optional SOCKS5 to Telegram API — see docs/telegram/TELEGRAM_SETUP.md
+# TELEGRAM_BOT_PROXY_ENABLED=true
+# TELEGRAM_BOT_PROXY_HOST=127.0.0.1
+# TELEGRAM_BOT_PROXY_PORT=1080
+# TELEGRAM_BOT_PROXY_USERNAME=
+# TELEGRAM_BOT_PROXY_PASSWORD=
 ```
 4. Restart the application
 
-📖 **Detailed guide:** [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md)
+📖 **Detailed guide:** [docs/telegram/TELEGRAM_SETUP.md](docs/telegram/TELEGRAM_SETUP.md)
 
 ## 🐛 Troubleshooting
 

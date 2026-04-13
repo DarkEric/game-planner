@@ -70,6 +70,13 @@ telegram.bot.enabled=${TELEGRAM_BOT_ENABLED:false}
 telegram.bot.token=${TELEGRAM_BOT_TOKEN:}
 telegram.bot.chat-id=${TELEGRAM_BOT_CHAT_ID:}
 app.frontend.url=${FRONTEND_URL:http://localhost:5173}
+
+# Optional SOCKS5 proxy (all Telegram API traffic)
+telegram.bot.proxy.enabled=${TELEGRAM_BOT_PROXY_ENABLED:false}
+telegram.bot.proxy.host=${TELEGRAM_BOT_PROXY_HOST:}
+telegram.bot.proxy.port=${TELEGRAM_BOT_PROXY_PORT:1080}
+telegram.bot.proxy.username=${TELEGRAM_BOT_PROXY_USERNAME:}
+telegram.bot.proxy.password=${TELEGRAM_BOT_PROXY_PASSWORD:}
 ```
 
 ### Environment Variables
@@ -80,9 +87,17 @@ app.frontend.url=${FRONTEND_URL:http://localhost:5173}
 | `TELEGRAM_BOT_TOKEN` | Yes* | - | Bot token from @BotFather |
 | `TELEGRAM_BOT_CHAT_ID` | Yes* | - | Target chat/channel ID |
 | `TELEGRAM_BOT_THREAD_ID` | No | - | Thread ID for topics in supergroups |
+| `TELEGRAM_BOT_TIMEZONE` | No | `Europe/Moscow` | Timezone for notification text |
+| `TELEGRAM_BOT_PROXY_ENABLED` | No | `false` | Use SOCKS5 for Telegram API |
+| `TELEGRAM_BOT_PROXY_HOST` | Conditional | - | SOCKS5 host; must be non-empty when proxy is enabled |
+| `TELEGRAM_BOT_PROXY_PORT` | No | `1080` | SOCKS5 port |
+| `TELEGRAM_BOT_PROXY_USERNAME` | No | - | SOCKS5 username; if set, JVM `Authenticator` is installed |
+| `TELEGRAM_BOT_PROXY_PASSWORD` | No | - | SOCKS5 password (used with username) |
 | `FRONTEND_URL` | No | `http://localhost:5173` | Frontend URL for links |
 
 *Required only when `TELEGRAM_BOT_ENABLED=true`
+
+When `TELEGRAM_BOT_PROXY_ENABLED=true`, `TELEGRAM_BOT_PROXY_HOST` must be set to a non-empty value.
 
 ## Dependencies
 

@@ -33,6 +33,8 @@ Game Planner поддерживает отправку уведомлений в
 TELEGRAM_BOT_ENABLED=true
 TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
 TELEGRAM_BOT_CHAT_ID=123456789
+TELEGRAM_BOT_THREAD_ID=
+TELEGRAM_BOT_TIMEZONE=Europe/Moscow
 FRONTEND_URL=http://localhost:5173
 ```
 
@@ -41,8 +43,56 @@ FRONTEND_URL=http://localhost:5173
 TELEGRAM_BOT_ENABLED=true
 TELEGRAM_BOT_TOKEN=ваш_токен
 TELEGRAM_BOT_CHAT_ID=ваш_chat_id
+TELEGRAM_BOT_THREAD_ID=
+TELEGRAM_BOT_TIMEZONE=Europe/Moscow
 FRONTEND_URL=https://your-domain.com
 ```
+
+### 3.1. SOCKS5-прокси (опционально)
+
+Если сервер не имеет прямого доступа к `api.telegram.org`, можно направить **весь** трафик бота (long polling и отправка сообщений) через SOCKS5.
+
+```env
+TELEGRAM_BOT_PROXY_ENABLED=true
+TELEGRAM_BOT_PROXY_HOST=127.0.0.1
+TELEGRAM_BOT_PROXY_PORT=1080
+# Если прокси требует логин/пароль:
+TELEGRAM_BOT_PROXY_USERNAME=myuser
+TELEGRAM_BOT_PROXY_PASSWORD=mypassword
+```
+
+- При `TELEGRAM_BOT_PROXY_ENABLED=true` обязательно задайте непустой `TELEGRAM_BOT_PROXY_HOST`.
+- Порт по умолчанию: `1080`.
+- Если `TELEGRAM_BOT_PROXY_USERNAME` не пустой, для авторизации SOCKS5 используется `java.net.Authenticator` **на весь процесс JVM** (учитывайте, если в том же процессе есть другой код с SOCKS на тот же хост:порт).
+
+### 3.2. Прокси на хост-машине, приложение в Docker
+
+Внутри контейнера `127.0.0.1` — это **сам контейнер**, а не ваш ПК/сервер. Чтобы достучаться до SOCKS5, слушающего на хосте:
+
+**Docker Desktop (Windows, macOS)** — обычно уже есть имя хоста:
+
+```env
+TELEGRAM_BOT_PROXY_ENABLED=true
+TELEGRAM_BOT_PROXY_HOST=host.docker.internal
+TELEGRAM_BOT_PROXY_PORT=1080
+```
+
+**Linux (docker compose)** — добавьте маппинг и используйте тот же хост:
+
+```yaml
+services:
+  backend:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+```
+
+```env
+TELEGRAM_BOT_PROXY_HOST=host.docker.internal
+```
+
+Альтернатива на Linux без `extra_hosts`: IP шлюза bridge (часто `172.17.0.1`) или реальный LAN-IP хоста — зависит от сети.
+
+**На стороне прокси на хосте** убедитесь, что он слушает не только `127.0.0.1`, если вы подключаетесь с «внешнего» IP шлюза: для локальной разработки часто достаточно `0.0.0.0:1080` или явной привязки к `host.docker.internal` после проверки политикой безопасности.
 
 ### 4. Перезапуск приложения
 

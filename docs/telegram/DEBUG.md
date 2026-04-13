@@ -14,6 +14,12 @@ TELEGRAM_BOT_ENABLED=true
 TELEGRAM_BOT_TOKEN=123456789:ABC...
 TELEGRAM_BOT_CHAT_ID=-1001234567890
 TELEGRAM_BOT_THREAD_ID=5
+# при SOCKS5 дополнительно:
+TELEGRAM_BOT_PROXY_ENABLED=true
+TELEGRAM_BOT_PROXY_HOST=127.0.0.1
+TELEGRAM_BOT_PROXY_PORT=1080
+TELEGRAM_BOT_PROXY_USERNAME=
+TELEGRAM_BOT_PROXY_PASSWORD=
 ```
 
 **Проблемы:**
@@ -33,12 +39,16 @@ Enabled: true
 Chat ID: -1001234567890
 Thread ID: 5
 Frontend URL: http://localhost:5173
+Proxy: SOCKS5 127.0.0.1:1080
+Proxy auth: enabled (user: myuser)
 ==================================
 ```
 
 **Проблемы:**
 - `Thread ID: NOT SET` → переменная не передается в контейнер
 - Секция не отображается → бот не инициализирован (проверьте `TELEGRAM_BOT_ENABLED`)
+- Ожидали прокси, в логах `Proxy: none` → проверьте `TELEGRAM_BOT_PROXY_ENABLED` и что переменные попали в контейнер (`env | grep PROXY`)
+- Падение при старте с текстом про `proxy.host` → при `TELEGRAM_BOT_PROXY_ENABLED=true` нужен непустой `TELEGRAM_BOT_PROXY_HOST`
 
 ### 3. Проверка логов при отправке
 

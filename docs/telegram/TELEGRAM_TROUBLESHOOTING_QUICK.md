@@ -98,4 +98,15 @@ TELEGRAM_BOT_THREAD_ID=5
 
 ---
 
+## Бот не достигает Telegram (SOCKS5)
+
+1. Проверьте переменные: `docker exec game-planner-backend env | grep TELEGRAM_BOT_PROXY`
+2. При `TELEGRAM_BOT_PROXY_ENABLED=true` задайте непустой `TELEGRAM_BOT_PROXY_HOST` и корректный `TELEGRAM_BOT_PROXY_PORT`
+3. Для прокси с логином задайте `TELEGRAM_BOT_PROXY_USERNAME` и `TELEGRAM_BOT_PROXY_PASSWORD`
+4. В логах при старте бота смотрите строки `Proxy:` и при необходимости `Proxy auth:`
+
+Подробнее: [TELEGRAM_SETUP.md](TELEGRAM_SETUP.md) (раздел «SOCKS5-прокси»).
+
+---
+
 📖 **Полное руководство:** [docs/TELEGRAM_DEBUG.md](docs/TELEGRAM_DEBUG.md)
