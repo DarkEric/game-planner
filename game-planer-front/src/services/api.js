@@ -435,7 +435,7 @@ export const playerApi = {
     const wallTz = resolveWallClockTimezone(getLastSetUserTimezone(), getUserTimezoneForAPI())
     const slotsData = slots.map(s => {
       if (s.wholeDay) {
-        const start = utcDateFromZonedWallClock(s.year, s.month - 1, s.day, 0, 0, 0, wallTz)
+        const start = utcDateFromZonedWallClock(s.year, s.month - 1, s.day, 0, 0, wallTz)
         return {
           start: start.toISOString(),
           duration: 24
