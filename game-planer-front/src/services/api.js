@@ -1,6 +1,7 @@
 import { getUserTimezone } from '../utils/dateUtils'
 import { parseFromServer, formatForServer } from '../utils/timezoneUtils'
 import { utcDateFromZonedWallClock } from '../utils/zonedWallTime'
+import { resolveWallClockTimezone, isValidIanaTimezone } from '../utils/timezoneValidation.js'
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
@@ -8,7 +9,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || '/api'
 let currentUserTimezone = null
 
 export const setUserTimezone = (timezone) => {
-  currentUserTimezone = timezone
+  currentUserTimezone = isValidIanaTimezone(timezone) ? timezone : null
 }
 
 /** @returns {string|null} последний TZ из профиля (если setUserTimezone вызывали) */
@@ -431,7 +432,7 @@ export const playerApi = {
    * @param {Array<{ year: number, month: number, day: number, hour: number, minute?: number, duration: number } | { year: number, month: number, day: number, wholeDay: true }>} slots
    */
   async addTimeSlotsWallClockBatch(slots) {
-    const wallTz = getLastSetUserTimezone() || getUserTimezoneForAPI()
+    const wallTz = resolveWallClockTimezone(getLastSetUserTimezone(), getUserTimezoneForAPI())
     const slotsData = slots.map(s => {
       if (s.wholeDay) {
         const start = utcDateFromZonedWallClock(s.year, s.month - 1, s.day, 0, 0, 0, wallTz)
