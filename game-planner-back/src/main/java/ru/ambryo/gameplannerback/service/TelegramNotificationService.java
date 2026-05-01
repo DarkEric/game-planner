@@ -16,6 +16,7 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.ambryo.gameplannerback.dto.GameDto;
+import ru.ambryo.gameplannerback.dto.GameUpdateNotifyKind;
 import ru.ambryo.gameplannerback.entity.Game;
 import ru.ambryo.gameplannerback.entity.GameNotification;
 import ru.ambryo.gameplannerback.entity.User;
@@ -302,7 +303,67 @@ public class TelegramNotificationService extends TelegramLongPollingBot {
     public void sendGameHeldNotification(GameDto game) {
         groupNotificationSender.sendGameHeldNotification(game);
     }
-    
+
+    /**
+     * Группа + персональные уведомления об изменении игры (перенос или смена названия).
+     */
+    public void sendGameUpdatedNotifications(GameDto gameDto, Game game, GameUpdateNotifyKind kind,
+            Instant oldStart, Instant oldEnd, String oldTitle) {
+        if (!enabled) {
+            return;
+        }
+
+        switch (kind) {
+            case RESCHEDULE -> {
+                groupNotificationSender.sendGameRescheduledNotification(gameDto, oldStart, oldEnd);
+                sendPersonalGameUpdatedNotifications(gameDto, game, kind, oldStart, oldEnd, oldTitle);
+            }
+            case TITLE_CHANGE -> {
+                groupNotificationSender.sendGameTitleChangedNotification(gameDto, oldTitle);
+                sendPersonalGameUpdatedNotifications(gameDto, game, kind, oldStart, oldEnd, oldTitle);
+            }
+        }
+    }
+
+    private void sendPersonalGameUpdatedNotifications(GameDto gameDto, Game game, GameUpdateNotifyKind kind,
+            Instant oldStart, Instant oldEnd, String oldTitle) {
+        List<User> allUsers = userRepository.findAll();
+
+        for (User user : allUsers) {
+            if (user.getTelegramSubscribed() == null || !user.getTelegramSubscribed()) {
+                continue;
+            }
+
+            UserNotificationSettings settings = settingsRepository.findByUserId(user.getId()).orElse(null);
+            if (settings == null) {
+                continue;
+            }
+
+            String setting = settings.getGameCreated();
+            boolean shouldNotify = false;
+
+            if ("ALL".equals(setting)) {
+                shouldNotify = true;
+            } else if ("MY_GAMES".equals(setting)) {
+                boolean isParticipant = game.getParticipants().stream()
+                        .anyMatch(p -> p.getId().equals(user.getId()));
+                boolean isCreator = game.getCreator().getId().equals(user.getId());
+                shouldNotify = isParticipant || isCreator;
+            }
+
+            if (!shouldNotify) {
+                continue;
+            }
+
+            switch (kind) {
+                case RESCHEDULE -> gameNotificationSender.sendGameRescheduledNotification(
+                        gameDto, user, oldStart, oldEnd);
+                case TITLE_CHANGE -> gameNotificationSender.sendGameTitleChangedNotification(
+                        gameDto, user, oldTitle);
+            }
+        }
+    }
+
     // Персональные уведомления делегируются в PersonalNotificationSender и GameNotificationSender
     
     /**

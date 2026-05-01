@@ -6,12 +6,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.ambryo.gameplannerback.dto.CreateGameRequest;
 import ru.ambryo.gameplannerback.dto.GameDto;
+import ru.ambryo.gameplannerback.dto.GameUpdateNotifyKind;
+import ru.ambryo.gameplannerback.dto.UpdateGameRequest;
 import ru.ambryo.gameplannerback.entity.*;
 import ru.ambryo.gameplannerback.repository.*;
 
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -303,6 +306,74 @@ public class GameService {
         asyncTelegramNotificationService.sendGameHeldNotificationsAsync(gameDto, game);
 
         return gameDto;
+    }
+
+    @Transactional
+    public GameDto updateGame(Long gameId, UpdateGameRequest request, User user) {
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new RuntimeException("Game not found"));
+
+        if (!game.getCreator().getId().equals(user.getId())) {
+            throw new RuntimeException("Only creator can update the game");
+        }
+
+        if (request.getStartTime() == null || request.getEndTime() == null) {
+            throw new RuntimeException("startTime and endTime are required");
+        }
+
+        if (!request.getEndTime().isAfter(request.getStartTime())) {
+            throw new RuntimeException("endTime must be after startTime");
+        }
+
+        final Long creatorId = game.getCreator().getId();
+        long participantCountWithoutCreator = game.getParticipants().stream()
+                .filter(p -> !p.getId().equals(creatorId))
+                .count();
+
+        Integer maxP = request.getMaxParticipants();
+        if (maxP != null && maxP < participantCountWithoutCreator) {
+            throw new RuntimeException("maxParticipants cannot be less than current player count");
+        }
+
+        Instant oldStart = game.getStartTime();
+        Instant oldEnd = game.getEndTime();
+        String oldTitle = game.getTitle();
+
+        boolean timeChanged = !Objects.equals(oldStart, request.getStartTime())
+                || !Objects.equals(oldEnd, request.getEndTime());
+        boolean titleChanged = !titlesEqual(game.getTitle(), request.getTitle());
+
+        boolean notifyEligible = !game.isHeld() && oldEnd.isAfter(Instant.now());
+
+        game.setStartTime(request.getStartTime());
+        game.setEndTime(request.getEndTime());
+        game.setTitle(normalizeGameTitle(request.getTitle()));
+        game.setDescription(request.getDescription());
+        game.setMaxParticipants(maxP);
+
+        game = gameRepository.save(game);
+        GameDto gameDto = convertToDto(game);
+
+        if (notifyEligible && timeChanged) {
+            asyncTelegramNotificationService.sendGameUpdatedNotificationsAsync(
+                    gameDto, game, GameUpdateNotifyKind.RESCHEDULE, oldStart, oldEnd, oldTitle);
+        } else if (notifyEligible && titleChanged) {
+            asyncTelegramNotificationService.sendGameUpdatedNotificationsAsync(
+                    gameDto, game, GameUpdateNotifyKind.TITLE_CHANGE, oldStart, oldEnd, oldTitle);
+        }
+
+        return gameDto;
+    }
+
+    private static String normalizeGameTitle(String title) {
+        if (title == null || title.isBlank()) {
+            return null;
+        }
+        return title.trim();
+    }
+
+    private static boolean titlesEqual(String a, String b) {
+        return Objects.equals(normalizeGameTitle(a), normalizeGameTitle(b));
     }
 
     private GameDto convertToDto(Game game) {

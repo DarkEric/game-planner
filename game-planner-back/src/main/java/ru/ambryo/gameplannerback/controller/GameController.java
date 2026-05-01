@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import ru.ambryo.gameplannerback.dto.CreateGameRequest;
 import ru.ambryo.gameplannerback.dto.GameDto;
 import ru.ambryo.gameplannerback.dto.MarkGameHeldRequest;
+import ru.ambryo.gameplannerback.dto.UpdateGameRequest;
 import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.service.GameService;
 
@@ -135,6 +136,38 @@ public class GameController {
         }
     }
     
+    @Operation(
+        summary = "Обновить игру",
+        description = "Обновляет параметры игры (время, название, описание, лимит участников). Доступно только создателю."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Игра обновлена"),
+        @ApiResponse(responseCode = "400", description = "Неверные данные"),
+        @ApiResponse(responseCode = "403", description = "Только создатель может редактировать игру"),
+        @ApiResponse(responseCode = "404", description = "Игра не найдена")
+    })
+    @PutMapping("/{gameId}")
+    public ResponseEntity<GameDto> updateGame(
+            @Parameter(description = "ID игры", required = true)
+            @PathVariable Long gameId,
+            @RequestBody UpdateGameRequest request,
+            Authentication authentication) {
+        try {
+            User user = (User) authentication.getPrincipal();
+            GameDto game = gameService.updateGame(gameId, request, user);
+            return ResponseEntity.ok(game);
+        } catch (RuntimeException e) {
+            String message = e.getMessage();
+            if ("Game not found".equals(message)) {
+                return ResponseEntity.notFound().build();
+            }
+            if (message != null && message.contains("Only creator")) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
     @Operation(
         summary = "Удалить игру",
         description = "Удаляет игру. Доступно только создателю игры. Можно указать причину отмены."

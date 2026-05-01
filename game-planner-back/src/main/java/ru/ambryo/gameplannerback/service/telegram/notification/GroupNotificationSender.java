@@ -10,6 +10,8 @@ import org.telegram.telegrambots.meta.bots.AbsSender;
 import ru.ambryo.gameplannerback.dto.GameDto;
 import ru.ambryo.gameplannerback.service.telegram.message.GameMessageBuilder;
 
+import java.time.Instant;
+
 /**
  * Отправитель групповых уведомлений
  */
@@ -83,7 +85,37 @@ public class GroupNotificationSender extends NotificationSender {
             logger.error("Failed to send Telegram held notification for game: {}", game.getTitle(), e);
         }
     }
-    
+
+    public void sendGameRescheduledNotification(GameDto game, Instant oldStart, Instant oldEnd) {
+        if (!enabled || chatId == null || chatId.isEmpty()) {
+            logger.debug("Telegram notifications disabled or chat ID not configured");
+            return;
+        }
+
+        try {
+            String message = messageBuilder.buildGameRescheduledMessage(game, oldStart, oldEnd);
+            sendGroupMessage(message);
+            logger.info("Telegram game rescheduled notification sent for game id {}", game.getId());
+        } catch (Exception e) {
+            logger.error("Failed to send game rescheduled notification for game id {}", game.getId(), e);
+        }
+    }
+
+    public void sendGameTitleChangedNotification(GameDto game, String oldTitle) {
+        if (!enabled || chatId == null || chatId.isEmpty()) {
+            logger.debug("Telegram notifications disabled or chat ID not configured");
+            return;
+        }
+
+        try {
+            String message = messageBuilder.buildGameTitleChangedMessage(game, oldTitle);
+            sendGroupMessage(message);
+            logger.info("Telegram game title changed notification sent for game id {}", game.getId());
+        } catch (Exception e) {
+            logger.error("Failed to send game title changed notification for game id {}", game.getId(), e);
+        }
+    }
+
     public void sendGroupTimeSlotReminder() {
         if (!enabled || chatId == null || chatId.isEmpty()) {
             logger.debug("Telegram notifications disabled or chat ID not configured");

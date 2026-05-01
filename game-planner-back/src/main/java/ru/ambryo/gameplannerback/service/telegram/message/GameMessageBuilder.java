@@ -7,6 +7,7 @@ import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.service.telegram.util.TelegramHtmlFormatter;
 import ru.ambryo.gameplannerback.service.telegram.util.TelegramTimeFormatter;
 
+import java.time.Instant;
 import java.time.ZoneId;
 
 /**
@@ -121,7 +122,79 @@ public class GameMessageBuilder {
         
         return message.toString();
     }
-    
+
+    /**
+     * Перенос игры: было / стало (актуальное время в game).
+     */
+    public String buildGameRescheduledMessage(GameDto game, Instant oldStart, Instant oldEnd) {
+        StringBuilder message = new StringBuilder();
+        message.append("📅 <b>Игра перенесена</b>\n\n");
+
+        appendTitleLine(message, game.getTitle());
+
+        message.append("🕐 <b>Было:</b> ")
+                .append(timeFormatter.formatInstant(oldStart))
+                .append(" – ")
+                .append(timeFormatter.formatInstant(oldEnd))
+                .append(" (")
+                .append(TelegramTimeFormatter.getTimezoneName(notificationZone))
+                .append(")\n");
+
+        message.append("🕐 <b>Стало:</b> ")
+                .append(timeFormatter.formatInstant(game.getStartTime()))
+                .append(" – ")
+                .append(timeFormatter.formatInstant(game.getEndTime()))
+                .append(" (")
+                .append(TelegramTimeFormatter.getTimezoneName(notificationZone))
+                .append(")\n");
+
+        message.append("👤 <b>Организатор:</b> ").append(TelegramHtmlFormatter.escapeHtml(game.getCreatorName())).append("\n");
+
+        String gameUrl = frontendUrl + "?gameId=" + game.getId();
+        message.append("\n🔗 <a href=\"").append(gameUrl).append("\">Открыть в веб-интерфейсе</a>");
+
+        return message.toString();
+    }
+
+    /**
+     * Изменено только название игры.
+     */
+    public String buildGameTitleChangedMessage(GameDto game, String oldTitle) {
+        StringBuilder message = new StringBuilder();
+        message.append("✏️ <b>Изменена игра</b>\n\n");
+
+        String oldLabel = (oldTitle != null && !oldTitle.isBlank())
+                ? TelegramHtmlFormatter.escapeHtml(oldTitle.trim())
+                : "без названия";
+        String newLabel = (game.getTitle() != null && !game.getTitle().isBlank())
+                ? TelegramHtmlFormatter.escapeHtml(game.getTitle().trim())
+                : "без названия";
+
+        message.append("📌 <b>Было:</b> ").append(oldLabel).append("\n");
+        message.append("📌 <b>Стало:</b> ").append(newLabel).append("\n\n");
+
+        message.append("🕐 <b>Время:</b> ")
+                .append(timeFormatter.formatInstant(game.getStartTime()))
+                .append(" – ")
+                .append(timeFormatter.formatInstant(game.getEndTime()))
+                .append(" (")
+                .append(TelegramTimeFormatter.getTimezoneName(notificationZone))
+                .append(")\n");
+
+        message.append("👤 <b>Организатор:</b> ").append(TelegramHtmlFormatter.escapeHtml(game.getCreatorName())).append("\n");
+
+        String gameUrl = frontendUrl + "?gameId=" + game.getId();
+        message.append("\n🔗 <a href=\"").append(gameUrl).append("\">Открыть в веб-интерфейсе</a>");
+
+        return message.toString();
+    }
+
+    private void appendTitleLine(StringBuilder message, String title) {
+        if (title != null && !title.isEmpty()) {
+            message.append("📌 <b>").append(TelegramHtmlFormatter.escapeHtml(title)).append("</b>\n\n");
+        }
+    }
+
     /**
      * Строит сообщение об отмене игры
      */

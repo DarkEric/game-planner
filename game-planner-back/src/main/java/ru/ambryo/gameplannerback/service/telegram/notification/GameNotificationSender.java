@@ -11,6 +11,8 @@ import ru.ambryo.gameplannerback.entity.User;
 import ru.ambryo.gameplannerback.service.telegram.keyboard.GamesMenuKeyboardBuilder;
 import ru.ambryo.gameplannerback.service.telegram.message.GameMessageBuilder;
 
+import java.time.Instant;
+
 /**
  * Отправитель уведомлений об играх
  */
@@ -100,6 +102,56 @@ public class GameNotificationSender extends PersonalNotificationSender {
         
         String message = messageBuilder.buildPlayerRemovedFromGameMessage(game);
         sendPersonalMessage(removedPlayer.getTelegramChatId(), message);
+    }
+
+    public void sendGameRescheduledNotification(GameDto game, User user, Instant oldStart, Instant oldEnd) {
+        if (canSendToUser(user)) {
+            return;
+        }
+
+        try {
+            String message = messageBuilder.buildGameRescheduledMessage(game, oldStart, oldEnd);
+            org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup keyboard =
+                    keyboardBuilder.buildGameKeyboard(game, user);
+
+            org.telegram.telegrambots.meta.api.methods.send.SendMessage sendMessage =
+                    new org.telegram.telegrambots.meta.api.methods.send.SendMessage();
+            sendMessage.setChatId(user.getTelegramChatId());
+            sendMessage.setText(message);
+            sendMessage.setParseMode("HTML");
+            sendMessage.setReplyMarkup(keyboard);
+
+            bot.execute(sendMessage);
+        } catch (org.telegram.telegrambots.meta.exceptions.TelegramApiException e) {
+            logger.error("Failed to send game rescheduled notification to user {}", user.getId(), e);
+        } catch (Exception e) {
+            logger.error("Unexpected error sending game rescheduled notification to user {}", user.getId(), e);
+        }
+    }
+
+    public void sendGameTitleChangedNotification(GameDto game, User user, String oldTitle) {
+        if (canSendToUser(user)) {
+            return;
+        }
+
+        try {
+            String message = messageBuilder.buildGameTitleChangedMessage(game, oldTitle);
+            org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup keyboard =
+                    keyboardBuilder.buildGameKeyboard(game, user);
+
+            org.telegram.telegrambots.meta.api.methods.send.SendMessage sendMessage =
+                    new org.telegram.telegrambots.meta.api.methods.send.SendMessage();
+            sendMessage.setChatId(user.getTelegramChatId());
+            sendMessage.setText(message);
+            sendMessage.setParseMode("HTML");
+            sendMessage.setReplyMarkup(keyboard);
+
+            bot.execute(sendMessage);
+        } catch (org.telegram.telegrambots.meta.exceptions.TelegramApiException e) {
+            logger.error("Failed to send game title changed notification to user {}", user.getId(), e);
+        } catch (Exception e) {
+            logger.error("Unexpected error sending game title changed notification to user {}", user.getId(), e);
+        }
     }
 }
 

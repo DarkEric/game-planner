@@ -6,9 +6,11 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import ru.ambryo.gameplannerback.dto.GameDto;
+import ru.ambryo.gameplannerback.dto.GameUpdateNotifyKind;
 import ru.ambryo.gameplannerback.entity.Game;
 import ru.ambryo.gameplannerback.entity.User;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -88,6 +90,16 @@ public class AsyncTelegramNotificationService {
             telegram().sendPersonalMessage(chatId, message);
         } catch (Exception e) {
             logger.error("Failed to send personal message via Telegram", e);
+        }
+    }
+
+    @Async
+    public void sendGameUpdatedNotificationsAsync(GameDto gameDto, Game game, GameUpdateNotifyKind kind,
+            Instant oldStart, Instant oldEnd, String oldTitle) {
+        try {
+            telegram().sendGameUpdatedNotifications(gameDto, game, kind, oldStart, oldEnd, oldTitle);
+        } catch (Exception e) {
+            logger.error("Failed to send Telegram game updated notifications", e);
         }
     }
 }
