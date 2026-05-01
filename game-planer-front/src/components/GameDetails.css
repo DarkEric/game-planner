@@ -114,13 +114,15 @@
 
 .game-details-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #333;
 }
 
 .game-action-button {
-  flex: 1;
+  flex: 1 1 180px;
+  min-width: 0;
   padding: 0.75rem 1.5rem;
   border-radius: 6px;
   font-size: 1rem;
@@ -128,6 +130,16 @@
   transition: all 0.2s;
   border: none;
   font-weight: 500;
+}
+
+@media (max-width: 640px) {
+  .game-details-actions {
+    flex-direction: column;
+  }
+
+  .game-action-button {
+    width: 100%;
+  }
 }
 
 .join-button {
